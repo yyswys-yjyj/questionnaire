@@ -35,5 +35,17 @@ QLang V2在完成即测试，其成绩：
 
 其他的没测试了，倒是可以大可一试   
 
+## QLang语法
+### 1.基本结构
+QLang的语法参考了C++，但又与C++十分相似：
+```
+int main(){
+  print("Hello Questionnaire Script Language");
+  return 0;
+}
+```
+
+> 待补充
+
 ## 反馈
 如果你发现了BUG或是AI容易混淆语法，或是你有什么好点子，你可以在这个项目提个issue
