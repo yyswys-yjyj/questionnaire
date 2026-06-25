@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "toolpkg_id": "com.operit.questionnaire.fix",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "main": "dist/main.js",
   "display_name": {
     "zh": "问卷提问",
     "en": "Questionnaire"
   },
   "description": {
-    "zh": "问卷提问 v1.5.2 - 基于liu-baia版本二次开发，新增QLang v2脚本解释器。",
-    "en": "Questionnaire v1.5.2 - based on liu-baia version, added QLang v2 interpreter."
+    "zh": "问卷提问 v1.5.3 - 基于地址表+作用域链重写QLang解释器，支持指针、取地址(&)和printf格式化输出。",
+    "en": "Questionnaire v1.5.3 - Rewritten QLang interpreter with address table + scope chain, supports pointers (&) and printf formatting."
   },
   "enabled_by_default": false,
   "subpackages": [

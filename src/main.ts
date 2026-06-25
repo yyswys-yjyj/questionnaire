@@ -82,7 +82,7 @@ function onXmlRender(event) {
                 title: "(标签错误)",
                 questions: [],
                 _hasInvalid: true,
-                _invalidQuestions: ["XML 标签错误：使用了 \"" + wrongTag + "\" 作为闭合标签，正确应为 &lt;/questionnaire&gt;"],
+                _invalidQuestions: ["XML 标签错误：使用了 \"" + wrongTag + "\" 作为闭合标签，正确应为 </questionnaire>"],
             };
             var invalidFp = simpleHash(xmlContent + "_wrong_close");
             return { handled: true, composeDsl: { screen: questionnaire_ui, state: { _data: JSON.stringify(invalidData), _chatId: (typeof getChatId === "function") ? getChatId() : "", _msgAtCreation: 0, _sessionId: String(_sessionId), _answers: "{}", _submitted: false, _expired: false, _collapsed: false, _collapsedForce: false, _otherInputs: "{}", _errorMsg: "", _infoOpen: false, _fingerprint: invalidFp }, memo: { fingerprint: invalidFp }, moduleSpec: { id: "questionnaire_" + invalidFp, runtime: "compose_dsl" } } };

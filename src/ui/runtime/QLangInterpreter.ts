@@ -1,15 +1,83 @@
+// QLang v2.1 — 地址表 + 作用域链 + 指针
 // @ts-nocheck
-// QLangInterpreter.ts — QLang v2 结果脚本引擎
-// 支持入口函数 main()、作用域、注释、return、自定义函数（预留）
 
-var QLANG_MAX_STACK_DEPTH = 100;
+var QLANG_MAX_STACK_DEPTH = 5000;
 var QLANG_TIMEOUT_MS = 10000;
 var QLANG_TOTAL_TIMEOUT_MS = 10000;
-var QLANG_MAX_ARRAY_SIZE = 1000000;
+var QLANG_MAX_ARRAY_SIZE = 5000000;
 var QLANG_MAX_VARS = 500;
-var QLANG_MAX_2D_ARRAY = 100000;
+var QLANG_MAX_2D_ARRAY = 1000000;
+var QLANG_MEMORY_SIZE = 268435456;
 
-// 从源代码去除注释
+// 内存表
+var QLANG_MEMORY = new Array(QLANG_MEMORY_SIZE);
+var QLANG_NEXT_ADDR = 1;
+var QLANG_SCOPE_ID = 0;
+
+function allocAddr() {
+    if (QLANG_NEXT_ADDR >= QLANG_MEMORY_SIZE) throw new ScriptError("内存空间超限");
+    return QLANG_NEXT_ADDR++;
+}
+
+// 作用域节点
+function createScope(parent) {
+    return { id: QLANG_SCOPE_ID++, parent: parent, vars: {} };
+}
+
+function declareVar(scope, name, value, type, isConst) {
+    var addr = allocAddr();
+    QLANG_MEMORY[addr] = value;
+    scope.vars[name] = { addr: addr, type: type, isConst: !!isConst };
+    return addr;
+}
+
+function declareArray(scope, name, size, type, initFn) {
+    var addr = allocAddr();
+    var arr = new Array(size);
+    var dv = defaultValue(type);
+    for (var _i = 0; _i < size; _i++) arr[_i] = initFn ? initFn(_i) : dv;
+    QLANG_MEMORY[addr] = arr;
+    scope.vars[name] = { addr: addr, type: type + "[]", isConst: false };
+    return addr;
+}
+
+function findVar(scope, name) {
+    var s = scope;
+    while (s) {
+        if (s.vars[name] !== undefined) return { info: s.vars[name], scope: s };
+        s = s.parent;
+    }
+    return null;
+}
+
+function getVar(scope, name) {
+    var found = findVar(scope, name);
+    if (!found) throw new ScriptError("未定义: " + name);
+    return QLANG_MEMORY[found.info.addr];
+}
+
+function setVar(scope, name, value) {
+    var found = findVar(scope, name);
+    if (!found) { declareVar(scope, name, value, "auto", false); return; }
+    if (found.info.isConst) throw new ScriptError("不能修改 const: " + name);
+    QLANG_MEMORY[found.info.addr] = value;
+}
+
+function addrOf(scope, name) {
+    var found = findVar(scope, name);
+    if (!found) throw new ScriptError("未定义: " + name);
+    return found.info.addr;
+}
+
+function ScriptError(msg) {
+    this.name = "ScriptError";
+    this.message = msg;
+}
+ScriptError.prototype = new Error();
+
+// ===== Tokenizer + Parser =====
+// @ts-nocheck
+
 function removeQLangComments(code) {
     // 去除 // 单行注释
     code = code.replace(/\/\/.*$/gm, '');
@@ -70,13 +138,13 @@ function tokenize(code) {
             var start = i;
             while (i < code.length && /[a-zA-Z0-9_]/.test(code[i])) i++;
             var word = code.substring(start, i);
-            var keywords = { 'int': true, 'float': true, 'double': true, 'char': true, 'string': true, 'bool': true, 'true': true, 'false': true, 'if': true, 'else': true, 'while': true, 'for': true, 'return': true, 'void': true, 'const': true, 'break': true, 'continue': true, 'stack': true, 'queue': true, 'vector': true, 'pair': true, 'priority_queue': true };
+            var keywords = { 'int': true, 'float': true, 'double': true, 'char': true, 'string': true, 'bool': true, 'true': true, 'false': true, 'if': true, 'else': true, 'while': true, 'for': true, 'return': true, 'void': true, 'const': true, 'break': true, 'continue': true, 'stack': true, 'queue': true, 'vector': true, 'pair': true, 'priority_queue': true, 'struct': true, 'new': true };
             tokens.push({ type: keywords[word] ? 'keyword' : 'identifier', value: word, line: line });
             continue;
         }
         // 多字符操作符
         var twoChar = code.substring(i, i + 2);
-        var twoOps = { '++': true, '--': true, '<<': true, '>>': true, '>=': true, '<=': true, '==': true, '!=': true, '&&': true, '||': true, '+=': true, '-=': true, '*=': true, '/=': true, '%=': true };
+        var twoOps = { '++': true, '--': true, '<<': true, '>>': true, '>=': true, '<=': true, '==': true, '!=': true, '&&': true, '||': true, '+=': true, '-=': true, '*=': true, '/=': true, '%=': true, '->': true };
         if (twoOps[twoChar]) {
             tokens.push({ type: 'operator', value: twoChar, line: line });
             i += 2;
@@ -94,6 +162,7 @@ function tokenize(code) {
 function parse(code) {
     var tokens = tokenize(code);
     var pos = 0;
+    var structTypeNames = {}; // 已注册的结构体类型名
     
     function peek() { return pos < tokens.length ? tokens[pos] : { type: 'eof', value: '' }; }
     function consume() { return pos < tokens.length ? tokens[pos++] : { type: 'eof', value: '' }; }
@@ -123,6 +192,24 @@ function parse(code) {
         return { type: 'function', returnType: returnType, name: name, params: params, body: body };
     }
     
+    // 解析结构体定义 struct Name { type field; ... }
+    function parseStructDef() {
+        consume(); // struct
+        var name = expect('identifier').value;
+        structTypeNames[name] = true; // 注册结构体类型名
+        expect('symbol', '{');
+        var fields = [];
+        while (peek().value !== '}') {
+            var ft = consume().value; // field type
+            var fn = expect('identifier').value;
+            expect('symbol', ';');
+            fields.push({ type: ft, name: fn });
+        }
+        expect('symbol', '}');
+        expect('symbol', ';');
+        return { type: 'structDef', structName: name, fields: fields };
+    }
+    
     // 解析语句块
     function parseBlock() {
         var stmts = [];
@@ -143,10 +230,44 @@ function parse(code) {
             var body = parseBlock();
             return { type: 'block', body: body };
         }
-        // 变量声明（含 const）
+        // 变量声明或函数定义（函数定义优先检测）
         var typeKeywords = { 'int': true, 'float': true, 'double': true, 'char': true, 'string': true, 'bool': true, 'stack': true, 'queue': true, 'vector': true, 'pair': true, 'priority_queue': true };
+        // 检测函数定义：类型/vod + 标识符 + ( 或 类型/vod + 标识符 + 类型 + 标识符 + (
+        var isFuncDef = false;
+        // 辅助：查找从 p 开始第一个 ( 的位置，且中间只有合法的参数声明（类型+名称，逗号分隔）
+        function looksLikeFunc(p) {
+            var i = p;
+            if (peek().value === 'void') { i += 1; } else { i += 2; } // 跳过返回类型+函数名，或者 void+函数名
+            // 现在应该遇到 ( 或者参数类型
+            if (i < tokens.length && tokens[i].value === '(') return true;
+            // 如果遇到 = 或 ; 则不是函数定义
+            while (i < tokens.length && tokens[i].value !== '(' && tokens[i].value !== '{' && tokens[i].value !== ';' && tokens[i].value !== '=') {
+                i++;
+            }
+            return i < tokens.length && tokens[i].value === '(';
+        }
+        if (peek().value === 'void' || typeKeywords[peek().value]) {
+            if (tokens[pos + 1] && tokens[pos + 1].type === 'identifier' && looksLikeFunc(pos)) {
+                isFuncDef = true;
+            }
+        }
+        if (isFuncDef) {
+            return parseFunction();
+        }
         if (typeKeywords[peek().value] || (peek().value === 'const' && tokens[pos + 1] && typeKeywords[tokens[pos + 1].value])) {
             return parseVarDecl();
+        }
+        // 结构体指针变量声明 Node* name
+        if (peek().type === 'identifier' && tokens[pos + 1] && tokens[pos + 1].value === '*' && tokens[pos + 2] && tokens[pos + 2].type === 'identifier') {
+            return parseStructPtrDecl();
+        }
+        // 结构体变量声明 Node name（不带指针）
+        if (peek().type === 'identifier' && tokens[pos + 1] && tokens[pos + 1].type === 'identifier' && structTypeNames[peek().value]) {
+            return parseStructPtrDecl(false);
+        }
+        // 结构体定义 struct Name { ... }
+        if (peek().value === 'struct') {
+            return parseStructDef();
         }
         // PHP风格变量定义 $var = value
         if (peek().type === 'phpVar' && tokens[pos + 1] && tokens[pos + 1].value === '=') {
@@ -171,6 +292,18 @@ function parse(code) {
         var init = parseExpression();
         expect('symbol', ';');
         return { type: 'phpVarDecl', name: name, init: init };
+    }
+    
+    // 结构体变量声明 Node* name 或 Node name（isPtr参数）
+    function parseStructPtrDecl(isPtr) {
+        if (isPtr === undefined) isPtr = true;
+        var typeName = consume().value; // Node
+        if (isPtr) consume(); // 消耗 *
+        var name = expect('identifier').value;
+        var init = null;
+        if (peek().value === '=') { consume(); init = parseExpression(); }
+        expect('symbol', ';');
+        return { type: 'varDecl', varType: typeName + (isPtr ? '*' : ''), name: name, init: init, isConst: false };
     }
     
     function parseVarDecl() {
@@ -394,6 +527,40 @@ function parse(code) {
                 expect('symbol', ';');
                 return { type: 'memberAssign', obj: objName, member: memberName, value: value };
             }
+            // 箭头成员赋值 ptr->member = expr
+            if (tokens[pos + 1] && tokens[pos + 1].type === 'operator' && tokens[pos + 1].value === '->' && tokens[pos + 2] && tokens[pos + 3] && tokens[pos + 3].value === '=') {
+                var ptrName = consume().value;
+                consume(); // ->
+                var arrowMember = expect('identifier').value;
+                consume(); // =
+                var value = parseExpression();
+                expect('symbol', ';');
+                return { type: 'arrowAssign', ptr: ptrName, member: arrowMember, value: value };
+            }
+        }
+        // 括号表达式赋值 (*ptr).member = expr
+        if (peek().value === '(') {
+            var savedPos = pos;
+            consume();
+            if (peek().value === '*') {
+                consume();
+                if (peek().type === 'identifier') {
+                    var derefName = consume().value;
+                    if (peek().value === ')') {
+                        consume();
+                        if (peek().value === '.' && tokens[pos + 1] && tokens[pos + 2] && tokens[pos + 2].value === '=') {
+                            consume(); // .
+                            var memberName = expect('identifier').value;
+                            consume(); // =
+                            var value = parseExpression();
+                            expect('symbol', ';');
+                            return { type: 'derefAssign', ptrName: derefName, member: memberName, value: value };
+                        }
+                    }
+                }
+            }
+            // 不匹配则回退
+            pos = savedPos;
         }
         var expr = parseExpression();
         expect('symbol', ';');
@@ -407,7 +574,7 @@ function parse(code) {
     
     function parseLogic() {
         var left = parseCompare();
-        while (peek().value === '&&' || peek().value === '||') {
+        while (peek().value === '&&' || peek().value === '||' || peek().value === 'and' || peek().value === 'or') {
             var op = consume().value;
             var right = parseCompare();
             left = { type: 'binary', op: op, left: left, right: right };
@@ -454,11 +621,48 @@ function parse(code) {
             var op = consume().value;
             return { type: 'unary', op: op, arg: parseUnary() };
         }
+        // 前缀 ++/--
+        if (peek().value === '++') {
+            consume();
+            var id = expect('identifier').value;
+            return { type: 'unary', op: '++', arg: { type: 'variable', name: id } };
+        }
+        if (peek().value === '--') {
+            consume();
+            var id2 = expect('identifier').value;
+            return { type: 'unary', op: '--', arg: { type: 'variable', name: id2 } };
+        }
+        // 取地址 &var
+        if (peek().value === '&') {
+            consume();
+            var id = expect('identifier').value;
+            return { type: 'addrOf', name: id };
+        }
+        // 解引用 *ptr
+        if (peek().value === '*') {
+            consume();
+            return { type: 'deref', expr: parseUnary() };
+        }
         return parsePrimary();
     }
     
     function parsePrimary() {
         var t = peek();
+        // new 表达式: new Type 或 new Type(args...)
+        if (t.value === 'new') {
+            consume();
+            var typeName = consume().value;
+            var cArgs = [];
+            if (peek().value === '(') {
+                consume();
+                while (peek().value !== ')') {
+                    cArgs.push(parseExpression());
+                    if (peek().value === ',') consume();
+                }
+                expect('symbol', ')');
+            }
+            return { type: 'newExpr', structType: typeName, args: cArgs };
+        }
         // 数值
         if (t.type === 'number') {
             consume();
@@ -467,7 +671,15 @@ function parse(code) {
         // 字符串
         if (t.type === 'string') {
             consume();
-            return { type: 'string', value: t.value };
+            var raw = t.value;
+            var s = raw.substring(1, raw.length - 1);
+            // 转义
+            s = s.replace(/\\n/g, '\n');
+            s = s.replace(/\\t/g, '\t');
+            s = s.replace(/\\\\\\\\/g, '\\\\');
+            s = s.replace(/\\\\\"/g, '\"');
+            s = s.replace(/\\'/g, "'");
+            return { type: 'string', value: s };
         }
         // true/false
         if (t.value === 'true' || t.value === 'false') {
@@ -532,6 +744,22 @@ function parse(code) {
                 }
                 return { type: 'memberAccess', obj: name, member: member };
             }
+            // 箭头成员访问 ptr->field
+            if (peek().value === '->') {
+                consume();
+                var arrowMember = expect('identifier').value;
+                if (peek().value === '(') {
+                    consume();
+                    var aArgs = [];
+                    while (peek().value !== ')') {
+                        aArgs.push(parseExpression());
+                        if (peek().value === ',') consume();
+                    }
+                    expect('symbol', ')');
+                    return { type: 'arrowCall', ptr: name, method: arrowMember, args: aArgs };
+                }
+                return { type: 'arrowAccess', ptr: name, member: arrowMember };
+            }
             // 自增/自减
             if (peek().value === '++') { consume(); return { type: 'postInc', name: name }; }
             if (peek().value === '--') { consume(); return { type: 'postDec', name: name }; }
@@ -542,6 +770,30 @@ function parse(code) {
             consume();
             var expr = parseExpression();
             expect('symbol', ')');
+            // 括号表达式后的后缀 .member 或 ->member 或 [index]
+            if (peek().value === '.') {
+                consume();
+                var dotMember = expect('identifier').value;
+                if (peek().value === '(') {
+                    consume(); var dArgs = [];
+                    while (peek().value !== ')') { dArgs.push(parseExpression()); if (peek().value === ',') consume(); }
+                    expect('symbol', ')');
+                    return { type: 'methodCall', obj: null, method: dotMember, args: dArgs, base: expr };
+                }
+                return { type: 'memberAccess', obj: null, member: dotMember, base: expr };
+            }
+            if (peek().value === '->') {
+                consume();
+                var arrMember = expect('identifier').value;
+                if (peek().value === '(') {
+                    consume(); var aArgs2 = [];
+                    while (peek().value !== ')') { aArgs2.push(parseExpression()); if (peek().value === ',') consume(); }
+                    expect('symbol', ')');
+                    return { type: 'arrowCall', ptr: null, method: arrMember, args: aArgs2, base: expr };
+                }
+                var ptrVal = expr;
+                return { type: 'arrowAccess2', base: expr, member: arrMember };
+            }
             return expr;
         }
         throw new ScriptError('第' + (t.line || '?') + '行: 意外的 token: ' + t.value);
@@ -552,7 +804,7 @@ function parse(code) {
     var globalStmts = [];
     while (peek().type !== 'eof') {
         var typeKw = { 'int': true, 'float': true, 'double': true, 'char': true, 'string': true, 'bool': true, 'void': true, 'stack': true, 'queue': true, 'vector': true, 'pair': true, 'priority_queue': true };
-        if (typeKw[peek().value]) {
+if (typeKw[peek().value]) {
             var typeName = consume().value;
             var funcName = peek();
             if (funcName.type === 'identifier' && tokens[pos + 1] && tokens[pos + 1].value === '(') {
@@ -566,7 +818,11 @@ function parse(code) {
                 var stmt = parseStatement();
                 globalStmts.push(stmt);
             }
-        } else {
+        } else if (peek().value === 'struct') {
+            // 结构体定义
+            var sd = parseStructDef();
+            globalStmts.push(sd);
+        } else if (peek().value === 'void' && tokens[pos + 1] && tokens[pos + 1].type === 'identifier' && tokens[pos + 2] && tokens[pos + 2].value === '(') {
             globalStmts.push(parseStatement());
         }
     }
@@ -581,594 +837,477 @@ function ScriptError(msg) {
 ScriptError.prototype = Object.create(Error.prototype);
 ScriptError.prototype.constructor = ScriptError;
 
-// 执行器
-function execute(ast, answers, otherInputs, qs) {
-    if (!ast.functions['main']) throw new ScriptError('未找到入口函数 main()');
-    
-    var globalEnv = {};
-    globalEnv['__ast__'] = ast;
-    globalEnv['__outputs__'] = [];
-    globalEnv['__startTime__'] = Date.now();
-    var outputs = globalEnv['__outputs__'];
-    var startTime = globalEnv['__startTime__'];
-    
-    // 注入问卷答案
-    for (var qid in answers) {
-        var ans = answers[qid];
-        if (typeof ans === 'string' || typeof ans === 'number') {
-            globalEnv[qid] = ans;
-            var numVal = parseInt(ans, 10);
-            if (!isNaN(numVal)) globalEnv[qid] = numVal;
-        }
-        // 注入 .num 和 .text 独立变量
-        var numVal2 = parseInt(ans, 10);
-        var foundOption = false;
-        // .text 映射：查找对应题目的选项映射
-        if (qs && Array.isArray(qs)) {
-            for (var qi = 0; qi < qs.length; qi++) {
-                var q = qs[qi];
-                if (q.id === qid && q.options && Array.isArray(q.options)) {
-                    globalEnv[qid + '.options'] = q.options;
-                    foundOption = true;
-                    // 尝试按选项文本匹配
-                    var optIdx = q.options.indexOf(String(ans));
-                    if (optIdx >= 0) {
-                        // 按选项文本匹配成功 -> num = 序号(1-indexed), text = 选项文本
-                        globalEnv[qid + '.num'] = optIdx + 1;
-                        globalEnv[qid + '.text'] = q.options[optIdx];
-                    } else {
-                        // 按数字索引匹配
-                        var idx = parseInt(ans, 10);
-                        if (!isNaN(idx) && idx >= 1 && idx <= q.options.length) {
-                            globalEnv[qid + '.num'] = idx;
-                            globalEnv[qid + '.text'] = q.options[idx - 1];
-                        } else {
-                            globalEnv[qid + '.num'] = isNaN(numVal2) ? 0 : numVal2;
-                            globalEnv[qid + '.text'] = String(ans);
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-        if (!foundOption) {
-            globalEnv[qid + '.num'] = isNaN(numVal2) ? 0 : numVal2;
-            globalEnv[qid + '.text'] = String(ans);
-        }
-    }
-    
-    // 执行全局变量声明
-    for (var gi = 0; gi < ast.globalStmts.length; gi++) {
-        execStmt(ast.globalStmts[gi], globalEnv, outputs, startTime, 0);
-    }
-    
-    // 调用 main
-    callFunction(ast.functions['main'], [], globalEnv, outputs, startTime);
-    
-    return outputs;
+// ===== 执行器 v2 (基于地址表+作用域链) =====
+
+function defaultValue(type) {
+    var map = { 'int': 0, 'float': 0.0, 'double': 0.0, 'char': '', 'string': '', 'bool': false, 'void': 0 };
+    return map[type] !== undefined ? map[type] : 0;
 }
 
-function callFunction(func, args, globalEnv, outputs, startTime, depth) {
-    if (depth === undefined) depth = 0;
-    if (depth > QLANG_MAX_STACK_DEPTH) throw new ScriptError('栈溢出（超过' + QLANG_MAX_STACK_DEPTH + '层调用）');
-    
-    var localEnv = {};
-    // 参数绑定
-    for (var pi = 0; pi < func.params.length; pi++) {
-        localEnv[func.params[pi].name] = pi < args.length ? evalExpr(args[pi], localEnv, globalEnv) : 0;
+function isTruthy(v) {
+    return v !== false && v !== 0 && v !== '' && v !== null && v !== undefined;
+}
+
+function stringify(v) {
+    if (v === true) return '1';
+    if (v === false) return '0';
+    if (v === undefined || v === null) return '';
+    return String(v);
+}
+
+// printf 格式化：支持 %d %s %c %x %o %p
+function printfFormat(fmt, args) {
+    var ai = 0;
+    var result = '';
+    var i = 0;
+    while (i < fmt.length) {
+        if (fmt[i] === '%' && i + 1 < fmt.length) {
+            i++;
+            var spec = fmt[i];
+            if (spec === '%') { result += '%'; i++; continue; }
+            var v = args[ai++];
+            switch (spec) {
+                case 'd': result += parseInt(v) || 0; break;
+                case 's': result += String(v); break;
+                case 'c': result += typeof v === 'number' ? String.fromCharCode(v) : String(v).charAt(0) || ''; break;
+                case 'x': result += (parseInt(v)||0).toString(16); break;
+                case 'o': result += (parseInt(v)||0).toString(8); break;
+                case 'p': result += '0x' + (v >>> 0).toString(16).padStart(8, '0'); break;
+                default: result += '%' + spec;
+            }
+        } else {
+            result += fmt[i];
+        }
+        i++;
     }
-    
+    return result;
+}
+
+function callFunction(func, args, callScope, outputs, startTime, depth) {
+    if (depth === undefined) depth = 0;
+    if (depth > QLANG_MAX_STACK_DEPTH) throw new ScriptError("栈溢出");
+    // 创建新作用域，链到调用者的作用域
+    var funcScope = createScope(callScope);
+    // 绑定参数
+    for (var pi = 0; pi < func.params.length; pi++) {
+        var pv = pi < args.length ? args[pi] : 0;
+        declareVar(funcScope, func.params[pi].name, pv, func.params[pi].type, false);
+    }
+    // 执行函数体
     for (var si = 0; si < func.body.length; si++) {
-        var result = execStmt(func.body[si], localEnv, outputs, startTime, depth, globalEnv);
-        if (result && result.type === 'return') return result.value;
+        var r = execStmt(func.body[si], funcScope, outputs, startTime, depth, null);
+        if (r && r.type === 'return') return r.value;
     }
     return 0;
 }
 
-function execStmt(stmt, env, outputs, startTime, depth, globalEnv) {
-    if (Date.now() - startTime > QLANG_TOTAL_TIMEOUT_MS) throw new ScriptError('执行超时（超过10秒）');
-    
+function execStmt(stmt, scope, outputs, startTime, depth, loopEnv) {
+    if (Date.now() - startTime > QLANG_TOTAL_TIMEOUT_MS) throw new ScriptError("执行超时");
     if (!stmt) return;
-    
+
     switch (stmt.type) {
         case 'empty': return;
-        case 'block':
-            // 块作用域：记录执行前的变量列表
-            var beforeKeys = {};
-            for (var bk in env) beforeKeys[bk] = true;
+        case 'block': {
+            var blockScope = createScope(scope);
             for (var bi = 0; bi < stmt.body.length; bi++) {
-                var r = execStmt(stmt.body[bi], env, outputs, startTime, depth, globalEnv);
-                if (r && r.type === 'return') return r;
-            }
-            // 清理块内新增的变量（块作用域隔离）
-            for (var bk in env) {
-                if (!(bk in beforeKeys)) delete env[bk];
+                var rb = execStmt(stmt.body[bi], blockScope, outputs, startTime, depth, loopEnv);
+                if (rb && (rb.type === 'return' || rb.type === 'break' || rb.type === 'continue')) return rb;
             }
             return;
-        case 'phpVarDecl':
-            // $var = value → auto var = value
-            env[stmt.name] = evalExpr(stmt.init, env, globalEnv || env);
+        }
+        case 'varDecl': {
+            var val = stmt.init !== null ? evalExpr(stmt.init, scope, startTime, depth) : defaultValue(stmt.varType);
+            declareVar(scope, stmt.name, val, stmt.varType, stmt.isConst);
             return;
-        case 'varDecl':
-            var val = stmt.init !== null ? evalExpr(stmt.init, env, globalEnv || env) : defaultValue(stmt.varType);
-            env[stmt.name] = val;
-            env['__const_' + stmt.name] = stmt.isConst ? true : false;
-            return;
-        case 'arrayDecl':
-            var arr;
-            if (stmt.initStr) {
-                // 字符串字面量初始化 char s[] = "hello"
-                var rawStr = stmt.initStr.substring(1, stmt.initStr.length - 1);
-                var strLen = rawStr.length;
-                var arrSize = stmt.size ? evalExpr(stmt.size, env, globalEnv || env) : (strLen + 1);
-                if (typeof arrSize !== 'number' || arrSize <= 0 || arrSize > QLANG_MAX_ARRAY_SIZE) throw new ScriptError('数组大小无效');
-                arr = new Array(arrSize);
-                for (var si = 0; si < strLen && si < arrSize; si++) {
-                    arr[si] = rawStr[si];
-                }
-                if (si < arrSize) arr[si] = '\0';
-            } else {
-                var size = stmt.size ? evalExpr(stmt.size, env, globalEnv || env) : (stmt.init ? stmt.init.length : 1);
-                if (typeof size !== 'number' || size <= 0 || size > QLANG_MAX_ARRAY_SIZE) throw new ScriptError('数组大小无效');
-                arr = new Array(size);
-                if (stmt.init) {
-                    for (var ai = 0; ai < stmt.init.length && ai < size; ai++) {
-                        arr[ai] = evalExpr(stmt.init[ai], env, globalEnv || env);
-                    }
-                }
+        }
+        case 'arrayDecl': {
+            var size = stmt.size ? evalExpr(stmt.size, scope, startTime, depth) : (stmt.init ? stmt.init.length : 1);
+            if (typeof size !== 'number' || size <= 0 || size > QLANG_MAX_ARRAY_SIZE) throw new ScriptError("数组大小无效");
+            var arr = new Array(size);
+            var dv = defaultValue(stmt.varType);
+            for (var ai = 0; ai < size; ai++) {
+                arr[ai] = (stmt.init && ai < stmt.init.length)
+                    ? evalExpr(stmt.init[ai], scope, startTime, depth)
+                    : dv;
             }
-            env[stmt.name] = arr;
-            env['__const_' + stmt.name] = stmt.isConst ? true : false;
+            QLANG_MEMORY[allocAddr()] = arr;
+            scope.vars[stmt.name] = { addr: QLANG_NEXT_ADDR - 1, type: stmt.varType + '[]', isConst: !!stmt.isConst };
             return;
-        case 'arrayDecl2D':
-            var s1 = evalExpr(stmt.size1, env, globalEnv || env);
-            var s2 = evalExpr(stmt.size2, env, globalEnv || env);
-            if (typeof s1 !== 'number' || s1 <= 0 || typeof s2 !== 'number' || s2 <= 0 || s1 * s2 > QLANG_MAX_2D_ARRAY) throw new ScriptError('二维数组大小无效');
-            var arr2 = new Array(s1);
-            for (var di = 0; di < s1; di++) {
-                arr2[di] = new Array(s2);
-                if (stmt.init && di < stmt.init.length && Array.isArray(stmt.init[di])) {
-                    for (var dj = 0; dj < s2 && dj < stmt.init[di].length; dj++) {
-                        arr2[di][dj] = evalExpr(stmt.init[di][dj], env, globalEnv || env);
-                    }
-                }
-            }
-            env[stmt.name] = arr2;
-            env['__const_' + stmt.name] = stmt.isConst ? true : false;
+        }
+        case 'assign': {
+            setVar(scope, stmt.name, evalExpr(stmt.value, scope, startTime, depth));
             return;
-        case 'if':
-            var condVal = evalExpr(stmt.cond, env, globalEnv || env);
-            if (isTruthy(condVal)) {
-                return execStmt(stmt.then, env, outputs, startTime, depth, globalEnv);
-            } else if (stmt.else) {
-                return execStmt(stmt.else, env, outputs, startTime, depth, globalEnv);
-            }
+        }
+        case 'derefAssign': {
+            var derefAddr = getVar(scope, stmt.ptrName);
+            if (typeof derefAddr !== 'number') throw new ScriptError("解引用赋值需要指针");
+            var derefObj = QLANG_MEMORY[derefAddr];
+            if (!derefObj || typeof derefObj !== 'object') throw new ScriptError("无效的指针");
+            derefObj[stmt.member] = evalExpr(stmt.value, scope, startTime, depth);
             return;
-        case 'while':
+        }
+        case 'arrowAssign': {
+            var aPtr = getVar(scope, stmt.ptr);
+            if (aPtr === 0) throw new ScriptError("空指针");
+            if (typeof aPtr !== 'number') throw new ScriptError("箭头赋值需要指针");
+            var aObj = QLANG_MEMORY[aPtr];
+            if (!aObj || typeof aObj !== 'object') throw new ScriptError("无效的指针");
+            aObj[stmt.member] = evalExpr(stmt.value, scope, startTime, depth);
+            return;
+        }
+        case 'arrAssign': {
+            var arr = getVar(scope, stmt.name);
+            if (!Array.isArray(arr)) throw new ScriptError("数组 " + stmt.name + " 未定义");
+            var idx = evalExpr(stmt.index, scope, startTime, depth);
+            var val = evalExpr(stmt.value, scope, startTime, depth);
+            if (stmt.op === '=') arr[idx] = val;
+            else if (stmt.op === '+=') arr[idx] = (arr[idx]||0) + val;
+            else if (stmt.op === '-=') arr[idx] = (arr[idx]||0) - val;
+            return;
+        }
+        case 'compAssign': {
+            var old = getVar(scope, stmt.name);
+            var dv2 = evalExpr(stmt.value, scope, startTime, depth);
+            if (stmt.op === '+=') setVar(scope, stmt.name, old + dv2);
+            else if (stmt.op === '-=') setVar(scope, stmt.name, old - dv2);
+            return;
+        }
+        case 'memberAssign': {
+            var obj = getVar(scope, stmt.obj);
+            obj[stmt.member] = evalExpr(stmt.value, scope, startTime, depth);
+            return;
+        }
+        case 'if': {
+            var condVal = evalExpr(stmt.cond, scope, startTime, depth);
+            if (isTruthy(condVal)) return execStmt(stmt.then, scope, outputs, startTime, depth, loopEnv);
+            else if (stmt.else) return execStmt(stmt.else, scope, outputs, startTime, depth, loopEnv);
+            return;
+        }
+        case 'while': {
             var maxIter = 100000;
             var iter = 0;
-            var whileStart = Date.now();
-            while (isTruthy(evalExpr(stmt.cond, env, globalEnv || env))) {
-                if (Date.now() - whileStart > 10000) throw new ScriptError('while 循环执行超时（超过10秒）');
-                if (++iter > maxIter) throw new ScriptError('循环迭代超限（超过10万次）');
-                var r = execStmt(stmt.body, env, outputs, startTime, depth, globalEnv);
-                if (r && r.type === 'return') return r;
-                if (r && r.type === 'break') break;
+            var wStart = Date.now();
+            while (isTruthy(evalExpr(stmt.cond, scope, startTime, depth))) {
+                if (Date.now() - wStart > 10000) throw new ScriptError("while 超时");
+                if (++iter > maxIter) throw new ScriptError("循环超限");
+                var rw = execStmt(stmt.body, scope, outputs, startTime, depth, loopEnv);
+                if (rw && rw.type === 'return') return rw;
+                if (rw && rw.type === 'break') break;
             }
             return;
-        case 'for':
-            var forEnv = Object.create(env);
-            if (stmt.init) execStmt(stmt.init, forEnv, outputs, startTime, depth, globalEnv);
-            var maxIter = 100000;
-            var iter = 0;
-            var forStart = Date.now();
-            while (!stmt.cond || isTruthy(evalExpr(stmt.cond, forEnv, globalEnv || env))) {
-                if (Date.now() - forStart > 10000) throw new ScriptError('for 循环执行超时（超过10秒）');
-                if (++iter > maxIter) throw new ScriptError('循环迭代超限（超过10万次）');
-                var r = execStmt(stmt.body, forEnv, outputs, startTime, depth, globalEnv);
-                if (r && r.type === 'return') return r;
-                if (r && r.type === 'break') break;
-                if (r && r.type === 'continue') { /* 继续到下一轮 inc */ }
+        }
+        case 'for': {
+            var forScope = createScope(scope);
+            if (stmt.init) execStmt(stmt.init, forScope, outputs, startTime, depth, null);
+            var maxIterF = 100000;
+            var iterF = 0;
+            var fStart = Date.now();
+            while (!stmt.cond || isTruthy(evalExpr(stmt.cond, forScope, startTime, depth))) {
+                if (Date.now() - fStart > 10000) throw new ScriptError("for 超时");
+                if (++iterF > maxIterF) throw new ScriptError("循环超限");
+                var rf = execStmt(stmt.body, forScope, outputs, startTime, depth, null);
+                if (rf && rf.type === 'return') return rf;
+                if (rf && rf.type === 'break') break;
                 if (stmt.inc) {
                     if (stmt.inc.type === 'forInc') {
-                        var oldVal = forEnv[stmt.inc.name];
-                        if (oldVal === undefined) oldVal = 0;
-                        var delta = evalExpr(stmt.inc.value, forEnv, globalEnv || env);
-                        if (stmt.inc.op === '=') forEnv[stmt.inc.name] = delta;
-                        else if (stmt.inc.op === '+=') forEnv[stmt.inc.name] = oldVal + delta;
-                        else if (stmt.inc.op === '-=') forEnv[stmt.inc.name] = oldVal - delta;
+                        var oldF = getVar(forScope, stmt.inc.name);
+                        var d = evalExpr(stmt.inc.value, forScope, startTime, depth);
+                        if (stmt.inc.op === '=') setVar(forScope, stmt.inc.name, d);
+                        else if (stmt.inc.op === '+=') setVar(forScope, stmt.inc.name, oldF + d);
+                        else if (stmt.inc.op === '-=') setVar(forScope, stmt.inc.name, oldF - d);
                     } else {
-                        evalExpr(stmt.inc, forEnv, globalEnv || env);
+                        evalExpr(stmt.inc, forScope, startTime, depth);
                     }
                 }
             }
-            // 将 forEnv 中的变量同步回 env
-            for (var fk in forEnv) {
-                if (fk !== (stmt.init && stmt.init.name)) {
-                    env[fk] = forEnv[fk];
-                }
+            return;
+        }
+        case 'function': {
+            // 注册函数定义，捕获当前作用域
+            stmt.parentScope = scope;
+            if (globalEnv && globalEnv['__ast__'] && globalEnv['__ast__'].functions) {
+                globalEnv['__ast__'].functions[stmt.name] = stmt;
             }
             return;
-        case 'break':
-            return { type: 'break' };
-        case 'continue':
-            return { type: 'continue' };
-        case 'return':
-            var retVal = stmt.value !== null ? evalExpr(stmt.value, env, globalEnv || env) : 0;
+        }
+        case 'return': {
+            var retVal = stmt.value !== null ? evalExpr(stmt.value, scope, startTime, depth) : 0;
             return { type: 'return', value: retVal };
-        case 'cout':
+        }
+        case 'break': return { type: 'break' };
+        case 'continue': return { type: 'continue' };
+        case 'print': {
+            var parts = [];
+            for (var pri = 0; pri < stmt.args.length; pri++) {
+                parts.push(stringify(evalExpr(stmt.args[pri], scope, startTime, depth)));
+            }
+            outputs.push(parts.join(' '));
+            return;
+        }
+        case 'cout': {
             var result = '';
             for (var ci = 0; ci < stmt.parts.length; ci++) {
                 var part = stmt.parts[ci];
                 if (part.type === 'endl') { result += '\n'; continue; }
-                var v = evalExpr(part, env, globalEnv || env);
-                result += stringify(v);
+                result += stringify(evalExpr(part, scope, startTime, depth));
             }
             outputs.push(result);
             return;
-        case 'print':
-            var parts = [];
-            for (var pi = 0; pi < stmt.args.length; pi++) {
-                parts.push(stringify(evalExpr(stmt.args[pi], env, globalEnv || env)));
-            }
-            outputs.push(parts.join(' '));
+        }
+        case 'expr': {
+            evalExpr(stmt.expr, scope, startTime, depth);
             return;
-        case 'arrAssign':
-            var arrV = env[stmt.name];
-            if (!Array.isArray(arrV) && globalEnv) arrV = globalEnv[stmt.name];
-            if (!Array.isArray(arrV)) throw new ScriptError('数组 "' + stmt.name + '" 未声明');
-            if (env['__const_' + stmt.name] || (globalEnv && globalEnv['__const_' + stmt.name])) throw new ScriptError('不能修改 const 数组 "' + stmt.name + '"');
-            var idxV = evalExpr(stmt.index, env, globalEnv || env);
-            if (typeof idxV !== 'number') throw new ScriptError('数组索引必须为数字');
-            var valV = evalExpr(stmt.value, env, globalEnv || env);
-            if (stmt.op === '=') arrV[idxV] = valV;
-            else if (stmt.op === '+=') arrV[idxV] = (arrV[idxV] || 0) + valV;
-            else if (stmt.op === '-=') arrV[idxV] = (arrV[idxV] || 0) - valV;
+        }
+        case 'phpVarDecl': {
+            setVar(scope, stmt.name, evalExpr(stmt.init, scope, startTime, depth));
             return;
-        case 'memberAssign':
-            // obj.member = value
-            var targetObj = env[stmt.obj];
-            if (targetObj === undefined && globalEnv) targetObj = globalEnv[stmt.obj];
-            if (targetObj === undefined) throw new ScriptError('未定义的变量 "' + stmt.obj + '"');
-            targetObj[stmt.member] = evalExpr(stmt.value, env, globalEnv || env);
+        }
+        case 'structDef': {
+            // 注册结构体类型到全局
+            if (!globalEnv['__structs__']) globalEnv['__structs__'] = {};
+            globalEnv['__structs__'][stmt.structName] = stmt;
             return;
-        case 'assign':
-            if (env['__const_' + stmt.name] || (globalEnv && globalEnv['__const_' + stmt.name])) throw new ScriptError('不能修改 const 变量 "' + stmt.name + '"');
-            var av = evalExpr(stmt.value, env, globalEnv || env);
-            env[stmt.name] = av;
-            return;
-        case 'compAssign':
-            if (env['__const_' + stmt.name] || (globalEnv && globalEnv['__const_' + stmt.name])) throw new ScriptError('不能修改 const 变量 "' + stmt.name + '"');
-            var old = env[stmt.name];
-            if (old === undefined && globalEnv) old = globalEnv[stmt.name];
-            if (old === undefined) throw new ScriptError('未定义的变量 "' + stmt.name + '"');
-            var delta = evalExpr(stmt.value, env, globalEnv || env);
-            var nv = stmt.op === '+=' ? old + delta : old - delta;
-            env[stmt.name] = nv;
-            return;
-            return;
-        case 'expr':
-            return evalExpr(stmt.expr, env, globalEnv || env);
+        }
         default:
-            throw new ScriptError('不支持的语句类型: ' + stmt.type);
+            throw new ScriptError("不支持的语句: " + stmt.type);
     }
 }
 
-function evalExpr(expr, env, globalEnv) {
+function evalExpr(expr, scope, startTime, depth) {
     if (!expr || typeof expr !== 'object') return expr;
-    
+
     switch (expr.type) {
-        case 'number':
-            var n = parseFloat(expr.value);
-            return isNaN(n) ? 0 : n;
-        case 'string':
-            var s = expr.value;
-            return s.substring(1, s.length - 1);
-        case 'bool':
-            return expr.value;
-        case 'variable':
-            if (expr.name in env) return env[expr.name];
-            if (globalEnv && expr.name in globalEnv) return globalEnv[expr.name];
-            throw new ScriptError('未定义的变量 "' + expr.name + '"');
-        case 'memberAccess':
-            // 优先查独立变量名 obj.member（q1.num, q1.text 等）
-            var compoundKey = expr.obj + '.' + expr.member;
-            if (compoundKey in env) return env[compoundKey];
-            if (globalEnv && compoundKey in globalEnv) return globalEnv[compoundKey];
-            // 回退到对象属性访问
-            var objVal = null;
-            if (expr.obj in env) objVal = env[expr.obj];
-            else if (globalEnv && expr.obj in globalEnv) objVal = globalEnv[expr.obj];
-            if (objVal === null || objVal === undefined) throw new ScriptError('未定义的变量 "' + expr.obj + '"');
-            return objVal[expr.member];
-        case 'arrayAccess':
-            var arr = env[expr.name];
-            if (!Array.isArray(arr) && globalEnv) arr = globalEnv[expr.name];
-            if (!Array.isArray(arr)) throw new ScriptError('数组 "' + expr.name + '" 未声明');
-            var idx = evalExpr(expr.index, env, globalEnv);
-            if (typeof idx !== 'number') throw new ScriptError('数组索引必须为数字');
+        case 'literal': return expr.value;
+        case 'number': return parseFloat(expr.value);
+        case 'string': return expr.value;
+        case 'variable': return getVar(scope, expr.name);
+        case 'phpVar': return getVar(scope, expr.value);
+        case 'unary': {
+            var v = evalExpr(expr.arg || expr.expr, scope, startTime, depth);
+            if (expr.op === '-') return -v;
+            if (expr.op === '!') return !isTruthy(v);
+            if (expr.op === '++') { setVar(scope, expr.arg.name, v + 1); return v; }
+            if (expr.op === '--') { setVar(scope, expr.arg.name, v - 1); return v; }
+            return v;
+        }
+        case 'postInc': {
+            var ov = getVar(scope, expr.name);
+            setVar(scope, expr.name, ov + 1);
+            return ov;
+        }
+        case 'postDec': {
+            var ov2 = getVar(scope, expr.name);
+            setVar(scope, expr.name, ov2 - 1);
+            return ov2;
+        }
+        case 'binary': {
+            var l = evalExpr(expr.left, scope, startTime, depth);
+            var r = evalExpr(expr.right, scope, startTime, depth);
+            switch (expr.op) {
+                case '+': return (typeof l === 'string' || typeof r === 'string') ? String(l) + String(r) : (l||0) + (r||0);
+                case '-': return (l||0) - (r||0);
+                case '*': return (l||0) * (r||0);
+                case '/': if (r === 0) throw new ScriptError("除零"); return Math.floor(l / r);
+                case '%': return l % r;
+                case '==': return l == r;
+                case '!=': return l != r;
+                case '<': return l < r;
+                case '>': return l > r;
+                case '<=': return l <= r;
+                case '>=': return l >= r;
+                case '&&': case 'and': return isTruthy(l) && isTruthy(r);
+                case '||': case 'or': return isTruthy(l) || isTruthy(r);
+                default: return 0;
+            }
+        }
+        case 'call': return handleCall(expr, scope, startTime, depth);
+        case 'methodCall': {
+            var objV = getVar(scope, expr.obj);
+            var method = objV[expr.method];
+            if (typeof method !== 'function') throw new ScriptError("方法 " + expr.method + " 不存在");
+            var mArgs = [];
+            for (var mi = 0; mi < expr.args.length; mi++) mArgs.push(evalExpr(expr.args[mi], scope, startTime, depth));
+            return method.apply(objV, mArgs);
+        }
+        case 'memberAccess': {
+            var o = expr.base ? evalExpr(expr.base, scope, startTime, depth) : getVar(scope, expr.obj);
+            if (o === null || o === undefined) throw new ScriptError("对象 " + (expr.obj || 'expr') + " 未定义");
+            return o[expr.member];
+        }
+        case 'arrayAccess': {
+            var arr = getVar(scope, expr.name);
+            var idx = evalExpr(expr.index, scope, startTime, depth);
             if (expr.index2) {
-                var idx2 = evalExpr(expr.index2, env, globalEnv);
-                if (typeof idx2 !== 'number') throw new ScriptError('数组索引必须为数字');
-                if (!arr[idx] || !Array.isArray(arr[idx])) throw new ScriptError('二维数组索引越界');
+                var idx2 = evalExpr(expr.index2, scope, startTime, depth);
                 return arr[idx][idx2];
             }
-            if (idx < 0 || idx >= arr.length) throw new ScriptError('数组索引 ' + idx + ' 越界（长度 ' + arr.length + '）');
             return arr[idx];
-        case 'binary':
-            var l = evalExpr(expr.left, env, globalEnv);
-            var r = evalExpr(expr.right, env, globalEnv);
-            if (expr.op === '+') {
-                if (typeof l === 'string' || typeof r === 'string') return String(l) + String(r);
-                return (typeof l === 'number' ? l : 0) + (typeof r === 'number' ? r : 0);
-            }
-            if (expr.op === '-') return (typeof l === 'number' ? l : 0) - (typeof r === 'number' ? r : 0);
-            if (expr.op === '*') return (typeof l === 'number' ? l : 0) * (typeof r === 'number' ? r : 0);
-            if (expr.op === '/') {
-                if (r === 0) throw new ScriptError('除零错误');
-                return Math.floor((typeof l === 'number' ? l : 0) / r);
-            }
-            if (expr.op === '%') {
-                if (r === 0) throw new ScriptError('除零错误');
-                return (typeof l === 'number' ? l : 0) % (typeof r === 'number' ? r : 0);
-            }
-            if (expr.op === '>') return l > r;
-            if (expr.op === '<') return l < r;
-            if (expr.op === '>=') return l >= r;
-            if (expr.op === '<=') return l <= r;
-            if (expr.op === '==') return l === r;
-            if (expr.op === '!=') return l !== r;
-            if (expr.op === '!') return !isTruthy(l);
-            if (expr.op === '&&') return isTruthy(l) && isTruthy(r);
-            if (expr.op === '||') return isTruthy(l) || isTruthy(r);
-            throw new ScriptError('不支持的运算符: ' + expr.op);
-        case 'unary':
-            var arg = evalExpr(expr.arg, env, globalEnv);
-            if (expr.op === '-') return -(typeof arg === 'number' ? arg : 0);
-            if (expr.op === '+') return typeof arg === 'number' ? arg : 0;
-            if (expr.op === '!') return !isTruthy(arg);
-            throw new ScriptError('不支持的一元运算符: ' + expr.op);
-        case 'postInc':
-            var old = env[expr.name];
-            if (old === undefined && globalEnv) old = globalEnv[expr.name];
-            if (old === undefined) throw new ScriptError('未定义的变量 "' + expr.name + '"');
-            if (expr.name in env) env[expr.name] = old + 1;
-            else if (globalEnv && expr.name in globalEnv) globalEnv[expr.name] = old + 1;
-            return old;
-        case 'postDec':
-            var old = env[expr.name];
-            if (old === undefined && globalEnv) old = globalEnv[expr.name];
-            if (old === undefined) throw new ScriptError('未定义的变量 "' + expr.name + '"');
-            if (expr.name in env) env[expr.name] = old - 1;
-            else if (globalEnv && expr.name in globalEnv) globalEnv[expr.name] = old - 1;
-            return old;
-        case 'call':
-            // 内置函数
-            if (expr.name === 'parseInt') {
-                var v = evalExpr(expr.args[0], env, globalEnv);
-                return typeof v === 'number' ? (v >= 0 ? Math.floor(v) : Math.ceil(v)) : 0;
-            }
-            if (expr.name === '_gcd') {
-                var a = evalExpr(expr.args[0], env, globalEnv);
-                var b = evalExpr(expr.args[1], env, globalEnv);
-                if (typeof a !== 'number') a = 0;
-                if (typeof b !== 'number') b = 0;
-                a = Math.abs(a); b = Math.abs(b);
-                while (b) { var t = b; b = a % b; a = t; }
-                return a;
-            }
-            if (expr.name === 'sizeof') {
-                // sizeof(var) — 数组返回长度，其他返回类型大小
-                if (expr.args.length < 1) throw new ScriptError('sizeof 需要参数');
-                var sv = evalExpr(expr.args[0], env, globalEnv);
-                if (Array.isArray(sv)) return sv.length;
-                if (typeof sv === 'string') return sv.length;
-                if (typeof sv === 'number') return 8;
-                if (typeof sv === 'boolean') return 1;
-                return 0;
-            }
-            if (expr.name === 'size') {
-                // size(var) — 调用 STL 容器的 .size() 或返回数组长度
-                if (expr.args.length < 1) throw new ScriptError('size 需要参数');
-                var sv2 = evalExpr(expr.args[0], env, globalEnv);
-                if (sv2 && typeof sv2.size === 'function') return sv2.size();
-                if (Array.isArray(sv2)) return sv2.length;
-                if (typeof sv2 === 'string') return sv2.length;
-                return 0;
-            }
-            if (expr.name === 'strlen') {
-                // strlen(str) — char 数组或字符串长度
-                if (expr.args.length < 1) throw new ScriptError('strlen 需要参数');
-                var sl = evalExpr(expr.args[0], env, globalEnv);
-                if (typeof sl === 'string') return sl.length;
-                if (Array.isArray(sl)) {
-                    // char 数组，遇到 \0 停止
-                    var len = 0;
-                    while (len < sl.length && sl[len] !== '\0') len++;
-                    return len;
-                }
-                return 0;
-            }
-            if (expr.name === 'strcmp') {
-                if (expr.args.length < 2) throw new ScriptError('strcmp 需要两个参数');
-                var sa = String(evalExpr(expr.args[0], env, globalEnv));
-                var sb = String(evalExpr(expr.args[1], env, globalEnv));
-                if (sa < sb) return -1;
-                if (sa > sb) return 1;
-                return 0;
-            }
-            if (expr.name === 'strcpy') {
-                if (expr.args.length < 2) throw new ScriptError('strcpy 需要两个参数');
-                var dstName = expr.args[0];
-                if (dstName.type !== 'variable') throw new ScriptError('strcpy 第一个参数必须是变量');
-                var srcStr = String(evalExpr(expr.args[1], env, globalEnv));
-                var dstArr = env[dstName.name];
-                if (!Array.isArray(dstArr)) throw new ScriptError('strcpy 目标必须是数组');
-                for (var sci = 0; sci < srcStr.length && sci < dstArr.length; sci++) {
-                    dstArr[sci] = srcStr[sci];
-                }
-                if (sci < dstArr.length) dstArr[sci] = '\0';
-                return dstArr;
-            }
-            // 自定义函数调用
-            if (globalEnv && globalEnv['__ast__'] && globalEnv['__ast__'].functions && globalEnv['__ast__'].functions[expr.name]) {
-                var funcArgs = [];
-                for (var ai = 0; ai < expr.args.length; ai++) {
-                    funcArgs.push(evalExpr(expr.args[ai], env, globalEnv));
-                }
-                return callFunction(
-                    globalEnv['__ast__'].functions[expr.name],
-                    funcArgs,
-                    globalEnv,
-                    globalEnv['__outputs__'],
-                    globalEnv['__startTime__'],
-                    (globalEnv['__depth__'] || 0) + 1
-                );
-            }
-            throw new ScriptError('不认识的函数 "' + expr.name + '"');
-        case 'methodCall':
-            // 对象方法调用 obj.method(args)
-            var objVal = null;
-            if (expr.obj in env) objVal = env[expr.obj];
-            else if (globalEnv && expr.obj in globalEnv) objVal = globalEnv[expr.obj];
-            if (objVal === null || objVal === undefined) throw new ScriptError('未定义的变量 "' + expr.obj + '"');
-            var method = objVal[expr.method];
-            if (typeof method !== 'function') throw new ScriptError('对象 "' + expr.obj + '" 没有方法 "' + expr.method + '"');
-            var methodArgs = [];
-            for (var mai = 0; mai < expr.args.length; mai++) {
-                methodArgs.push(evalExpr(expr.args[mai], env, globalEnv));
-            }
-            return method.apply(objVal, methodArgs);
+        }
+        case 'newExpr': {
+            return handleNewExpr(expr, scope, startTime, depth);
+        }
+        case 'arrowAccess2': {
+            var baseVal = evalExpr(expr.base, scope, startTime, depth);
+            if (baseVal === 0) throw new ScriptError("空指针");
+            if (typeof baseVal !== 'number') throw new ScriptError("箭头访问需要指针");
+            var obj3 = QLANG_MEMORY[baseVal];
+            if (!obj3 || typeof obj3 !== 'object') throw new ScriptError("无效的指针");
+            return obj3[expr.member];
+        }
+        case 'addrOf': {
+            return addrOf(scope, expr.name);
+        }
+        case 'deref': {
+            var ptrAddr = evalExpr(expr.expr, scope, startTime, depth);
+            if (ptrAddr === 0 || ptrAddr === null || ptrAddr === undefined) throw new ScriptError("空指针");
+            if (typeof ptrAddr !== 'number' || ptrAddr < 0 || ptrAddr >= QLANG_MEMORY_SIZE) throw new ScriptError("无效的指针地址");
+            return QLANG_MEMORY[ptrAddr];
+        }
+        case 'arrowAccess': {
+            var ptrAddr = getVar(scope, expr.ptr);
+            if (ptrAddr === 0) throw new ScriptError("空指针");
+            if (typeof ptrAddr !== 'number') throw new ScriptError("箭头访问需要指针");
+            var obj = QLANG_MEMORY[ptrAddr];
+            if (!obj || typeof obj !== 'object') throw new ScriptError("无效的指针");
+            return obj[expr.member];
+        }
+        case 'arrowCall': {
+            var ptrAddr2 = getVar(scope, expr.ptr);
+            if (typeof ptrAddr2 !== 'number') throw new ScriptError("箭头方法调用需要指针");
+            var obj2 = QLANG_MEMORY[ptrAddr2];
+            if (!obj2 || typeof obj2 !== 'object') throw new ScriptError("无效的指针");
+            var method = obj2[expr.method];
+            if (typeof method !== 'function') throw new ScriptError("方法 " + expr.method + " 不存在");
+            var aArgs = [];
+            for (var ami = 0; ami < expr.args.length; ami++) aArgs.push(evalExpr(expr.args[ami], scope, startTime, depth));
+            return method.apply(obj2, aArgs);
+        }
         default:
-            throw new ScriptError('不支持的表达式类型: ' + expr.type);
+            throw new ScriptError("不支持的表达式: " + expr.type);
     }
 }
 
-function isTruthy(v) {
-    if (typeof v === 'boolean') return v;
-    if (typeof v === 'number') return v !== 0;
-    return !!v;
-}
-
-function stringify(v) {
-    if (typeof v === 'boolean') return v ? 'true' : 'false';
-    return String(v);
-}
-
-function defaultValue(type) {
-    switch (type) {
-        case 'int': return 0;
-        case 'float':
-        case 'double': return 0.0;
-        case 'char':
-        case 'string': return '';
-        case 'bool': return false;
-        case 'stack':
-        case 'queue':
-        case 'vector':
-        case 'priority_queue':
-            return createSTLObject(type);
-        case 'pair':
-            return { __stl_type: 'pair', first: 0, second: 0 };
-        default: return 0;
+function handleCall(expr, scope, startTime, depth) {
+    // 内置函数
+    if (expr.name === '_gcd') {
+        var a = Math.abs(evalExpr(expr.args[0], scope, startTime, depth));
+        var b = Math.abs(evalExpr(expr.args[1], scope, startTime, depth));
+        while (b) { var t = b; b = a % b; a = t; }
+        return a;
     }
-}
-
-function createSTLObject(type) {
-    switch (type) {
-        case 'stack':
-            var arr = [];
-            return {
-                __stl_type: 'stack',
-                _data: arr,
-                push: function(v) { if (arr.length >= 1000) throw new ScriptError('stack overflow (max 1000)'); arr.push(v); },
-                pop: function() { if (arr.length === 0) throw new ScriptError('stack empty'); arr.pop(); },
-                top: function() { if (arr.length === 0) throw new ScriptError('stack empty'); return arr[arr.length - 1]; },
-                size: function() { return arr.length; },
-                empty: function() { return arr.length === 0; }
-            };
-        case 'queue':
-            var arr = [];
-            return {
-                __stl_type: 'queue',
-                _data: arr,
-                push: function(v) { if (arr.length >= 1000) throw new ScriptError('queue overflow (max 1000)'); arr.push(v); },
-                pop: function() { if (arr.length === 0) throw new ScriptError('queue empty'); arr.shift(); },
-                front: function() { if (arr.length === 0) throw new ScriptError('queue empty'); return arr[0]; },
-                back: function() { if (arr.length === 0) throw new ScriptError('queue empty'); return arr[arr.length - 1]; },
-                size: function() { return arr.length; },
-                empty: function() { return arr.length === 0; }
-            };
-        case 'vector':
-            var arr = [];
-            return {
-                __stl_type: 'vector',
-                _data: arr,
-                push_back: function(v) { arr.push(v); },
-                pop_back: function() { if (arr.length === 0) throw new ScriptError('vector empty'); arr.pop(); },
-                get: function(i) { if (i < 0 || i >= arr.length) throw new ScriptError('vector index out of range'); return arr[i]; },
-                set: function(i, v) { if (i < 0 || i >= arr.length) throw new ScriptError('vector index out of range'); arr[i] = v; },
-                size: function() { return arr.length; },
-                empty: function() { return arr.length === 0; },
-                clear: function() { arr.length = 0; }
-            };
-        case 'priority_queue':
-            var arr = [];
-            return {
-                __stl_type: 'priority_queue',
-                _data: arr,
-                push: function(v) {
-                    if (arr.length >= 1000) throw new ScriptError('priority_queue overflow (max 1000)');
-                    arr.push(v);
-                    // 大顶堆上浮
-                    var i = arr.length - 1;
-                    while (i > 0) {
-                        var p = Math.floor((i - 1) / 2);
-                        if (arr[p] >= arr[i]) break;
-                        var t = arr[p]; arr[p] = arr[i]; arr[i] = t;
-                        i = p;
-                    }
-                },
-                pop: function() {
-                    if (arr.length === 0) throw new ScriptError('priority_queue empty');
-                    arr[0] = arr[arr.length - 1];
-                    arr.pop();
-                    // 大顶堆下沉
-                    var i = 0;
-                    var n = arr.length;
-                    while (true) {
-                        var largest = i;
-                        var l = 2 * i + 1;
-                        var r = 2 * i + 2;
-                        if (l < n && arr[l] > arr[largest]) largest = l;
-                        if (r < n && arr[r] > arr[largest]) largest = r;
-                        if (largest === i) break;
-                        var t = arr[i]; arr[i] = arr[largest]; arr[largest] = t;
-                        i = largest;
-                    }
-                },
-                top: function() { if (arr.length === 0) throw new ScriptError('priority_queue empty'); return arr[0]; },
-                size: function() { return arr.length; },
-                empty: function() { return arr.length === 0; }
-            };
-        default:
-            return {};
+    if (expr.name === 'parseInt') {
+        return parseInt(String(evalExpr(expr.args[0], scope, startTime, depth))) || 0;
     }
+    if (expr.name === 'sizeof') {
+        var sv = evalExpr(expr.args[0], scope, startTime, depth);
+        return Array.isArray(sv) ? sv.length : (typeof sv === 'string' ? sv.length : 0);
+    }
+    if (expr.name === 'size') {
+        var sv2 = evalExpr(expr.args[0], scope, startTime, depth);
+        if (sv2 && typeof sv2.size === 'function') return sv2.size();
+        if (Array.isArray(sv2)) return sv2.length;
+        return 0;
+    }
+    if (expr.name === 'strlen') {
+        var sl = evalExpr(expr.args[0], scope, startTime, depth);
+        return typeof sl === 'string' ? sl.length : (Array.isArray(sl) ? sl.indexOf('\0') >= 0 ? sl.indexOf('\0') : sl.length : 0);
+    }
+    // printf 格式化输出
+    if (expr.name === 'printf') {
+        var fmt = String(evalExpr(expr.args[0], scope, startTime, depth));
+        var pArgs = [];
+        for (var pa = 1; pa < expr.args.length; pa++) pArgs.push(evalExpr(expr.args[pa], scope, startTime, depth));
+        var out = printfFormat(fmt, pArgs);
+        globalEnv['__outputs__'].push(out);
+        return pArgs.length; // 返回参数个数
+    }
+    // 自定义函数
+    if (globalEnv['__ast__'] && globalEnv['__ast__'].functions[expr.name]) {
+        var func = globalEnv['__ast__'].functions[expr.name];
+        var funcArgs = [];
+        for (var ai = 0; ai < expr.args.length; ai++) {
+            funcArgs.push(evalExpr(expr.args[ai], scope, startTime, depth));
+        }
+        // 调用时传入当前作用域，函数内部创建子作用域
+        return callFunction(func, funcArgs, scope, globalEnv['__outputs__'], startTime, depth + 1);
+    }
+    throw new ScriptError("未定义函数: " + expr.name);
 }
 
-// 主入口
+// new 表达式处理：分配内存 + 初始化结构体
+function handleNewExpr(expr, scope, startTime, depth) {
+    if (!globalEnv['__structs__'] || !globalEnv['__structs__'][expr.structType]) {
+        throw new ScriptError("未定义的结构体: " + expr.structType);
+    }
+    var structDef = globalEnv['__structs__'][expr.structType];
+    // 计算参数
+    var initArgs = [];
+    for (var ni = 0; ni < expr.args.length; ni++) {
+        initArgs.push(evalExpr(expr.args[ni], scope, startTime, depth));
+    }
+    // 分配地址并创建对象
+    var addr = allocAddr();
+    var obj = {};
+    for (var fi = 0; fi < structDef.fields.length; fi++) {
+        var f = structDef.fields[fi];
+        obj[f.name] = fi < initArgs.length ? initArgs[fi] : 0;
+    }
+    // 存入指针表：addr -> obj
+    // 支持 -> 操作通过 obj.field 访问
+    obj.__addr = addr;
+    QLANG_MEMORY[addr] = obj;
+    return addr; // 返回指针
+}
+
+// ===== 主入口 =====
+
+function execute(ast, answers, otherInputs, qs) {
+    // 重置全局状态
+    QLANG_MEMORY = new Array(QLANG_MEMORY_SIZE);
+    QLANG_NEXT_ADDR = 1;
+    QLANG_SCOPE_ID = 0;
+
+    if (!ast.functions['main']) throw new ScriptError("未找到 main()");
+
+    var rootScope = createScope(null);
+    var outputs = [];
+    var startTime = Date.now();
+
+    // 注入问卷答案
+    if (answers) {
+        for (var qid in answers) {
+            var ans = answers[qid];
+            declareVar(rootScope, qid, ans, 'auto', false);
+            var nv = parseInt(ans, 10);
+            if (!isNaN(nv)) declareVar(rootScope, qid + '.num', nv, 'int', false);
+            declareVar(rootScope, qid + '.text', String(ans), 'string', false);
+        }
+    }
+
+    globalEnv.__ast__ = ast;
+    globalEnv.__outputs__ = outputs;
+    globalEnv.__startTime__ = startTime;
+
+    // 执行全局语句
+    for (var gi = 0; gi < ast.globalStmts.length; gi++) {
+        execStmt(ast.globalStmts[gi], rootScope, outputs, startTime, 0, null);
+    }
+
+    // 调用 main
+    callFunction(ast.functions['main'], [], rootScope, outputs, startTime, 0);
+
+    if (outputs.length > 0) return '\n\n── 结果 ──\n' + outputs.join('\n');
+    return '';
+}
+
+var globalEnv = {};
+
 export function executeQLang(resultCodeStr, answers, otherInputs, qs) {
     try {
         var ast = parse(resultCodeStr);
-        var outputs = execute(ast, answers, otherInputs, qs);
-        if (outputs.length > 0) {
-            return '\n\n── 结果 ──\n' + outputs.join('\n');
-        }
-        return '';
+        return execute(ast, answers, otherInputs, qs);
     } catch (e) {
-        if (e instanceof ScriptError) {
-            throw e;
-        }
+        if (e instanceof ScriptError) throw e;
         throw new ScriptError(String(e.message || e));
     }
 }

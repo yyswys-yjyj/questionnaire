@@ -85,10 +85,7 @@ var answerColor = primary;
     async function handleSubmit() {
         if (isExpired || isSubmitted || submittingState[0])
             return;
-        submittingState[1](true);
-        // 更新 dataState 触发重绘，然后异步执行计算
-        dataState[1](JSON.stringify(data));
-        await new Promise(function(r) { setTimeout(r, 50); });
+        // 先检测必填，不满足直接返回，避免显示"结果计算中"
         var missingRequired = [];
         for (var vi = 0; vi < questions.length; vi++) {
             var vq = questions[vi];
@@ -109,6 +106,10 @@ var answerColor = primary;
             errorMsgState[1]("还有 " + missingRequired.length + " 道必答题未填");
             return;
         }
+        submittingState[1](true);
+        // 更新 dataState 触发重绘，然后异步执行计算
+        dataState[1](JSON.stringify(data));
+        await new Promise(function(r) { setTimeout(r, 50); });
         // 检测是否所有题目都没填
         var allEmpty = true;
         for (var _aei = 0; _aei < questions.length; _aei++) {
@@ -994,8 +995,11 @@ if (hasCount && data.resultcode) {
     }
     else if (isContentVisible) {
         if (isSubmitted) {
+            var submitIdx = 0;
             for (var si = 0; si < questions.length; si++) {
-                var qaNode = renderQuestion(questions[si], si);
+                var qa = questions[si];
+                var displayIdx = qa.type === "section" ? 0 : (submitIdx++);
+                var qaNode = renderQuestion(qa, displayIdx);
                 if (qaNode)
                     contentNodes.push(qaNode);
             }
@@ -1096,7 +1100,7 @@ if (hasCount && data.resultcode) {
                     ctx.UI.Divider({ color: surfaceVariant, thickness: 1 }),
                     ctx.UI.Text({ text: "关于问卷提问", style: "titleSmall", color: primary }),
                     ctx.UI.Text({ text: "一个允许 AI 向用户发送问卷提问的插件", style: "bodySmall", color: onSurfaceVariant }),
-                    ctx.UI.Text({ text: "version: 1.5.2", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
+                    ctx.UI.Text({ text: "version: 1.5.3", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
                     ctx.UI.Text({ text: "作者", style: "titleSmall", color: primary }),
                     ctx.UI.Text({ text: "原作：liu-baia", style: "bodySmall", color: onSurface }),
                     ctx.UI.Text({ text: "二次开发：yyswys-yjyj", style: "bodySmall", color: onSurface }),

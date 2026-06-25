@@ -6,8 +6,8 @@
     "en": "Questionnaire"
   },
 "description": {
-        "zh": "问卷：发送结构化问卷，支持多题型（含\"其他\"输入、评分、李克特量表、分区、必答标识等）。由AI在回复中输出XML标签，XmlRenderPlugin自动渲染为可填表单。id 由工具自动生成，无需手动填写。",
-        "en": "Questionnaire: structured survey with multiple question types. AI outputs XML tag, XmlRenderPlugin renders form. ID is auto-generated."
+        "zh": "问卷工具：在你需要向用户提问或收集用户信息时可使用，此工具可向用户发送一份表单，支持多题型。需要注意的是，你需要在先使用该工具包编译可运行的表单，随后把 xml 发出来，这将会自动渲染为可填表单。",
+        "en": "Survey tool: You can use this when you need to ask users questions or collect information from them. It allows you to send users a form with multiple question types. Note that you'll first need to compile the form into a runnable version using this toolkit, and then send out the XML file - it will automatically render into a fillable form."
       },
   "category": "Utility",
   "env": [
@@ -56,8 +56,8 @@
     {
       "name": "ask",
       "description": {
-        "zh": "生成一份结构化问卷的 XML 标签。重要：必须先调用本工具（questionnaire:ask）生成 XML，不要手写 questionnaire 标签。本包仅此一个工具，没有其他工具名（如 send_questionnaire 等不存在）。调用工具后，AI 需在回复中输出返回的 xml 内容（&lt;questionnaire&gt;...&lt;/questionnaire&gt;），XmlRenderPlugin 自动渲染为可填表单。支持题型：single单选(含\"其他\"输入)、multiple多选、text单行文本、textarea多行文本、rating评分(1-5星)、likert李克特量表(1-5程度)、nps净推荐值(0-10)、time时间选择(HH:MM)。支持功能：分区(section)含subtitle子标题、required必答题标识。id 由工具自动生成，无需手动填写。注意：<questionnaire> 必须是最顶层的 XML 标签，不要嵌套在 <html>、<div> 或其他标签内部。注意：所有题型（section/text/textarea/single/rating/likert/nps/multiple/time）都支持 subtitle 字段，建议为每道题添加 subtitle 作为填写提示或说明文字。",
-        "en": "Generate questionnaire XML. AI outputs &lt;questionnaire&gt;...&lt;/questionnaire&gt; tag. Types: single(with other input), multiple, text, textarea, rating(1-5 star), likert(Likert scale 1-5), nps(0-10), time(HH:MM). Features: section with subtitle, required flag. ID is auto-generated. NOTE: <questionnaire> must be the top-level XML tag, do NOT nest it inside <html>, <div> or any other tag."
+        "zh": "编译一份结构化问卷的 XML 标签。重要：必须先调用本工具（questionnaire:ask）生成 XML，不要在你不了解语法的情况下手写 questionnaire 标签。本包仅此一个工具，没有其他工具名（如 send_questionnaire 等不存在）。调用工具后，AI 需在回复中输出返回的 xml 内容（<questionnaire>...</questionnaire>），会自动渲染为可填表单（注意 xml 起始于闭合的 questionnaire 别打错了）。支持题型：single单选(含\"其他\"输入)、multiple多选、text单行文本、textarea多行文本、rating评分(1-5星)、likert李克特量表(1-5程度)、nps净推荐值(0-10)、time时间选择(HH:MM)。支持功能：分区(section)含subtitle子标题、required必答题标识。id 由工具自动生成，无需手动填写。注意：<questionnaire> 必须是最顶层的 XML 标签，不要嵌套在 <html>、<div> 或其他标签内部。注意：所有题型（section/text/textarea/single/rating/likert/nps/multiple/time）都支持 subtitle 字段，建议为每道题添加 subtitle 作为填写提示或说明文字。新增 check_level 参数：将AI调用ask生成问卷视为编译过程，支持'0'（严格）/ 正整数N（允许N个警告）/ 'inf'（不检查）。关于渲染检查：如果编译的问卷xml 存在问题，渲染给用户的将会是错误页面，用户点击“提醒”按钮后，你将会收到格式如下的错误信息：⚠️ [错误类型]：[错误信息]。",
+"en": "Generate questionnaire XML. AI outputs <questionnaire>...</questionnaire> tag. Types: single(with other input), multiple, text, textarea, rating(1-5 star), likert(Likert scale 1-5), nps(0-10), time(HH:MM). Features: section with subtitle, required flag. ID is auto-generated. NOTE: <questionnaire> must be the top-level XML tag, do NOT nest it inside <html>, <div> or any other tag. New param check_level: treat generation as compilation. '0' (strict) / positive N (allow N warnings) / 'inf' (skip checks).Regarding rendering checks: If there are issues with the compiled questionnaire XML, the user will see an error page. When the user clicks the \"Notify\" button, you'll receive an error message in the following format: ⚠️ [Error Type]: [Error Message]."
       },
       "parameters": [
         {
@@ -126,11 +126,20 @@
         {
           "name": "resultcode",
           "description": {
-            "zh": "结果脚本(可选)，与result互斥。QLang v2：问卷XML内用<resultcode>子标签包裹代码。类C++弱缩进脚本，必须写int main()入口并return 0;。分号分隔，无需缩进。基础：int/bool/string/char类型、一维二维数组、for/while(嵌套break continue)、if-else(含and or not)、四则运算含取模、比较、字符串拼接、print(逗号多参)/cout输出、i++/--/+=、const只读变量、1e9、注释。题型变量：q1(值) q1.num(序号) q1.text(映射) q1.options(数组)。内置函数：_gcd parseint。自定义函数。PHP变量：$var=value。STL容器(容量1000)：stack push/pop/top/size/empty。 queue push/pop/front/back/size。 vector push_back/pop_back/get/set/size/clear。 pair first/second。 priority_queue大顶堆 push/pop/top/size/empty。 cstring：sizeof size strlen strcmp strcpy。总时限10秒。\n示例：int main(){ stack s; s.push(10); print(s.top(), size(s)); return 0; }",
-            "en": "Result script, use <resultcode> sub-XML tag. C++-like, must have int main()+return 0;. Semicolons, no indent. Types: int/bool/string/char, 1D/2D arrays, for/while(nested break continue), if-else(and or not), arithmetic(including modulo), comparisons, string concat, print(comma multi-arg)/cout, ++/--/+=, const, 1e9, comments. Question vars: q1(value), q1.num(1-indexed), q1.text(label), q1.options(array). Built-in: _gcd, parseInt. Custom functions. PHP-style: $var=value;. STL(cap 1000): stack(push/pop/top/size/empty), queue(push/pop/front/back/size), vector(push_back/pop_back/get/set/size/clear), pair(first/second), priority_queue(max-heap push/pop/top/size/empty). cstring: sizeof, size, strlen, strcmp, strcpy. Total timeout 10s.\nexample: int main(){ stack s; s.push(10); print(s.top(), size(s)); return 0; }"
+            "zh": "结果脚本(可选)，与result互斥。QLang v2：问卷XML内用<resultcode>子标签包裹代码。类C++弱缩进脚本，必须写int main()入口并return 0;。分号分隔，无需缩进。基础：int/bool/string/char类型、一维二维数组、for/while(嵌套break continue)、if-else(含and or not)、四则运算含取模、比较、字符串拼接、print(逗号多参)/cout输出、i++/--/+=、const只读变量、1e9、注释。题型变量：q1(值) q1.num(序号) q1.text(映射) q1.options(数组)。内置函数：_gcd parseint。自定义函数。PHP变量：$var=value。STL容器(容量1000)：stack push/pop/top/size/empty。 queue push/pop/front/back/size。 vector push_back/pop_back/get/set/size/clear。 pair first/second。 priority_queue大顶堆 push/pop/top/size/empty。 cstring：sizeof size strlen strcmp strcpy。printf格式化(%d/%s/%x/%o/%p)。指针(&取地址/*解引用)。链式作用域(块/函数)。地址表空间256MB，超限报错。总时限10秒。结构体：struct定义，Node* p=new Node; p->val=1; p->next=0; while(p!=0) p=p->next。空指针报错。\n示例：struct Node{int v;int next;}; int main(){Node* h=0; Node* n=new Node; n->v=1; n->next=h; h=n; printf(\"%d\",h->v); return 0; }",
+"en": "Result script, use <resultcode> sub-XML tag. C++-like, must have int main()+return 0;. Semicolons, no indent. Types: int/bool/string/char, 1D/2D arrays, for/while(nested break continue), if-else(and or not), arithmetic(including modulo), comparisons, string concat, print(comma multi-arg)/cout, ++/--/+=, const, 1e9, comments. Question vars: q1(value), q1.num(1-indexed), q1.text(label), q1.options(array). Built-in: _gcd, parseInt. Custom functions. PHP-style: $var=value;. STL(cap 1000): stack/queue/vector/pair/priority_queue. cstring: sizeof/size/strlen/strcmp/strcpy. printf(%d/%s/%x/%o/%p). Pointers(&address/*deref). Scope chain(block/function). 256MB address space, overflow error. Total timeout 10s. Struct: struct+new, Node* p=new Node; p->val=1; p->next=0; while(p!=0) p=p->next. null pointer error.\nexample: struct Node{int v;int next;}; int main(){Node* h=0; Node* n=new Node; n->v=1; n->next=h; h=n; printf(\"%d\",h->v); return 0; }"
           },
           "type": "string",
           "required": false
+        },
+        {
+          "name": "check_level",
+          "description": {
+            "zh": "编译检查等级。将AI调用ask生成问卷视为编译过程，此参数控制编译时的检查严格程度。可选值：'0'或留空（严格模式，所有错误直接拒绝）；正整数N（最多允许N个非致命错误，收集警告但仍生成XML）；'inf'（不检查语法，放行所有内容）。默认'0'。关于 Json：Json 格式是要求100%正确，该错误不可被忽略。",
+            "en": "Compile check level. Treats questionnaire generation as a compilation. Values: '0'/empty (strict, reject on any error); positive integer N (allow up to N non-fatal errors, emit warnings but still generate XML); 'inf' (skip all checks, pass everything). Default '0'.Regarding JSON: The JSON format must be 100% correct; this error cannot be ignored."
+          },
+          "type": "string",
+          "required": true
         }
       ]
     }
@@ -199,25 +208,39 @@ var askPackage = (function () {
     }
     function ask(params) {
         var title = params.title || "问卷";
-        // 常见参数错误检测：AI 用了错误的字段名
-        if (params.questionnaire) {
-            return { success: false, error: "参数错误：你使用了 'questionnaire' 字段，正确字段名是 'questions'（JSON 数组字符串）。请重新调用 questionnaire:ask，参数名是 title 和 questions，不要用其他名字。" };
+        // 读取编译检查等级
+        var checkLevel = params.check_level;
+        var checkInf = checkLevel === "inf";
+        var checkMaxErrors = -1; // -1 = 严格模式
+        if (!checkInf && checkLevel !== undefined && checkLevel !== "" && checkLevel !== "0") {
+            var n = parseInt(checkLevel);
+            if (!isNaN(n) && n > 0) checkMaxErrors = n;
         }
-        if (params.questions && typeof params.questions === "object" && typeof params.questions !== "string") {
-            // AI 传了对象而不是 JSON 字符串，自动转义
-            params.questions = JSON.stringify(params.questions);
+        var errors = [];
+        function addError(msg) {
+            errors.push(msg);
         }
         var questions = [];
+        // 解析 questions JSON（所有模式下都必须执行）
+        if (params.questions && typeof params.questions === "object" && typeof params.questions !== "string") {
+            params.questions = JSON.stringify(params.questions);
+        }
         try {
             questions = JSON.parse(params.questions);
             if (!Array.isArray(questions))
                 questions = [];
         }
         catch (e) {
-            return { success: false, error: "questions 格式有误：不是合法的 JSON 数组字符串。请确保整个 questions 参数用单引号包裹，内容为合法 JSON，例如：questions='[{\"type\":\"text\",\"question\":\"姓名\"}]'" };
+            questions = [];
+        }
+        // inf 模式跳过所有校验
+        if (!checkInf) {
+        // 常见参数错误检测：AI 用了错误的字段名
+        if (params.questionnaire) {
+            addError("参数错误：你使用了 'questionnaire' 字段，正确字段名是 'questions'（JSON 数组字符串）。请重新调用 questionnaire:ask，参数名是 title 和 questions，不要用其他名字。");
         }
         if (questions.length === 0) {
-            return { success: false, error: "问题列表不能为空" };
+            addError("问题列表不能为空");
         }
         // 校验每道题的必要字段
         var validTypes = { section: true, single: true, multiple: true, text: true, textarea: true, rating: true, likert: true, nps: true, time: true };
@@ -228,28 +251,28 @@ var askPackage = (function () {
             if (!vq.type && (vq.result || vq.count !== undefined || vq.output_raw !== undefined))
                 continue;
             if (!vq.type || typeof vq.type !== "string") {
-                return { success: false, error: "第" + (vi + 1) + "题缺少 type 字段" };
+                addError("第" + (vi + 1) + "题缺少 type 字段");
             }
             if (!validTypes[vq.type]) {
-                return { success: false, error: "第" + (vi + 1) + "题 type 不合法: " + vq.type + "，合法值: section/single/multiple/text/textarea/rating/likert/nps" };
+                addError("第" + (vi + 1) + "题 type 不合法: " + vq.type + "，合法值: section/single/multiple/text/textarea/rating/likert/nps");
             }
             if (!vq.question || typeof vq.question !== "string" || vq.question.trim() === "") {
-                return { success: false, error: "第" + (vi + 1) + "题缺少 question 字段（注意字段名是 question 不是 title）" };
+                addError("第" + (vi + 1) + "题缺少 question 字段（注意字段名是 question 不是 title）");
             }
             // 检测 options 格式错误：AI 可能传了 [{label:...}] 而不是 ["选项1","选项2"]
             if (vq.options && Array.isArray(vq.options) && vq.options.length > 0) {
                 if (typeof vq.options[0] === "object") {
-                    return { success: false, error: "第" + (vi + 1) + "题 options 格式错误：应该是字符串数组 [\"选项1\",\"选项2\"]，不是对象数组 [{label:...}]" };
+                    addError("第" + (vi + 1) + "题 options 格式错误：应该是字符串数组 [\"选项1\",\"选项2\"]，不是对象数组 [{label:...}]");
                 }
             }
             if (needsOptions[vq.type] && (!vq.options || !Array.isArray(vq.options) || vq.options.length < 2)) {
-                return { success: false, error: "第" + (vi + 1) + "题（" + vq.type + "）至少需要2个选项" };
+                addError("第" + (vi + 1) + "题（" + vq.type + "）至少需要2个选项");
             }
             // 检测不支持的字段名
             var allowedFields = { type: true, question: true, options: true, required: true, subtitle: true, enableOther: true, id: true, result: true, count: true, output_raw: true };
             for (var fk in vq) {
                 if (!allowedFields[fk]) {
-                    return { success: false, error: "第" + (vi + 1) + "题存在不支持的字段 '" + fk + "'，正确字段名：type/question/options/required/subtitle/enableOther/id" };
+                    addError("第" + (vi + 1) + "题存在不支持的字段 '" + fk + "'，正确字段名：type/question/options/required/subtitle/enableOther/id");
                 }
             }
         }
@@ -257,8 +280,15 @@ var askPackage = (function () {
         var isCountMode = params.is_count_mode === true;
         var useExpr = params.use_expression === true;
         if (isCountMode === true && useExpr === false) {
-            return { success: false, error: "参数冲突：is_count_mode=true 要求 use_expression=true，但 use_expression=false" };
+            addError("参数冲突：is_count_mode=true 要求 use_expression=true，但 use_expression=false");
         }
+        // 检查错误数量是否超标
+        if (errors.length > 0) {
+            if (checkMaxErrors < 0 || errors.length > checkMaxErrors) {
+                return { success: false, error: "编译错误（共" + errors.length + "个）：" + errors.join("；"), message: "编译错误（共" + errors.length + "个）：\n" + errors.join("\n") };
+            }
+        }
+        } // end if (!checkInf)
         // 自动为每个问题生成唯一 id（q1, q2, ... 兼容原作格式）
         var qIdx = 1, secIdx = 1;
         for (var qi = 0; qi < questions.length; qi++) {
@@ -339,7 +369,8 @@ var askPackage = (function () {
             success: true,
             count: questions.length,
             xml: xmlContent,
-            message: "问卷已生成，请在回复中输出以下 XML 标签：\n" + xmlContent
+            message: errors.length > 0 ? "问卷已生成（编译警告" + errors.length + "个）：\n" + errors.join("\n") + "\n\n" + xmlContent : "问卷已生成，请在回复中输出以下 XML 标签：\n" + xmlContent,
+            warnings: errors.length > 0 ? errors : undefined
         };
     }
     return { ask: ask };
