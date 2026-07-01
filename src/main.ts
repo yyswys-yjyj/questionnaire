@@ -145,7 +145,7 @@ function onXmlRender(event) {
 
     var validTypes = { section: true, single: true, multiple: true, text: true, textarea: true, rating: true, likert: true, nps: true, time: true };
     var needsOptions = { single: true, multiple: true, likert: true };
-    var allowedFieldNames = { type: true, question: true, options: true, required: true, subtitle: true, enableOther: true, id: true, result: true, resultcode: true, count: true, output_raw: true };
+    var allowedFieldNames = { type: true, question: true, options: true, required: true, subtitle: true, enableOther: true, id: true };
     var validationErrors = [];
     for (var vi = 0; vi < data.questions.length; vi++) {
         var vq = data.questions[vi], vqIdx = vi + 1;

@@ -6,11 +6,13 @@ function readEnv(key, valid, def) {
 }
 var _initialTheme = readEnv("QUESTIONNAIRE_THEME", ["classic","compact"], "classic");
 var _initialLayout = readEnv("QUESTIONNAIRE_BUTTON_LAYOUT", ["row","scroll"], "scroll");
+var _initialQuestionLayout = readEnv("QUESTIONNAIRE_LAYOUT", ["continuous","compact"], "continuous");
 var _initialTimeMode = readEnv("QUESTIONNAIRE_TIME_INPUT_MODE", ["picker","input"], "picker");
 var _initialDisplayMode = readEnv("QUESTIONNAIRE_DISPLAY_MODE", ["normal","hidden","blocked"], "normal");
 var _initialStrictMode = readEnv("QUESTIONNAIRE_STRICT_MODE", ["true","false"], "true");
 var _themeLabel = function(t) { return t === "classic" ? "圆润" : "方正"; };
 var _layoutLabel = function(l) { return l === "row" ? "一行一个" : "LazyRow滑动"; };
+var _questionLayoutLabel = function(l) { return l === "continuous" ? "连续，所有题目连续显示" : "紧凑，一页5题加分页"; };
 var _timeModeLabel = function(m) { return m === "picker" ? "按钮选择器" : "手动输入"; };
 var _displayModeLabel = function(d) { return d === "normal" ? "正常显示" : (d === "hidden" ? "显示源码" : "拦截显示"); };
 
@@ -24,6 +26,7 @@ export default function Screen(ctx) {
     var savedState = ctx.useState("_saved", false);
     var previewTypeState = ctx.useState("_previewType", "single");
     var layoutState = ctx.useState("_layout", _initialLayout);
+    var questionLayoutState = ctx.useState("_questionLayout", _initialQuestionLayout);
     var timeModeState = ctx.useState("_timeMode", _initialTimeMode);
     var displayModeState = ctx.useState("_displayMode", _initialDisplayMode);
     var strictModeState = ctx.useState("_strictMode", _initialStrictMode);
@@ -32,6 +35,7 @@ export default function Screen(ctx) {
     var saved = savedState[0];
     var previewType = previewTypeState[0];
     var currentLayout = layoutState[0];
+    var currentQuestionLayout = questionLayoutState[0];
     var currentTimeMode = timeModeState[0];
     var currentDisplayMode = displayModeState[0];
     var currentStrictMode = strictModeState[0];
@@ -71,6 +75,7 @@ export default function Screen(ctx) {
             Tools.SoftwareSettings.writeEnvironmentVariable("QUESTIONNAIRE_TIME_INPUT_MODE", currentTimeMode);
             Tools.SoftwareSettings.writeEnvironmentVariable("QUESTIONNAIRE_DISPLAY_MODE", currentDisplayMode);
             Tools.SoftwareSettings.writeEnvironmentVariable("QUESTIONNAIRE_STRICT_MODE", currentStrictMode);
+            Tools.SoftwareSettings.writeEnvironmentVariable("QUESTIONNAIRE_LAYOUT", currentQuestionLayout);
             savedState[1](true);
             ctx.showToast("已保存");
         } catch (e) {
@@ -116,6 +121,24 @@ export default function Screen(ctx) {
                 content: ctx.UI.Text({ text: "LazyRow 滑动（经典）", style: "labelMedium", color: !isRowLayout ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
             }),
             ctx.UI.Divider({ thickness: 0.5, color: onSurfaceVariant.copy({ alpha: 0.3 }) }),
+            ctx.UI.Text({ text: "问卷布局", style: "titleSmall", color: onSurface }),
+            ctx.UI.Text({ text: "当前布局：" + _questionLayoutLabel(currentQuestionLayout), style: "bodyMedium", color: onSurfaceVariant }),
+            ctx.UI.OutlinedButton({
+                containerColor: currentQuestionLayout === "continuous" ? primary : null,
+                contentColor: currentQuestionLayout === "continuous" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
+                onClick: function () { questionLayoutState[1]("continuous"); savedState[1](false); },
+                fillMaxWidth: true,
+                content: ctx.UI.Text({ text: "拉通（经典）", style: "labelMedium", color: currentQuestionLayout === "continuous" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+            }),
+            ctx.UI.OutlinedButton({
+                containerColor: currentQuestionLayout === "compact" ? primary : null,
+                contentColor: currentQuestionLayout === "compact" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
+                onClick: function () { questionLayoutState[1]("compact"); savedState[1](false); },
+                fillMaxWidth: true,
+                content: ctx.UI.Text({ text: "紧凑（新布局，分页设计）", style: "labelMedium", color: currentQuestionLayout === "compact" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+            }),
+            ctx.UI.Divider({ thickness: 0.5, color: onSurfaceVariant.copy({ alpha: 0.3 }) }),
+            ctx.UI.Spacer({ height: 4 }),
             ctx.UI.Spacer({ height: 4 }),
             ctx.UI.Text({ text: "时间输入模式", style: "titleSmall", color: onSurface }),
             ctx.UI.Text({ text: "当前模式：" + _timeModeLabel(currentTimeMode), style: "bodyMedium", color: onSurfaceVariant }),
@@ -333,7 +356,7 @@ export default function Screen(ctx) {
             ctx.UI.Text({ text: "方正模式：使用 FilterChip 渲染选择题选项，风格方正紧凑，适合多选题较多或空间有限的场景。", style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Spacer({ height: 8 }),
             ctx.UI.Text({ text: "关于问卷插件", style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: "问卷提问插件 v1.5.3", style: "bodySmall", color: onSurfaceVariant }),
+            ctx.UI.Text({ text: "问卷提问插件 v1.6.0", style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Text({ text: "支持题型：single单选、multiple多选、text文本、textarea多行文本、rating评分、likert李克特量表、nps净推荐值、time时间选择。", style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Text({ text: "支持功能：分区标题、必答标识、结果表达式、主题切换（圆润/方正）、按钮布局（一行一个/LazyRow滑动）。", style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Spacer({ height: 8 }),
@@ -349,7 +372,7 @@ export default function Screen(ctx) {
         versionCheckState[1]("checking");
         versionInfoState[1]("正在检查更新...");
         tickState[1](tickState[0] + 1);
-        var currentVer = "153";
+        var currentVer = "160";
         var fmtCur = currentVer.charAt(0) + "." + currentVer.substring(1, 2) + "." + currentVer.substring(2);
         function done(info) {
             versionCheckState[1]("done");
@@ -382,7 +405,7 @@ export default function Screen(ctx) {
     var versionCheckCard = ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
         ctx.UI.Column({ padding: 16, spacing: 8 }, [
             ctx.UI.Text({ text: "版本检查", style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: "当前版本：v1.5.3", style: "bodyMedium", color: onSurfaceVariant }),
+            ctx.UI.Text({ text: "当前版本：v1.6.0", style: "bodyMedium", color: onSurfaceVariant }),
             ctx.UI.Button({
                 onClick: checkVersion,
                 fillMaxWidth: true,

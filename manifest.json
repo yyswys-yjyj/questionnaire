@@ -1,29 +1,29 @@
 {
   "schema_version": 1,
   "toolpkg_id": "com.operit.questionnaire.fix",
-  "version": "1.5.3",
+  "version": "v1.6.0",
   "main": "dist/main.js",
   "display_name": {
     "zh": "问卷提问",
     "en": "Questionnaire"
   },
   "description": {
-    "zh": "问卷提问 v1.5.3 - 基于地址表+作用域链重写QLang解释器，支持指针、取地址(&)和printf格式化输出。",
-    "en": "Questionnaire v1.5.3 - Rewritten QLang interpreter with address table + scope chain, supports pointers (&) and printf formatting."
+    "zh": "问卷提问 | Questionnaire\n一个允许 AI 向你发送问卷的工具包",
+    "en": "Questionnaire\nA toolkit that lets AI send you surveys"
   },
   "enabled_by_default": false,
   "subpackages": [
     {
       "id": "questionnaire",
-      "entry": "dist/ask.js",
+      "entry": "dist/questionnaire.js",
       "enabled_by_default": true,
       "display_name": {
-        "zh": "问卷提问",
-        "en": "Questionnaire Ask"
+        "zh": "问卷工具",
+        "en": "Questionnaire Tool"
       },
       "description": {
-        "zh": "制作标准化问卷表单，支持多题型。",
-        "en": "Create standard questionnaire forms."
+        "zh": "该工具组提供问卷制作、导入外部库（QLang 功能）的能力。",
+        "en": "This toolkit provides the ability to create questionnaires and import external databases (QLang feature)."
       }
     }
   ]

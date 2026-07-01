@@ -52,7 +52,9 @@ function findVar(scope, name) {
 
 function getVar(scope, name) {
     var found = findVar(scope, name);
-    if (!found) throw new ScriptError("未定义: " + name);
+    if (!found) {
+        throw new ScriptError("未定义: " + name);
+    }
     return QLANG_MEMORY[found.info.addr];
 }
 
@@ -77,6 +79,27 @@ ScriptError.prototype = new Error();
 
 // ===== Tokenizer + Parser =====
 // @ts-nocheck
+
+function stripLineNumbers(s){
+    if(typeof s !== "string") return "";
+    // 去掉所有行号前缀格式（单行号或双行号）： "1| code"、" 1| 2| code"
+    return s.replace(/^\s*(?:\d+\|\s*)+/gm, "");
+}
+// 异步读取库文件内容
+function readLibraryFile(libName) {
+    return new Promise(async function(resolve, reject) {
+        try {
+            var dir = "/sdcard/Download/Operit/questionnaire/QLangRuntime/library";
+            var res = await Tools.Files.read({path: dir + "/" + libName + ".qlg"});
+            // Tools.Files.read 返回 {content: "..."}，content 是干净文本不带行号
+            var raw = (typeof res === "object" && res && res.content) ? String(res.content) : String(res || "");
+            raw = stripLineNumbers(raw);
+            resolve(raw);
+        } catch(e) {
+            reject(e);
+        }
+    });
+}
 
 function removeQLangComments(code) {
     // 去除 // 单行注释
@@ -138,19 +161,28 @@ function tokenize(code) {
             var start = i;
             while (i < code.length && /[a-zA-Z0-9_]/.test(code[i])) i++;
             var word = code.substring(start, i);
-            var keywords = { 'int': true, 'float': true, 'double': true, 'char': true, 'string': true, 'bool': true, 'true': true, 'false': true, 'if': true, 'else': true, 'while': true, 'for': true, 'return': true, 'void': true, 'const': true, 'break': true, 'continue': true, 'stack': true, 'queue': true, 'vector': true, 'pair': true, 'priority_queue': true, 'struct': true, 'new': true };
+            var keywords = { 'int': true, 'float': true, 'double': true, 'char': true, 'string': true, 'bool': true, 'true': true, 'false': true, 'if': true, 'else': true, 'while': true, 'for': true, 'return': true, 'void': true, 'const': true, 'break': true, 'continue': true, 'stack': true, 'queue': true, 'vector': true, 'pair': true, 'priority_queue': true, 'struct': true, 'new': true, 'try': true, 'catch': true, 'throw': true };
             tokens.push({ type: keywords[word] ? 'keyword' : 'identifier', value: word, line: line });
             continue;
         }
         // 多字符操作符
         var twoChar = code.substring(i, i + 2);
-        var twoOps = { '++': true, '--': true, '<<': true, '>>': true, '>=': true, '<=': true, '==': true, '!=': true, '&&': true, '||': true, '+=': true, '-=': true, '*=': true, '/=': true, '%=': true, '->': true };
+        var twoOps = { '++': true, '--': true, '<<': true, '>>': true, '>=': true, '<=': true, '==': true, '!=': true, '&&': true, '||': true, '+=': true, '-=': true, '*=': true, '/=': true, '%=': true, '->': true, '::': true };
         if (twoOps[twoChar]) {
             tokens.push({ type: 'operator', value: twoChar, line: line });
             i += 2;
             continue;
         }
         // 单字符
+        // #include 指令预处理器
+        if (c === '#' && code.substring(i, i + 8) === '#include') {
+            var incStart = i;
+            i += 8;
+            while (i < code.length && code[i] !== '\n' && code[i] !== '\r') i++;
+            var incLine = code.substring(incStart, i).trim();
+            tokens.push({ type: 'include', value: incLine, line: line });
+            continue;
+        }
         tokens.push({ type: 'symbol', value: c, line: line });
         i++;
     }
@@ -159,7 +191,7 @@ function tokenize(code) {
 
 // 解析器：从 Token 流构建 AST
 // 顶层：查找函数定义
-function parse(code) {
+function parse(code, extraAsts) {
     var tokens = tokenize(code);
     var pos = 0;
     var structTypeNames = {}; // 已注册的结构体类型名
@@ -282,8 +314,32 @@ function parse(code) {
         if (peek().value === 'print') return parsePrint();
         if (peek().value === 'break') { consume(); expect('symbol', ';'); return { type: 'break' }; }
         if (peek().value === 'continue') { consume(); expect('symbol', ';'); return { type: 'continue' }; }
+        if (peek().value === 'try') return parseTryCatch();
+        if (peek().value === 'throw') return parseThrow();
         // 表达式语句
         return parseExpressionStmt();
+    }
+
+    function parseTryCatch() {
+        consume(); // try
+        expect('symbol', '{');
+        var tryBody = parseBlock();
+        // catch 可能是 keyword 或 identifier（取决于 tokenizer 是否识别为关键字）
+        var cToken = consume();
+        if (cToken.value !== 'catch') throw new ScriptError('期望 catch');
+        expect('symbol', '(');
+        var catchVar = expect('identifier').value;
+        expect('symbol', ')');
+        expect('symbol', '{');
+        var catchBody = parseBlock();
+        return { type: 'tryCatch', tryBody: tryBody, catchVar: catchVar, catchBody: catchBody };
+    }
+
+    function parseThrow() {
+        consume(); // throw
+        var val = parseExpression();
+        expect('symbol', ';');
+        return { type: 'throw', value: val };
     }
     
     function parsePhpVarDecl() {
@@ -310,6 +366,10 @@ function parse(code) {
         var isConst = false;
         if (peek().value === 'const') { isConst = true; consume(); }
         var type = consume().value;
+        // 检测指针类型：int* name 或 int *name
+        var isPtr = false;
+        if (peek().value === '*') { isPtr = true; consume(); }
+        else if (peek().type === 'operator' && peek().value === '*') { isPtr = true; consume(); }
         var name = expect('identifier').value;
         var init = null;
         if (peek().value === '[') {
@@ -703,6 +763,24 @@ function parse(code) {
         if (t.type === 'identifier') {
             consume();
             var name = t.value;
+            // 命名空间限定调用: ns::func(...)
+            if (peek().type === 'operator' && peek().value === '::') {
+                consume(); // 吃掉 ::
+                var nsName = name;
+                if (peek().type !== 'identifier') throw new ScriptError("命名空间限定符后需要函数名");
+                var funcName = consume().value;
+                if (peek().value === '(') {
+                    consume();
+                    var nsArgs = [];
+                    while (peek().value !== ')') {
+                        nsArgs.push(parseExpression());
+                        if (peek().value === ',') consume();
+                    }
+                    expect('symbol', ')');
+                    return { type: 'call', namespace: nsName, name: funcName, args: nsArgs, line: t.line };
+                }
+                throw new ScriptError("命名空间限定符后需要函数调用");
+            }
             if (peek().value === '(') {
                 // 函数调用
                 consume();
@@ -712,7 +790,7 @@ function parse(code) {
                     if (peek().value === ',') consume();
                 }
                 expect('symbol', ')');
-                return { type: 'call', name: name, args: args };
+                return { type: 'call', name: name, args: args, line: t.line };
             }
             if (peek().value === '[') {
                 consume();
@@ -800,34 +878,96 @@ function parse(code) {
     }
     
     // 顶层：搜索函数定义
-    var functions = {};
+    var namespaces = { 'qlgstd': { functions: {} } };
+    // 合并外部库的命名空间（路径记录法）
+    if (extraAsts) {
+        for (var ea_lib in extraAsts) {
+            var ea_sub = extraAsts[ea_lib];
+            if (ea_sub && ea_sub.namespaces) {
+                for (var ea_nsk in ea_sub.namespaces) {
+                    if (!namespaces[ea_nsk]) namespaces[ea_nsk] = { functions: {} };
+                    for (var ea_fnk in ea_sub.namespaces[ea_nsk].functions) {
+                        namespaces[ea_nsk].functions[ea_fnk] = ea_sub.namespaces[ea_nsk].functions[ea_fnk];
+                    }
+                }
+            }
+        }
+    }
+    var currentNs = 'qlgstd';
     var globalStmts = [];
     while (peek().type !== 'eof') {
+        // #include 指令：从外部库读取函数，不展开代码文本
+        if (peek().type === 'include') {
+            var incTok = consume();
+            var incMatch = incTok.value.match(/^#include\s*<([^>]+)>/);
+            if (incMatch) {
+                var libName = incMatch[1];
+                var libPath = "/sdcard/Download/Operit/questionnaire/QLangRuntime/library/" + libName + ".qlg";
+                try {
+                    var r = NativeInterface.callTool("", "read_file", JSON.stringify({path: libPath}));
+                    var o = JSON.parse(r);
+                    var libCode = "";
+                    if (o && o.data && o.data.content) libCode = o.data.content;
+                    else if (o && o.content) libCode = o.content;
+                    else libCode = String(o || "");
+                    libCode = libCode.replace(/^\\d+\\|\\s*/gm, "").replace(/^#defNS\s+\w+;?\s*$/gm, "").replace(/^using\s+namespace\s+\w+;?\s*$/gm, "").trim();
+                    if (!libCode) throw new ScriptError("[库: " + libName + ".qlg] 内容为空");
+                    // 解析库代码提取函数，注册到当前命名空间
+                    var subAst = parse(libCode);
+                    for (var fk in subAst.namespaces) {
+                        if (!namespaces[fk]) namespaces[fk] = { functions: {} };
+                        for (var fnk in subAst.namespaces[fk].functions) {
+                            namespaces[fk].functions[fnk] = subAst.namespaces[fk].functions[fnk];
+                        }
+                    }
+                } catch(e) {
+                    if (e instanceof ScriptError) throw e;
+                    throw new ScriptError("[库: " + libName + ".qlg] " + (e.message || "读取失败"));
+                }
+            }
+            continue;
+        }
+        if (peek().value === 'using') {
+            consume(); consume(); // using namespace
+            var nsName = expect('identifier').value;
+            if (peek().value === ';') consume();
+            if (!namespaces[nsName]) namespaces[nsName] = { functions: {} };
+            // using namespace 不改变注册目标，只是确保该命名空间存在以便查找
+            continue;
+        }
+        // #defNS 指令：切换当前命名空间（仅外部库文件使用）
+        if (peek().type === 'symbol' && peek().value === '#' && tokens[pos + 1] && tokens[pos + 1].value === 'defNS') {
+            consume(); // #
+            consume(); // defNS
+            var defNsName = expect('identifier').value;
+            if (!namespaces[defNsName]) namespaces[defNsName] = { functions: {} };
+            currentNs = defNsName;
+            continue;
+        }
         var typeKw = { 'int': true, 'float': true, 'double': true, 'char': true, 'string': true, 'bool': true, 'void': true, 'stack': true, 'queue': true, 'vector': true, 'pair': true, 'priority_queue': true };
-if (typeKw[peek().value]) {
+        if (typeKw[peek().value]) {
             var typeName = consume().value;
             var funcName = peek();
             if (funcName.type === 'identifier' && tokens[pos + 1] && tokens[pos + 1].value === '(') {
-                // 这是函数定义
-                pos--; // 回退 type
+                pos--;
                 var func = parseFunction();
-                functions[func.name] = func;
+                namespaces[currentNs].functions[func.name] = func;
             } else {
-                // 全局变量声明
                 pos--;
                 var stmt = parseStatement();
                 globalStmts.push(stmt);
             }
         } else if (peek().value === 'struct') {
-            // 结构体定义
             var sd = parseStructDef();
             globalStmts.push(sd);
         } else if (peek().value === 'void' && tokens[pos + 1] && tokens[pos + 1].type === 'identifier' && tokens[pos + 2] && tokens[pos + 2].value === '(') {
             globalStmts.push(parseStatement());
+        } else {
+            consume();
         }
     }
     
-    return { functions: functions, globalStmts: globalStmts };
+    return { namespaces: namespaces, globalStmts: globalStmts };
 }
 
 // 脚本错误
@@ -839,7 +979,91 @@ ScriptError.prototype.constructor = ScriptError;
 
 // ===== 执行器 v2 (基于地址表+作用域链) =====
 
+function createSTLObject(type) {
+    switch (type) {
+        case 'stack': {
+            var stkArr = [];
+            return {
+                __stl_type: 'stack', _data: stkArr,
+                push: function(v) { if (stkArr.length >= 1000) throw new ScriptError('stack overflow (max 1000)'); stkArr.push(v); },
+                pop: function() { if (stkArr.length === 0) throw new ScriptError('stack empty'); stkArr.pop(); },
+                top: function() { if (stkArr.length === 0) throw new ScriptError('stack empty'); return stkArr[stkArr.length - 1]; },
+                size: function() { return stkArr.length; },
+                empty: function() { return stkArr.length === 0; }
+            };
+        }
+        case 'queue': {
+            var quArr = [];
+            return {
+                __stl_type: 'queue', _data: quArr,
+                push: function(v) { if (quArr.length >= 1000) throw new ScriptError('queue overflow (max 1000)'); quArr.push(v); },
+                pop: function() { if (quArr.length === 0) throw new ScriptError('queue empty'); quArr.shift(); },
+                front: function() { if (quArr.length === 0) throw new ScriptError('queue empty'); return quArr[0]; },
+                back: function() { if (quArr.length === 0) throw new ScriptError('queue empty'); return quArr[quArr.length - 1]; },
+                size: function() { return quArr.length; },
+                empty: function() { return quArr.length === 0; }
+            };
+        }
+        case 'vector': {
+            var vecArr = [];
+            return {
+                __stl_type: 'vector', _data: vecArr,
+                push_back: function(v) { vecArr.push(v); },
+                pop_back: function() { if (vecArr.length === 0) throw new ScriptError('vector empty'); vecArr.pop(); },
+                get: function(i) { if (i < 0 || i >= vecArr.length) throw new ScriptError('vector index out of range'); return vecArr[i]; },
+                set: function(i, v) { if (i < 0 || i >= vecArr.length) throw new ScriptError('vector index out of range'); vecArr[i] = v; },
+                size: function() { return vecArr.length; },
+                empty: function() { return vecArr.length === 0; },
+                clear: function() { vecArr.length = 0; }
+            };
+        }
+        case 'priority_queue': {
+            var pqArr = [];
+            function pqSiftUp(idx) {
+                while (idx > 0) {
+                    var p = Math.floor((idx - 1) / 2);
+                    if (pqArr[p] >= pqArr[idx]) break;
+                    var tmp = pqArr[p]; pqArr[p] = pqArr[idx]; pqArr[idx] = tmp;
+                    idx = p;
+                }
+            }
+            function pqSiftDown(idx) {
+                var n = pqArr.length;
+                while (true) {
+                    var largest = idx;
+                    var l = 2 * idx + 1, r = 2 * idx + 2;
+                    if (l < n && pqArr[l] > pqArr[largest]) largest = l;
+                    if (r < n && pqArr[r] > pqArr[largest]) largest = r;
+                    if (largest === idx) break;
+                    var tmp = pqArr[idx]; pqArr[idx] = pqArr[largest]; pqArr[largest] = tmp;
+                    idx = largest;
+                }
+            }
+            return {
+                __stl_type: 'priority_queue', _data: pqArr,
+                push: function(v) {
+                    if (pqArr.length >= 1000) throw new ScriptError('priority_queue overflow (max 1000)');
+                    pqArr.push(v); pqSiftUp(pqArr.length - 1);
+                },
+                pop: function() {
+                    if (pqArr.length === 0) throw new ScriptError('priority_queue empty');
+                    pqArr[0] = pqArr[pqArr.length - 1]; pqArr.pop();
+                    if (pqArr.length > 0) pqSiftDown(0);
+                },
+                top: function() { if (pqArr.length === 0) throw new ScriptError('priority_queue empty'); return pqArr[0]; },
+                size: function() { return pqArr.length; },
+                empty: function() { return pqArr.length === 0; }
+            };
+        }
+        default: return 0;
+    }
+}
+
 function defaultValue(type) {
+    if (type === 'stack' || type === 'queue' || type === 'vector' || type === 'priority_queue') {
+        return createSTLObject(type);
+    }
+    if (type === 'pair') return { first: 0, second: 0 };
     var map = { 'int': 0, 'float': 0.0, 'double': 0.0, 'char': '', 'string': '', 'bool': false, 'void': 0 };
     return map[type] !== undefined ? map[type] : 0;
 }
@@ -1025,8 +1249,11 @@ function execStmt(stmt, scope, outputs, startTime, depth, loopEnv) {
         case 'function': {
             // 注册函数定义，捕获当前作用域
             stmt.parentScope = scope;
-            if (globalEnv && globalEnv['__ast__'] && globalEnv['__ast__'].functions) {
-                globalEnv['__ast__'].functions[stmt.name] = stmt;
+            if (globalEnv && globalEnv['__ast__']) {
+                var ns4 = globalEnv['__namespace__'] || 'qlgstd';
+                if (!globalEnv['__ast__'].namespaces) globalEnv['__ast__'].namespaces = {};
+                if (!globalEnv['__ast__'].namespaces[ns4]) globalEnv['__ast__'].namespaces[ns4] = { functions: {} };
+                globalEnv['__ast__'].namespaces[ns4].functions[stmt.name] = stmt;
             }
             return;
         }
@@ -1068,6 +1295,28 @@ function execStmt(stmt, scope, outputs, startTime, depth, loopEnv) {
             globalEnv['__structs__'][stmt.structName] = stmt;
             return;
         }
+        case 'tryCatch': {
+            try {
+                for (var tsi = 0; tsi < stmt.tryBody.length; tsi++) {
+                    var tr = execStmt(stmt.tryBody[tsi], scope, outputs, startTime, depth, null);
+                    if (tr && (tr.type === 'return' || tr.type === 'break' || tr.type === 'continue')) return tr;
+                }
+            } catch (e) {
+                // 捕获异常，声明 catch 变量
+                var errMsg = e instanceof ScriptError ? e.message : String(e.message || e);
+                var catchScope = createScope(scope);
+                declareVar(catchScope, stmt.catchVar, errMsg, 'string', false);
+                for (var csi = 0; csi < stmt.catchBody.length; csi++) {
+                    var cr = execStmt(stmt.catchBody[csi], catchScope, outputs, startTime, depth, null);
+                    if (cr && (cr.type === 'return' || cr.type === 'break' || cr.type === 'continue')) return cr;
+                }
+            }
+            return;
+        }
+        case 'throw': {
+            var throwVal = evalExpr(stmt.value, scope, startTime, depth);
+            throw new ScriptError(String(throwVal));
+        }
         default:
             throw new ScriptError("不支持的语句: " + stmt.type);
     }
@@ -1086,8 +1335,8 @@ function evalExpr(expr, scope, startTime, depth) {
             var v = evalExpr(expr.arg || expr.expr, scope, startTime, depth);
             if (expr.op === '-') return -v;
             if (expr.op === '!') return !isTruthy(v);
-            if (expr.op === '++') { setVar(scope, expr.arg.name, v + 1); return v; }
-            if (expr.op === '--') { setVar(scope, expr.arg.name, v - 1); return v; }
+            if (expr.op === '++') { var nv = v + 1; setVar(scope, expr.arg.name, nv); return nv; }
+            if (expr.op === '--') { var nv2 = v - 1; setVar(scope, expr.arg.name, nv2); return nv2; }
             return v;
         }
         case 'postInc': {
@@ -1221,17 +1470,25 @@ function handleCall(expr, scope, startTime, depth) {
         globalEnv['__outputs__'].push(out);
         return pArgs.length; // 返回参数个数
     }
-    // 自定义函数
-    if (globalEnv['__ast__'] && globalEnv['__ast__'].functions[expr.name]) {
-        var func = globalEnv['__ast__'].functions[expr.name];
-        var funcArgs = [];
-        for (var ai = 0; ai < expr.args.length; ai++) {
-            funcArgs.push(evalExpr(expr.args[ai], scope, startTime, depth));
-        }
-        // 调用时传入当前作用域，函数内部创建子作用域
-        return callFunction(func, funcArgs, scope, globalEnv['__outputs__'], startTime, depth + 1);
+    // abort：立即终止脚本并抛出错误
+    if (expr.name === 'abort') {
+        var abortMsg = expr.args.length > 0 ? String(evalExpr(expr.args[0], scope, startTime, depth)) : 'abort';
+        throw new ScriptError("abort: " + abortMsg);
     }
-    throw new ScriptError("未定义函数: " + expr.name);
+    // 自定义函数
+    if (globalEnv['__ast__']) {
+        var ns3 = expr.namespace || (globalEnv['__namespace__'] || 'qlgstd');
+        var funcs = globalEnv['__ast__'].namespaces && globalEnv['__ast__'].namespaces[ns3] && globalEnv['__ast__'].namespaces[ns3].functions;
+        if (funcs && funcs[expr.name]) {
+            var func = funcs[expr.name];
+            var funcArgs = [];
+            for (var ai = 0; ai < expr.args.length; ai++) {
+                funcArgs.push(evalExpr(expr.args[ai], scope, startTime, depth));
+            }
+            return callFunction(func, funcArgs, scope, globalEnv['__outputs__'], startTime, depth + 1);
+        }
+    }
+    throw new ScriptError((expr.line ? '第' + expr.line + '行: ' : '') + "未定义函数: " + expr.name + " (可用命名空间: " + Object.keys(globalEnv['__ast__'].namespaces).join(',') + ")");
 }
 
 // new 表达式处理：分配内存 + 初始化结构体
@@ -1262,39 +1519,96 @@ function handleNewExpr(expr, scope, startTime, depth) {
 // ===== 主入口 =====
 
 function execute(ast, answers, otherInputs, qs) {
-    // 重置全局状态
     QLANG_MEMORY = new Array(QLANG_MEMORY_SIZE);
     QLANG_NEXT_ADDR = 1;
     QLANG_SCOPE_ID = 0;
-
-    if (!ast.functions['main']) throw new ScriptError("未找到 main()");
-
+    var ns2 = 'qlgstd';
+    if (!ast.namespaces || !ast.namespaces[ns2] || !ast.namespaces[ns2].functions['main'])
+        throw new ScriptError("未找到 main()");
     var rootScope = createScope(null);
     var outputs = [];
     var startTime = Date.now();
 
-    // 注入问卷答案
-    if (answers) {
+    // 注入 qid 数据：构造一个大对象，注册为全局指针变量 qid
+    // 脚本中通过 qid->q1_num, qid->q1_text 访问
+    if (answers && qs) {
+        var qidTypeMap = {};
+        for (var _qmi = 0; _qmi < qs.length; _qmi++) {
+            var _q = qs[_qmi];
+            if (_q.type !== 'section' && _q.id) {
+                qidTypeMap[_q.id] = _q.type;
+            }
+        }
+        var qidObj = {};
         for (var qid in answers) {
             var ans = answers[qid];
-            declareVar(rootScope, qid, ans, 'auto', false);
-            var nv = parseInt(ans, 10);
-            if (!isNaN(nv)) declareVar(rootScope, qid + '.num', nv, 'int', false);
-            declareVar(rootScope, qid + '.text', String(ans), 'string', false);
+            var qtype = qidTypeMap[qid] || 'text';
+            var textVal = '';
+            var numVal = -1;
+            if (qtype === 'text' || qtype === 'textarea') {
+                textVal = String(ans);
+                if (qtype === 'textarea') {
+                    textVal = textVal.replace(/\n/g, '\\n');
+                }
+                numVal = -1;
+            }
+            else if (qtype === 'single') {
+                textVal = String(ans);
+                numVal = 1;
+            }
+            else if (qtype === 'multiple') {
+                if (Array.isArray(ans)) {
+                    textVal = ans.join(' ');
+                    numVal = ans.length;
+                } else {
+                    textVal = String(ans);
+                    numVal = 1;
+                }
+            }
+            else if (qtype === 'rating' || qtype === 'likert' || qtype === 'nps') {
+                numVal = parseInt(ans);
+                if (isNaN(numVal)) numVal = -1;
+                textVal = String(numVal);
+            }
+            else if (qtype === 'time') {
+                textVal = String(ans);
+                var tp = String(ans).split(':');
+                if (tp.length >= 3) {
+                    var hh = parseInt(tp[0]) || 0;
+                    var mm = parseInt(tp[1]) || 0;
+                    var ss = parseInt(tp[2]) || 0;
+                    numVal = hh * 3600 + mm * 60 + ss;
+                } else if (tp.length === 2) {
+                    var hh2 = parseInt(tp[0]) || 0;
+                    var mm2 = parseInt(tp[1]) || 0;
+                    numVal = hh2 * 3600 + mm2 * 60;
+                } else {
+                    numVal = -1;
+                }
+            }
+            else {
+                textVal = String(ans);
+                numVal = -1;
+            }
+            qidObj[qid + '_num'] = numVal;
+            qidObj[qid + '_text'] = textVal;
         }
+        var qidAddr = allocAddr();
+        qidObj.__addr = qidAddr;
+        QLANG_MEMORY[qidAddr] = qidObj;
     }
 
     globalEnv.__ast__ = ast;
     globalEnv.__outputs__ = outputs;
+    globalEnv.__ast__ = ast;
+    globalEnv.__outputs__ = outputs;
     globalEnv.__startTime__ = startTime;
-
-    // 执行全局语句
+    globalEnv.__namespace__ = ns2;
     for (var gi = 0; gi < ast.globalStmts.length; gi++) {
         execStmt(ast.globalStmts[gi], rootScope, outputs, startTime, 0, null);
     }
-
-    // 调用 main
-    callFunction(ast.functions['main'], [], rootScope, outputs, startTime, 0);
+    var mainArgs = (typeof qidAddr !== 'undefined') ? [qidAddr] : [];
+    callFunction(ast.namespaces[ns2].functions['main'], mainArgs, rootScope, outputs, startTime, 0);
 
     if (outputs.length > 0) return '\n\n── 结果 ──\n' + outputs.join('\n');
     return '';
@@ -1302,12 +1616,96 @@ function execute(ast, answers, otherInputs, qs) {
 
 var globalEnv = {};
 
-export function executeQLang(resultCodeStr, answers, otherInputs, qs) {
+export async function executeQLang(resultCodeStr, answers, otherInputs, qs) {
     try {
-        var ast = parse(resultCodeStr);
+        // 预处理：处理 #include 指令
+        var includes = [];
+        var incIdx = 0;
+        // 收集所有 #include 指令
+        resultCodeStr = resultCodeStr.replace(/^#include\s*<([^>]+)>/gm, function(m, libName) {
+            var ph = "___QLIB_" + (incIdx++) + "___";
+            includes.push({ name: libName, ph: ph });
+            return ph;
+        });
+        // 异步读取并解析库文件
+        var libAsts = {};
+        for (var ii = 0; ii < includes.length; ii++) {
+            try {
+                var libCode = await readLibraryFile(includes[ii].name);
+                if (!libCode || !libCode.trim()) throw new Error("空内容");
+                libCode = stripLineNumbers(libCode);
+                // 单独解析库代码，注册到独立命名空间
+                var subAst = parse(libCode);
+                libAsts[includes[ii].name] = subAst;
+            } catch(e) {
+                var libErr = e.message || "读取失败";
+                // 尝试从库解析错误中提取行号，附上库代码行内容
+                var libLineMatch = String(libErr).match(/第(\d+)行:/);
+                if (libLineMatch) {
+                    var libLn = parseInt(libLineMatch[1]);
+                    var libSrcLines = libCode.split('\n');
+                    var libLineContent = (libLn >= 1 && libLn <= libSrcLines.length) ? libSrcLines[libLn - 1].trim() : '';
+                    libErr += '\n  → ' + libLineContent;
+                }
+                throw new ScriptError("[库: " + includes[ii].name + ".qlg] " + libErr);
+            }
+            // 替换占位符为空行（库函数不嵌入主代码文本）
+            resultCodeStr = resultCodeStr.replace(includes[ii].ph, "");
+        }
+        
+        // 将库的命名空间合并到主 AST（路径记录法）
+        var ast = parse(resultCodeStr, libAsts);
+        if (!ast.namespaces) ast.namespaces = {};
+        
+        // 预处理：提取 #defNS 和 using namespace 声明
+        var defNSMatch = resultCodeStr.match(/^#defNS\s+(\w+)/m);
+        var usingNSMatches = resultCodeStr.match(/^using\s+namespace\s+(\w+)/gm);
+        
+        // #defNS 只能出现在外部库文件中，主代码中使用即报错
+        if (defNSMatch) {
+            throw new ScriptError("主代码中不允许使用 #defNS，该指令仅用于外部 .qlg 库文件");
+        }
+        
+        // 设置当前命名空间
+        var currentNs = 'qlgstd';
+        if (usingNSMatches) {
+            for (var umi = 0; umi < usingNSMatches.length; umi++) {
+                var um = usingNSMatches[umi];
+                var umName = um.match(/^using\s+namespace\s+(\w+)/)[1];
+                resultCodeStr = resultCodeStr.replace(um, "");
+                // 将 using 的命名空间函数合并到 qlgstd，使直接调用生效
+                if (ast.namespaces && ast.namespaces[umName]) {
+                    var targetNs = ast.namespaces['qlgstd'];
+                    var srcNs = ast.namespaces[umName];
+                    for (var fn in srcNs.functions) {
+                        if (!targetNs.functions[fn]) {
+                            targetNs.functions[fn] = srcNs.functions[fn];
+                        }
+                    }
+                }
+            }
+            currentNs = 'qlgstd'; // 执行时仍在 qlgstd 命名空间
+        }
+        
+        ast.namespace = currentNs;
         return execute(ast, answers, otherInputs, qs);
     } catch (e) {
-        if (e instanceof ScriptError) throw e;
-        throw new ScriptError(String(e.message || e));
+        var errMsg = e instanceof ScriptError ? e.message : String(e.message || e);
+        // 如果已经是库错误（包含 [库:），不再重复包装文件信息
+        if (errMsg.indexOf('[库:') >= 0) {
+            throw new ScriptError(errMsg);
+        }
+        // 尝试提取行号
+        var lineMatch = String(errMsg).match(/第(\d+)行:/);
+        if (lineMatch) {
+            var ln = parseInt(lineMatch[1]);
+            var srcLines = resultCodeStr.split('\n');
+            var lineContent = (ln >= 1 && ln <= srcLines.length) ? srcLines[ln - 1].trim() : '';
+            errMsg = '[文件: 入口程序] ' + errMsg + '\n  → ' + lineContent;
+        } else {
+            // 没有行号时，添加上下文标识
+            errMsg = '[文件: 入口程序] ' + errMsg;
+        }
+        throw new ScriptError(errMsg);
     }
 }

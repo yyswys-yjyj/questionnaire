@@ -16,6 +16,7 @@ export default function Screen(ctx) {
     var otherInputsState = ctx.useState("_otherInputs", "{}");
     var errorMsgState = ctx.useState("_errorMsg", "");
     var infoOpenState = ctx.useState("_infoOpen", false);
+    var pageIndexState = ctx.useState("_pageIndex", 0);
     var fingerprintState = ctx.useState("_fingerprint", "");
     var cancelledState = ctx.useState("_cancelled", false);
     var reportedState = ctx.useState("_reported", false);
@@ -39,7 +40,29 @@ var invalidQuestions = data._invalidQuestions || [];
 var theme = data._theme || "classic";
     var buttonLayout = data._buttonLayout || "scroll";
     var timeInputMode = data._timeInputMode || "picker";
+    var questionLayout = data._questionLayout || "";
+    // 从环境变量读取（UI 上下文使用 ctx.getEnv）
+    if (!questionLayout) {
+        try { var envLayout = ctx.getEnv("QUESTIONNAIRE_LAYOUT"); if (envLayout) questionLayout = envLayout; } catch(e){}
+    }
+    var isPaging = questionLayout === "compact";
+    var PAGE_SIZE = 5;
     var questions = data.questions || [];
+    // 计算非 section 题的数量
+    var nonSectionCount = 0;
+    for (var qci2 = 0; qci2 < questions.length; qci2++) {
+        if (questions[qci2].type !== "section") nonSectionCount++;
+    }
+    // 紧凑模式下：第0页=取消，中间页=每5题，提交页，最后=info页
+    var pageIndex = pageIndexState[0];
+    var totalQuestionPages = Math.ceil(nonSectionCount / PAGE_SIZE);
+    var questionStartPage = 1;
+    var submitPage = questionStartPage + totalQuestionPages;
+    var infoPage = submitPage + 1;
+    var totalPages = isPaging ? (1 + totalQuestionPages + 2) : 1; // 取消页 + 题页 + 提交页 + info页
+    function goToPage(p) {
+        if (p >= 0 && p < totalPages) pageIndexState[1](p);
+    }
     var title = data.title || "";
     var questionCount = 0;
     for (var qci = 0; qci < questions.length; qci++) {
@@ -172,11 +195,10 @@ var answerColor = primary;
 if (hasCount && data.resultcode) {
     var resultText = "";
     try {
+        var resolvedCode = String(data.resultcode || "");
         if (typeof data.resultcode === 'string') {
-            // QLang v2 子标签形式
-            resultText = executeQLang(data.resultcode, answers, otherInputs, data.questions);
+            resultText = await executeQLang(resolvedCode, answers, otherInputs, data.questions);
         } else if (Array.isArray(data.resultcode)) {
-            // 旧版 JSON 数组形式（EOL）
             resultText = executeResultCode(data.resultcode, answers, otherInputs, data.questions);
         }
     }
@@ -221,6 +243,38 @@ if (hasCount && data.resultcode) {
                 else {
                     message = resultText.trim();
                 }
+            }
+        }
+        // 生成卷谱（如果启用）
+        if (data.roll_spec === true || data.roll_spec === "true") {
+            var rollParts = [];
+            var realIdx = 0;
+            for (var rsi = 0; rsi < questions.length; rsi++) {
+                var rsq = questions[rsi];
+                if (rsq.type === "section") continue;
+                realIdx++;
+                var rr = rsq.required ? "r" : "s";
+                var rans = answers[rsq.id];
+                var rfilled = rans !== undefined && rans !== null && rans !== "" && !(Array.isArray(rans) && rans.length === 0);
+                var rt = rfilled ? "t" : "-";
+                rollParts.push(String(realIdx) + rr + rt);
+            }
+            var rollSpec = rollParts.join("");
+            // 卷谱插入：有结果时放在问卷和结果之间，无结果时追加到末尾
+            var rollLine = "\n\n卷谱: " + rollSpec;
+            if (hasCount && (data.resultcode || data.result)) {
+                // 有结果表达式/脚本，卷谱在问卷内容之后、结果之前
+                // 当前 message 结构是：问卷内容 + 结果文本
+                // 找到结果分隔标记 "── 结果 ──" 并在前面插入
+                var resultMarker = "\n\n── 结果 ──";
+                var ri = message.lastIndexOf(resultMarker);
+                if (ri >= 0) {
+                    message = message.substring(0, ri) + rollLine + "\n" + message.substring(ri);
+                } else {
+                    message += rollLine;
+                }
+            } else {
+                message += rollLine;
             }
         }
         submittingState[1](false);
@@ -1055,31 +1109,103 @@ if (hasCount && data.resultcode) {
                 }
             }
             else {
-                var realIdx = 0;
-                for (var ai = 0; ai < questions.length; ai++) {
-                    var q = questions[ai];
-                    var isSection = q.type === "section";
-                    if (!isSection)
-                        realIdx++;
-                    var qNode = renderQuestion(q, isSection ? 0 : realIdx - 1);
-                    if (qNode) {
-                        if (ai > 0 && !isSection) {
-                            contentNodes.push(ctx.UI.Divider({ key: "div_" + ai, color: surfaceVariant, thickness: 1 }));
+                if (isPaging) {
+                    // 紧凑模式：分页显示
+                    if (pageIndex === 0) {
+                        // 第0页：取消
+                        contentNodes.push(ctx.UI.Column({ key: "page_cancel", padding: { vertical: 16, horizontal: 8 }, spacing: 8, horizontalAlignment: "centerHorizontally", fillMaxWidth: true }, [
+                            ctx.UI.Text({ text: title, style: "titleMedium", color: onSurface, textAlign: "center" }),
+                            ctx.UI.Text({ text: "共 " + nonSectionCount + " 题", style: "bodySmall", color: onSurfaceVariant }),
+                            ctx.UI.Spacer({ height: 12 }),
+                            ctx.UI.OutlinedButton({ key: "cancel_btn", onClick: handleCancel, content: ctx.UI.Text({ text: "取消提问", style: "labelSmall", color: onSurfaceVariant }), fillMaxWidth: true }),
+                        ]));
+                    }
+                    else if (pageIndex === submitPage) {
+                        // 提交页
+                        contentNodes.push(ctx.UI.Column({ key: "page_submit", padding: { vertical: 24, horizontal: 8 }, spacing: 12, horizontalAlignment: "centerHorizontally", fillMaxWidth: true }, [
+                            ctx.UI.Text({ text: "已回答 " + Object.keys(answers).length + " / " + nonSectionCount + " 题", style: "bodyMedium", color: onSurface, textAlign: "center" }),
+                            ctx.UI.Spacer({ height: 8 }),
+                            ctx.UI.Button({ key: "submit_btn", enabled: isActive, content: ctx.UI.Text({ text: isSubmitting ? "⏳ 计算中..." : "✓ 提交问卷", style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }), containerColor: isActive ? primary : ctx.MaterialTheme.colorScheme.surfaceContainer, border: { width: 1.5, color: primary }, fillMaxWidth: true, onClick: handleSubmit }),
+                        ]));
+                    }
+                    else if (pageIndex === infoPage) {
+                        // info页
+                        contentNodes.push(ctx.UI.Card({ key: "info_card", fillMaxWidth: true, padding: { horizontal: 8, vertical: 4 } }, [
+                            ctx.UI.Column({ key: "info_content", spacing: 4, padding: { vertical: 8, horizontal: 8 } }, [
+                                ctx.UI.Text({ text: "问卷信息", style: "titleSmall", color: primary }),
+                                ctx.UI.Text({ text: "标题：" + (title || "无"), style: "bodySmall", color: onSurface }),
+                                ctx.UI.Text({ text: "ID：" + (fingerprint || "无"), style: "bodySmall", color: onSurfaceVariant }),
+                                ctx.UI.Text({ text: "类型：" + questionCount + " 题" + (data.count === true ? (data.resultcode ? " · 脚本式" : " · 结果表达式") : "") + (data.output_raw === false ? " · 仅结果" : ""), style: "bodySmall", color: onSurfaceVariant }),
+                                ctx.UI.Divider({ color: surfaceVariant, thickness: 1 }),
+                                ctx.UI.Text({ text: "关于问卷提问", style: "titleSmall", color: primary }),
+                                ctx.UI.Text({ text: "一个允许 AI 向用户发送问卷提问的插件", style: "bodySmall", color: onSurfaceVariant }),
+                                ctx.UI.Text({ text: "version: 1.6.0", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
+                                ctx.UI.Text({ text: "作者", style: "titleSmall", color: primary }),
+                                ctx.UI.Text({ text: "原作：liu-baia", style: "bodySmall", color: onSurface }),
+                                ctx.UI.Text({ text: "二次开发：yyswys-yjyj", style: "bodySmall", color: onSurface }),
+                            ]),
+                        ]));
+                    }
+                    else {
+                        // 题目页
+                        var pageQuestionIdx = pageIndex - questionStartPage;
+                        var startRealIdx = pageQuestionIdx * PAGE_SIZE;
+                        var endRealIdx = Math.min(startRealIdx + PAGE_SIZE, nonSectionCount);
+                        var realIdx = 0;
+                        for (var ai = 0; ai < questions.length; ai++) {
+                            var q = questions[ai];
+                            var isSection = q.type === "section";
+                            if (!isSection) realIdx++;
+                            if (realIdx < startRealIdx + 1 || (realIdx > endRealIdx && !isSection)) continue;
+                            if (isSection && ai > 0 && realIdx >= startRealIdx + 1) {
+                                contentNodes.push(ctx.UI.Divider({ key: "div_sec_" + ai, color: primary.copy({ alpha: 0.2 }), thickness: 2 }));
+                            }
+                            var qNode = renderQuestion(q, isSection ? 0 : realIdx - 1);
+                            if (qNode) {
+                                if (!isSection && ai > 0 && contentNodes.length > 0) {
+                                    contentNodes.push(ctx.UI.Divider({ key: "div_p_" + ai, color: surfaceVariant, thickness: 1 }));
+                                }
+                                contentNodes.push(qNode);
+                            }
                         }
-                        else if (isSection && ai > 0) {
-                            contentNodes.push(ctx.UI.Divider({ key: "div_sec_" + ai, color: primary.copy({ alpha: 0.2 }), thickness: 2 }));
-                        }
-                        contentNodes.push(qNode);
+                    }
+                    // 分页导航：← x/x →
+                    if (totalPages > 1) {
+                        contentNodes.push(ctx.UI.Divider({ key: "div_pager", color: onSurfaceVariant.copy({ alpha: 0.2 }), thickness: 1 }));
+                        contentNodes.push(ctx.UI.Row({ key: "pager", horizontalArrangement: "center", fillMaxWidth: true, padding: { vertical: 6, horizontal: 4 }, verticalAlignment: "center" }, [
+                            ctx.UI.TextButton({ key: "page_prev", onClick: function () { goToPage(pageIndex - 1); }, enabled: pageIndex > 0, content: ctx.UI.Text({ text: "←", style: "labelMedium", color: pageIndex > 0 ? primary : onSurfaceVariant.copy({ alpha: 0.4 }) }) }),
+                            ctx.UI.Text({ key: "page_indicator", text: String(pageIndex + 1) + "/" + String(totalPages), style: "labelMedium", color: onSurfaceVariant, padding: { horizontal: 8 } }),
+                            ctx.UI.TextButton({ key: "page_next", onClick: function () { goToPage(pageIndex + 1); }, enabled: pageIndex < totalPages - 1, content: ctx.UI.Text({ text: "→", style: "labelMedium", color: pageIndex < totalPages - 1 ? primary : onSurfaceVariant.copy({ alpha: 0.4 }) }) }),
+                        ]));
                     }
                 }
-                contentNodes.push(ctx.UI.Divider({ key: "div_actions", color: onSurfaceVariant.copy({ alpha: 0.4 }), thickness: 1 }));
-                contentNodes.push(ctx.UI.Row({ key: "actions", horizontalArrangement: "spaceBetween", fillMaxWidth: true, padding: { horizontal: 4, vertical: 4 }, verticalAlignment: "center" }, [
-                    ctx.UI.IconButton({ key: "info_btn", icon: ctx.UI.Icon({ name: "info", size: 20, tint: onSurfaceVariant }), onClick: function () { infoOpenState[1](!infoOpenState[0]); } }),
-                    ctx.UI.Row({ key: "action_buttons", spacing: 8, horizontalArrangement: "end", verticalAlignment: "center" }, [
-                        ctx.UI.OutlinedButton({ key: "cancel_btn", onClick: handleCancel, content: ctx.UI.Text({ text: "取消", style: "labelSmall", color: onSurfaceVariant }) }),
-                        ctx.UI.Button({ key: "submit_btn", enabled: isActive, content: ctx.UI.Text({ text: isSubmitting ? "⏳ 计算中..." : "✓ 提交", style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }), containerColor: isActive ? primary : ctx.MaterialTheme.colorScheme.surfaceContainer, border: { width: 1.5, color: primary }, onClick: handleSubmit }),
-                    ]),
-                ]));
+                else {
+                    // 拉通模式：旧版连续显示
+                    var realIdx = 0;
+                    for (var ai = 0; ai < questions.length; ai++) {
+                        var q = questions[ai];
+                        var isSection = q.type === "section";
+                        if (!isSection) realIdx++;
+                        var qNode = renderQuestion(q, isSection ? 0 : realIdx - 1);
+                        if (qNode) {
+                            if (ai > 0 && !isSection) {
+                                contentNodes.push(ctx.UI.Divider({ key: "div_" + ai, color: surfaceVariant, thickness: 1 }));
+                            }
+                            else if (isSection && ai > 0) {
+                                contentNodes.push(ctx.UI.Divider({ key: "div_sec_" + ai, color: primary.copy({ alpha: 0.2 }), thickness: 2 }));
+                            }
+                            contentNodes.push(qNode);
+                        }
+                    }
+                    contentNodes.push(ctx.UI.Divider({ key: "div_actions", color: onSurfaceVariant.copy({ alpha: 0.4 }), thickness: 1 }));
+                    contentNodes.push(ctx.UI.Row({ key: "actions", horizontalArrangement: "spaceBetween", fillMaxWidth: true, padding: { horizontal: 4, vertical: 4 }, verticalAlignment: "center" }, [
+                        ctx.UI.IconButton({ key: "info_btn", icon: ctx.UI.Icon({ name: "info", size: 20, tint: onSurfaceVariant }), onClick: function () { infoOpenState[1](!infoOpenState[0]); } }),
+                        ctx.UI.Row({ key: "action_buttons", spacing: 8, horizontalArrangement: "end", verticalAlignment: "center" }, [
+                            ctx.UI.OutlinedButton({ key: "cancel_btn", onClick: handleCancel, content: ctx.UI.Text({ text: "取消", style: "labelSmall", color: onSurfaceVariant }) }),
+                            ctx.UI.Button({ key: "submit_btn", enabled: isActive, content: ctx.UI.Text({ text: isSubmitting ? "⏳ 计算中..." : "✓ 提交", style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }), containerColor: isActive ? primary : ctx.MaterialTheme.colorScheme.surfaceContainer, border: { width: 1.5, color: primary }, onClick: handleSubmit }),
+                        ]),
+                    ]));
+                }
             }
         }
         if (errorMsg) {
@@ -1090,7 +1216,7 @@ if (hasCount && data.resultcode) {
                 ctx.UI.Text({ text: errorMsg, style: "bodySmall", color: errorColor }),
             ]));
         }
-        if (infoOpen) {
+        if (!isPaging && infoOpen) {
             contentNodes.push(ctx.UI.Card({ key: "info_card", fillMaxWidth: true, padding: { horizontal: 8, vertical: 4 } }, [
                 ctx.UI.Column({ key: "info_content", spacing: 4, padding: { vertical: 8, horizontal: 8 } }, [
                     ctx.UI.Text({ text: "问卷信息", style: "titleSmall", color: primary }),
@@ -1100,7 +1226,7 @@ if (hasCount && data.resultcode) {
                     ctx.UI.Divider({ color: surfaceVariant, thickness: 1 }),
                     ctx.UI.Text({ text: "关于问卷提问", style: "titleSmall", color: primary }),
                     ctx.UI.Text({ text: "一个允许 AI 向用户发送问卷提问的插件", style: "bodySmall", color: onSurfaceVariant }),
-                    ctx.UI.Text({ text: "version: 1.5.3", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
+                    ctx.UI.Text({ text: "version: 1.6.0", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
                     ctx.UI.Text({ text: "作者", style: "titleSmall", color: primary }),
                     ctx.UI.Text({ text: "原作：liu-baia", style: "bodySmall", color: onSurface }),
                     ctx.UI.Text({ text: "二次开发：yyswys-yjyj", style: "bodySmall", color: onSurface }),
