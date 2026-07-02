@@ -1,3 +1,13 @@
 //这是一个qlg文件，也就是QLang的外部库
 //你可以在此处编写各种工具
 //QLang也在不断完善，建议以1.6.0为基础
+#defNS example
+using namespace qlgstd;
+
+void echo_hello(){
+  printf("hello QLang!\n")
+}
+
+string hello(){
+  return "hello QLang!";
+}
