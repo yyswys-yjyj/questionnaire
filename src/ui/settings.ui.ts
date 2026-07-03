@@ -356,7 +356,7 @@ export default function Screen(ctx) {
             ctx.UI.Text({ text: "方正模式：使用 FilterChip 渲染选择题选项，风格方正紧凑，适合多选题较多或空间有限的场景。", style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Spacer({ height: 8 }),
             ctx.UI.Text({ text: "关于问卷插件", style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: "问卷提问插件 v1.6.0", style: "bodySmall", color: onSurfaceVariant }),
+            ctx.UI.Text({ text: "问卷提问插件 v1.6.1", style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Text({ text: "支持题型：single单选、multiple多选、text文本、textarea多行文本、rating评分、likert李克特量表、nps净推荐值、time时间选择。", style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Text({ text: "支持功能：分区标题、必答标识、结果表达式、主题切换（圆润/方正）、按钮布局（一行一个/LazyRow滑动）。", style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Spacer({ height: 8 }),
@@ -372,7 +372,7 @@ export default function Screen(ctx) {
         versionCheckState[1]("checking");
         versionInfoState[1]("正在检查更新...");
         tickState[1](tickState[0] + 1);
-        var currentVer = "160";
+        var currentVer = "161";
         var fmtCur = currentVer.charAt(0) + "." + currentVer.substring(1, 2) + "." + currentVer.substring(2);
         function done(info) {
             versionCheckState[1]("done");
@@ -405,7 +405,7 @@ export default function Screen(ctx) {
     var versionCheckCard = ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
         ctx.UI.Column({ padding: 16, spacing: 8 }, [
             ctx.UI.Text({ text: "版本检查", style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: "当前版本：v1.6.0", style: "bodyMedium", color: onSurfaceVariant }),
+            ctx.UI.Text({ text: "当前版本：v1.6.1", style: "bodyMedium", color: onSurfaceVariant }),
             ctx.UI.Button({
                 onClick: checkVersion,
                 fillMaxWidth: true,

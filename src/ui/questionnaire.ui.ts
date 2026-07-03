@@ -48,14 +48,15 @@ var theme = data._theme || "classic";
     var isPaging = questionLayout === "compact";
     var PAGE_SIZE = 5;
     var questions = data.questions || [];
-    // 计算非 section 题的数量
+    // 计算总元素（含 section），分页按总元素数分
+    var totalElementCount = questions.length;
     var nonSectionCount = 0;
-    for (var qci2 = 0; qci2 < questions.length; qci2++) {
-        if (questions[qci2].type !== "section") nonSectionCount++;
+    for (var _nsi = 0; _nsi < questions.length; _nsi++) {
+        if (questions[_nsi].type !== "section") nonSectionCount++;
     }
-    // 紧凑模式下：第0页=取消，中间页=每5题，提交页，最后=info页
+    // 紧凑模式下：第0页=取消，中间页=每5元素，提交页，最后=info页
     var pageIndex = pageIndexState[0];
-    var totalQuestionPages = Math.ceil(nonSectionCount / PAGE_SIZE);
+    var totalQuestionPages = Math.ceil(totalElementCount / PAGE_SIZE);
     var questionStartPage = 1;
     var submitPage = questionStartPage + totalQuestionPages;
     var infoPage = submitPage + 1;
@@ -1123,7 +1124,7 @@ if (hasCount && data.resultcode) {
                     else if (pageIndex === submitPage) {
                         // 提交页
                         contentNodes.push(ctx.UI.Column({ key: "page_submit", padding: { vertical: 24, horizontal: 8 }, spacing: 12, horizontalAlignment: "centerHorizontally", fillMaxWidth: true }, [
-                            ctx.UI.Text({ text: "已回答 " + Object.keys(answers).length + " / " + nonSectionCount + " 题", style: "bodyMedium", color: onSurface, textAlign: "center" }),
+                            ctx.UI.Text({ text: "已回答 " + (function(){ var _fc=0; for(var _fqi=0;_fqi<questions.length;_fqi++){ var _fq=questions[_fqi]; if(_fq.type==='section') continue; var _fa=answers[_fq.id]; if(_fa!==undefined && _fa!==null && _fa!=='' && !(Array.isArray(_fa) && _fa.length===0)) _fc++; } return _fc; })() + " / " + nonSectionCount + " 题", style: "bodyMedium", color: onSurface, textAlign: "center" }),
                             ctx.UI.Spacer({ height: 8 }),
                             ctx.UI.Button({ key: "submit_btn", enabled: isActive, content: ctx.UI.Text({ text: isSubmitting ? "⏳ 计算中..." : "✓ 提交问卷", style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }), containerColor: isActive ? primary : ctx.MaterialTheme.colorScheme.surfaceContainer, border: { width: 1.5, color: primary }, fillMaxWidth: true, onClick: handleSubmit }),
                         ]));
@@ -1139,7 +1140,7 @@ if (hasCount && data.resultcode) {
                                 ctx.UI.Divider({ color: surfaceVariant, thickness: 1 }),
                                 ctx.UI.Text({ text: "关于问卷提问", style: "titleSmall", color: primary }),
                                 ctx.UI.Text({ text: "一个允许 AI 向用户发送问卷提问的插件", style: "bodySmall", color: onSurfaceVariant }),
-                                ctx.UI.Text({ text: "version: 1.6.0", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
+                                ctx.UI.Text({ text: "version: 1.6.1", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
                                 ctx.UI.Text({ text: "作者", style: "titleSmall", color: primary }),
                                 ctx.UI.Text({ text: "原作：liu-baia", style: "bodySmall", color: onSurface }),
                                 ctx.UI.Text({ text: "二次开发：yyswys-yjyj", style: "bodySmall", color: onSurface }),
@@ -1147,22 +1148,25 @@ if (hasCount && data.resultcode) {
                         ]));
                     }
                     else {
-                        // 题目页
+                        // 题目页：基于总元素索引分页（含 section），题号全局连续
                         var pageQuestionIdx = pageIndex - questionStartPage;
-                        var startRealIdx = pageQuestionIdx * PAGE_SIZE;
-                        var endRealIdx = Math.min(startRealIdx + PAGE_SIZE, nonSectionCount);
-                        var realIdx = 0;
-                        for (var ai = 0; ai < questions.length; ai++) {
+                        var startIdx = pageQuestionIdx * PAGE_SIZE;
+                        var endIdx = Math.min(startIdx + PAGE_SIZE, totalElementCount);
+                        // 计算当前页起始之前有多少非 section 题，作为题号偏移
+                        var globalQIdx = 0;
+                        for (var _gqi = 0; _gqi < startIdx; _gqi++) {
+                            if (questions[_gqi].type !== "section") globalQIdx++;
+                        }
+                        for (var ai = startIdx; ai < endIdx; ai++) {
                             var q = questions[ai];
                             var isSection = q.type === "section";
-                            if (!isSection) realIdx++;
-                            if (realIdx < startRealIdx + 1 || (realIdx > endRealIdx && !isSection)) continue;
-                            if (isSection && ai > 0 && realIdx >= startRealIdx + 1) {
+                            var displayIdx = isSection ? 0 : (globalQIdx++);
+                            if (isSection && ai > startIdx) {
                                 contentNodes.push(ctx.UI.Divider({ key: "div_sec_" + ai, color: primary.copy({ alpha: 0.2 }), thickness: 2 }));
                             }
-                            var qNode = renderQuestion(q, isSection ? 0 : realIdx - 1);
+                            var qNode = renderQuestion(q, displayIdx);
                             if (qNode) {
-                                if (!isSection && ai > 0 && contentNodes.length > 0) {
+                                if (!isSection && ai > startIdx && contentNodes.length > 0) {
                                     contentNodes.push(ctx.UI.Divider({ key: "div_p_" + ai, color: surfaceVariant, thickness: 1 }));
                                 }
                                 contentNodes.push(qNode);
@@ -1226,7 +1230,7 @@ if (hasCount && data.resultcode) {
                     ctx.UI.Divider({ color: surfaceVariant, thickness: 1 }),
                     ctx.UI.Text({ text: "关于问卷提问", style: "titleSmall", color: primary }),
                     ctx.UI.Text({ text: "一个允许 AI 向用户发送问卷提问的插件", style: "bodySmall", color: onSurfaceVariant }),
-                    ctx.UI.Text({ text: "version: 1.6.0", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
+                    ctx.UI.Text({ text: "version: 1.6.1", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
                     ctx.UI.Text({ text: "作者", style: "titleSmall", color: primary }),
                     ctx.UI.Text({ text: "原作：liu-baia", style: "bodySmall", color: onSurface }),
                     ctx.UI.Text({ text: "二次开发：yyswys-yjyj", style: "bodySmall", color: onSurface }),

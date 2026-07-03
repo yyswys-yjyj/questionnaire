@@ -24,9 +24,29 @@ function createScope(parent) {
     return { id: QLANG_SCOPE_ID++, parent: parent, vars: {} };
 }
 
+var TYPE_BOUNDS = {
+    'short': { min: -32768, max: 32767 },
+    'int': { min: -2147483648, max: 2147483647 },
+    'int32': { min: -2147483648, max: 2147483647 },
+    'long': { min: -2147483648, max: 2147483647 },
+    'int64': { min: -9007199254740992, max: 9007199254740992 },
+    'longlong': { min: -9007199254740992, max: 9007199254740992 },
+    'unsigned': { min: 0, max: 4294967295 },
+    'uint': { min: 0, max: 4294967295 },
+};
+function clampValue(value, type) {
+    if (typeof value !== 'number') return value;
+    var bounds = TYPE_BOUNDS[type];
+    if (bounds) {
+        value = Math.round(value);
+        if (value < bounds.min) value = bounds.min;
+        if (value > bounds.max) value = bounds.max;
+    }
+    return value;
+}
 function declareVar(scope, name, value, type, isConst) {
     var addr = allocAddr();
-    QLANG_MEMORY[addr] = value;
+    QLANG_MEMORY[addr] = clampValue(value, type);
     scope.vars[name] = { addr: addr, type: type, isConst: !!isConst };
     return addr;
 }
@@ -62,7 +82,7 @@ function setVar(scope, name, value) {
     var found = findVar(scope, name);
     if (!found) { declareVar(scope, name, value, "auto", false); return; }
     if (found.info.isConst) throw new ScriptError("不能修改 const: " + name);
-    QLANG_MEMORY[found.info.addr] = value;
+    QLANG_MEMORY[found.info.addr] = clampValue(value, found.info.type);
 }
 
 function addrOf(scope, name) {
@@ -161,7 +181,7 @@ function tokenize(code) {
             var start = i;
             while (i < code.length && /[a-zA-Z0-9_]/.test(code[i])) i++;
             var word = code.substring(start, i);
-            var keywords = { 'int': true, 'float': true, 'double': true, 'char': true, 'string': true, 'bool': true, 'true': true, 'false': true, 'if': true, 'else': true, 'while': true, 'for': true, 'return': true, 'void': true, 'const': true, 'break': true, 'continue': true, 'stack': true, 'queue': true, 'vector': true, 'pair': true, 'priority_queue': true, 'struct': true, 'new': true, 'try': true, 'catch': true, 'throw': true };
+            var keywords = { 'int': true, 'float': true, 'double': true, 'char': true, 'string': true, 'bool': true, 'true': true, 'false': true, 'if': true, 'else': true, 'while': true, 'for': true, 'return': true, 'void': true, 'const': true, 'break': true, 'continue': true, 'stack': true, 'queue': true, 'vector': true, 'pair': true, 'priority_queue': true, 'struct': true, 'new': true, 'try': true, 'catch': true, 'throw': true, 'short': true, 'long': true, 'unsigned': true, 'longlong': true, 'int64': true, 'uint': true, 'int32': true, 'typedef': true, 'setap': true, 'gotoap': true };
             tokens.push({ type: keywords[word] ? 'keyword' : 'identifier', value: word, line: line });
             continue;
         }
@@ -183,6 +203,20 @@ function tokenize(code) {
             tokens.push({ type: 'include', value: incLine, line: line });
             continue;
         }
+        // #define 指令预处理器
+        if (c === '#' && code.substring(i, i + 7) === '#define') {
+            i += 7;
+            while (i < code.length && (code[i] === ' ' || code[i] === '\t')) i++;
+            var macroStart = i;
+            while (i < code.length && /[a-zA-Z0-9_]/.test(code[i])) i++;
+            var macroName = code.substring(macroStart, i);
+            while (i < code.length && (code[i] === ' ' || code[i] === '\t')) i++;
+            var macroValueStart = i;
+            while (i < code.length && code[i] !== '\n' && code[i] !== '\r') i++;
+            var macroValue = code.substring(macroValueStart, i).trim();
+            tokens.push({ type: 'define', name: macroName, value: macroValue, line: line });
+            continue;
+        }
         tokens.push({ type: 'symbol', value: c, line: line });
         i++;
     }
@@ -195,7 +229,11 @@ function parse(code, extraAsts) {
     var tokens = tokenize(code);
     var pos = 0;
     var structTypeNames = {}; // 已注册的结构体类型名
+    var typeAliases = {}; // typedef/using/#define 注册的类型别名
     
+    function resolveType(name) {
+        return typeAliases[name] || name;
+    }
     function peek() { return pos < tokens.length ? tokens[pos] : { type: 'eof', value: '' }; }
     function consume() { return pos < tokens.length ? tokens[pos++] : { type: 'eof', value: '' }; }
     function expect(type, value) {
@@ -208,13 +246,15 @@ function parse(code, extraAsts) {
     
     // 解析函数定义
     function parseFunction() {
-        var returnType = consume().value; // 返回类型
+        var returnType = resolveType(consume().value); // 返回类型
         var name = expect('identifier').value;
         expect('symbol', '(');
         var params = [];
         while (peek().value !== ')') {
-            var pType = consume().value;
+            var pType = resolveType(consume().value);
+            if (peek().value === '[') { consume(); expect('symbol', ']'); pType += '[]'; }
             var pName = expect('identifier').value;
+            if (peek().value === '[') { consume(); expect('symbol', ']'); pType += '[]'; }
             params.push({ type: pType, name: pName });
             if (peek().value === ',') consume();
         }
@@ -263,7 +303,8 @@ function parse(code, extraAsts) {
             return { type: 'block', body: body };
         }
         // 变量声明或函数定义（函数定义优先检测）
-        var typeKeywords = { 'int': true, 'float': true, 'double': true, 'char': true, 'string': true, 'bool': true, 'stack': true, 'queue': true, 'vector': true, 'pair': true, 'priority_queue': true };
+        var typeKeywords = { 'int': true, 'float': true, 'double': true, 'char': true, 'string': true, 'bool': true, 'stack': true, 'queue': true, 'vector': true, 'pair': true, 'priority_queue': true, 'short': true, 'long': true, 'unsigned': true, 'longlong': true, 'int64': true, 'uint': true, 'int32': true };
+        function isTypeLike(v) { return typeKeywords[v] || typeAliases[v]; }
         // 检测函数定义：类型/vod + 标识符 + ( 或 类型/vod + 标识符 + 类型 + 标识符 + (
         var isFuncDef = false;
         // 辅助：查找从 p 开始第一个 ( 的位置，且中间只有合法的参数声明（类型+名称，逗号分隔）
@@ -278,7 +319,7 @@ function parse(code, extraAsts) {
             }
             return i < tokens.length && tokens[i].value === '(';
         }
-        if (peek().value === 'void' || typeKeywords[peek().value]) {
+        if (peek().value === 'void' || isTypeLike(peek().value)) {
             if (tokens[pos + 1] && tokens[pos + 1].type === 'identifier' && looksLikeFunc(pos)) {
                 isFuncDef = true;
             }
@@ -286,7 +327,7 @@ function parse(code, extraAsts) {
         if (isFuncDef) {
             return parseFunction();
         }
-        if (typeKeywords[peek().value] || (peek().value === 'const' && tokens[pos + 1] && typeKeywords[tokens[pos + 1].value])) {
+        if (isTypeLike(peek().value) || (peek().value === 'const' && tokens[pos + 1] && isTypeLike(tokens[pos + 1].value))) {
             return parseVarDecl();
         }
         // 结构体指针变量声明 Node* name
@@ -301,6 +342,9 @@ function parse(code, extraAsts) {
         if (peek().value === 'struct') {
             return parseStructDef();
         }
+        // typedef/#define 类型别名
+        if (peek().value === 'typedef') { consume(); var _s = peek().value; consume(); var _d = expect('identifier').value; expect('symbol', ';'); typeAliases[_d] = _s; return { type: 'empty' }; }
+        if (peek().type === 'define') { var _dt = consume(); typeAliases[_dt.name] = _dt.value; return { type: 'empty' }; }
         // PHP风格变量定义 $var = value
         if (peek().type === 'phpVar' && tokens[pos + 1] && tokens[pos + 1].value === '=') {
             return parsePhpVarDecl();
@@ -316,6 +360,9 @@ function parse(code, extraAsts) {
         if (peek().value === 'continue') { consume(); expect('symbol', ';'); return { type: 'continue' }; }
         if (peek().value === 'try') return parseTryCatch();
         if (peek().value === 'throw') return parseThrow();
+        // setap/gotoap 标签跳转
+        if (peek().value === 'setap') { consume(); var _l = consume(); expect('symbol', ';'); return { type: 'setap', label: _l.value }; }
+        if (peek().value === 'gotoap') { consume(); var _l2 = consume(); expect('symbol', ';'); return { type: 'gotoap', label: _l2.value }; }
         // 表达式语句
         return parseExpressionStmt();
     }
@@ -365,7 +412,7 @@ function parse(code, extraAsts) {
     function parseVarDecl() {
         var isConst = false;
         if (peek().value === 'const') { isConst = true; consume(); }
-        var type = consume().value;
+        var type = resolveType(consume().value);
         // 检测指针类型：int* name 或 int *name
         var isPtr = false;
         if (peek().value === '*') { isPtr = true; consume(); }
@@ -530,7 +577,7 @@ function parse(code, extraAsts) {
     }
     
     function parseStatementPart() {
-        var typeKeywords = { 'int': true, 'float': true, 'double': true, 'char': true, 'string': true, 'bool': true, 'stack': true, 'queue': true, 'vector': true, 'pair': true, 'priority_queue': true };
+        var typeKeywords = { 'int': true, 'float': true, 'double': true, 'char': true, 'string': true, 'bool': true, 'stack': true, 'queue': true, 'vector': true, 'pair': true, 'priority_queue': true, 'short': true, 'long': true, 'unsigned': true, 'longlong': true, 'int64': true, 'uint': true, 'int32': true };
         if (typeKeywords[peek().value]) {
             var type = consume().value;
             var name = expect('identifier').value;
@@ -927,7 +974,7 @@ function parse(code, extraAsts) {
             }
             continue;
         }
-        if (peek().value === 'using') {
+        if (peek().value === 'using' && tokens[pos + 1] && tokens[pos + 1].value === 'namespace') {
             consume(); consume(); // using namespace
             var nsName = expect('identifier').value;
             if (peek().value === ';') consume();
@@ -944,7 +991,9 @@ function parse(code, extraAsts) {
             currentNs = defNsName;
             continue;
         }
-        var typeKw = { 'int': true, 'float': true, 'double': true, 'char': true, 'string': true, 'bool': true, 'void': true, 'stack': true, 'queue': true, 'vector': true, 'pair': true, 'priority_queue': true };
+        if (peek().type === 'define') { var _defTok = consume(); typeAliases[_defTok.name] = _defTok.value; continue; }
+        if (peek().value === 'typedef') { consume(); var _s2 = consume().value; var _d2 = expect('identifier').value; expect('symbol', ';'); typeAliases[_d2] = _s2; continue; }
+        var typeKw = { 'int': true, 'float': true, 'double': true, 'char': true, 'string': true, 'bool': true, 'void': true, 'stack': true, 'queue': true, 'vector': true, 'pair': true, 'priority_queue': true, 'short': true, 'long': true, 'unsigned': true, 'longlong': true, 'int64': true, 'uint': true, 'int32': true };
         if (typeKw[peek().value]) {
             var typeName = consume().value;
             var funcName = peek();
@@ -1064,7 +1113,7 @@ function defaultValue(type) {
         return createSTLObject(type);
     }
     if (type === 'pair') return { first: 0, second: 0 };
-    var map = { 'int': 0, 'float': 0.0, 'double': 0.0, 'char': '', 'string': '', 'bool': false, 'void': 0 };
+    var map = { 'int': 0, 'float': 0.0, 'double': 0.0, 'char': '', 'string': '', 'bool': false, 'void': 0, 'short': 0, 'long': 0, 'unsigned': 0, 'longlong': 0, 'int64': 0, 'uint': 0, 'int32': 0 };
     return map[type] !== undefined ? map[type] : 0;
 }
 
@@ -1079,7 +1128,7 @@ function stringify(v) {
     return String(v);
 }
 
-// printf 格式化：支持 %d %s %c %x %o %p
+// printf 格式化：支持 %d %s %c %x %o %p %lld %llx %hu %lu %u 等
 function printfFormat(fmt, args) {
     var ai = 0;
     var result = '';
@@ -1087,16 +1136,28 @@ function printfFormat(fmt, args) {
     while (i < fmt.length) {
         if (fmt[i] === '%' && i + 1 < fmt.length) {
             i++;
-            var spec = fmt[i];
-            if (spec === '%') { result += '%'; i++; continue; }
+            if (fmt[i] === '%') { result += '%'; i++; continue; }
+            // 读取完整格式符（连续的字母）
+            var specStart = i;
+            while (i < fmt.length && /[a-zA-Z]/.test(fmt[i])) i++;
+            var spec = fmt.substring(specStart, i);
+            // 回退一个，让下面i++到末尾字母之后
+            i--;
             var v = args[ai++];
+            var nv = parseInt(v) || 0;
             switch (spec) {
-                case 'd': result += parseInt(v) || 0; break;
+                case 'd': case 'i': result += nv; break;
+                case 'u': case 'lu': case 'hu': case 'llu': case 'zu': result += nv >>> 0; break;
+                case 'ld': case 'hd': case 'lld': result += nv; break;
                 case 's': result += String(v); break;
                 case 'c': result += typeof v === 'number' ? String.fromCharCode(v) : String(v).charAt(0) || ''; break;
-                case 'x': result += (parseInt(v)||0).toString(16); break;
-                case 'o': result += (parseInt(v)||0).toString(8); break;
-                case 'p': result += '0x' + (v >>> 0).toString(16).padStart(8, '0'); break;
+                case 'x': case 'lx': case 'llx': result += nv.toString(16); break;
+                case 'X': case 'lX': case 'llX': result += nv.toString(16).toUpperCase(); break;
+                case 'o': result += nv.toString(8); break;
+                case 'f': case 'lf': case 'Lf': result += Number(v) || 0; break;
+                case 'e': case 'le': result += (Number(v) || 0).toExponential(); break;
+                case 'g': case 'lg': result += (Number(v) || 0).toPrecision(); break;
+                case 'p': result += '0x' + (nv >>> 0).toString(16).padStart(8, '0'); break;
                 default: result += '%' + spec;
             }
         } else {
@@ -1121,6 +1182,19 @@ function callFunction(func, args, callScope, outputs, startTime, depth) {
     for (var si = 0; si < func.body.length; si++) {
         var r = execStmt(func.body[si], funcScope, outputs, startTime, depth, null);
         if (r && r.type === 'return') return r.value;
+        if (r && r.type === 'goto') {
+            var _targetLabel = r.label;
+            var _found = -1;
+            for (var _gi = 0; _gi < func.body.length; _gi++) {
+                if (func.body[_gi].type === 'setap' && func.body[_gi].label === _targetLabel) {
+                    _found = _gi;
+                    break;
+                }
+            }
+            if (_found === -1) throw new ScriptError("锚点 " + _targetLabel + " 未定义");
+            si = _found;
+            continue;
+        }
     }
     return 0;
 }
@@ -1135,7 +1209,7 @@ function execStmt(stmt, scope, outputs, startTime, depth, loopEnv) {
             var blockScope = createScope(scope);
             for (var bi = 0; bi < stmt.body.length; bi++) {
                 var rb = execStmt(stmt.body[bi], blockScope, outputs, startTime, depth, loopEnv);
-                if (rb && (rb.type === 'return' || rb.type === 'break' || rb.type === 'continue')) return rb;
+                if (rb && (rb.type === 'return' || rb.type === 'break' || rb.type === 'continue' || rb.type === 'goto')) return rb;
             }
             return;
         }
@@ -1268,7 +1342,7 @@ function execStmt(stmt, scope, outputs, startTime, depth, loopEnv) {
             for (var pri = 0; pri < stmt.args.length; pri++) {
                 parts.push(stringify(evalExpr(stmt.args[pri], scope, startTime, depth)));
             }
-            outputs.push(parts.join(' '));
+            outputs.push(parts.join(''));
             return;
         }
         case 'cout': {
@@ -1312,6 +1386,10 @@ function execStmt(stmt, scope, outputs, startTime, depth, loopEnv) {
                 }
             }
             return;
+        }
+        case 'setap': { return; }
+        case 'gotoap': {
+            return { type: 'goto', label: stmt.label };
         }
         case 'throw': {
             var throwVal = evalExpr(stmt.value, scope, startTime, depth);
@@ -1446,6 +1524,13 @@ function handleCall(expr, scope, startTime, depth) {
     }
     if (expr.name === 'parseInt') {
         return parseInt(String(evalExpr(expr.args[0], scope, startTime, depth))) || 0;
+    }
+    // 类型转换函数
+    if (expr.name === '_short' || expr.name === '_long' || expr.name === '_longlong' || expr.name === '_int64' || expr.name === '_uint' || expr.name === '_unsigned' || expr.name === '_int32') {
+        var raw = evalExpr(expr.args[0], scope, startTime, depth);
+        if (typeof raw !== 'number') raw = parseInt(String(raw)) || 0;
+        var typeName = expr.name.substring(1);
+        return clampValue(raw, typeName);
     }
     if (expr.name === 'sizeof') {
         var sv = evalExpr(expr.args[0], scope, startTime, depth);
