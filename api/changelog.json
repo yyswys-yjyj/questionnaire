@@ -1,3 +1,14 @@
-{"list":
-  ["version":"v1.7.0","currentVer":170,"details":"## 1.7.0 (2026-07-08)\n### Added\n- Rewrite the memory management system. Now data types are pretty much free from the limitations of `JavaScript Number`.\n- A new `#gc` macro has been added. In the new memory management system, its function is to delete a variable definition.\n- Added the `QInitCode`, so that AI can use it to initialize the questionnaire.\n- For `QInitCode`, added the **Dynamic Question Type Registration System**. Now AI can register a questionnaire type.\n\n### Changed\n- In QLang, the way of getting Qid has been changed. **But** this is **not compatible with old questionnaires**.\n- Made a lot of changes to the questionnaire renderer, mainly for the QInitCode feature.\n\n### Removed\n- None"]
+{
+    "list": [
+        {
+            "version": "Unreleased",
+            "currentVer": 171,
+            "details": "## In dev\n\nComing soon..."
+        },
+        {
+            "version": "v1.7.0",
+            "currentVer": 170,
+            "details": "## 1.7.0 (2026-07-08)\n### Added\n- Rewrite the memory management system. Now data types are pretty much free from the limitations of `JavaScript Number`.\n- A new `#gc` macro has been added. In the new memory management system, its function is to delete a variable definition.\n- Added the `QInitCode`, so that AI can use it to initialize the questionnaire.\n- For `QInitCode`, added the **Dynamic Question Type Registration System**. Now AI can register a questionnaire type.\n\n### Changed\n- In QLang, the way of getting Qid has been changed. **But** this is **not compatible with old questionnaires**.\n- Made a lot of changes to the questionnaire renderer, mainly for the QInitCode feature.\n\n### Removed\n- None"
+        }
+    ]
 }
