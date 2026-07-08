@@ -29,7 +29,7 @@
 ## 反馈
 如果你发现了BUG或是AI容易混淆语法，或是你有什么好点子，你可以在这个项目提个issue
 
-# 外部库开发指南
+# 外部库开发指南（对于v1.6.0）
 
 有关外部库的编写，你可以从 项目[yyswys-yjyj/questionnaire-vscode_extension](https://github.com/yyswys-yjyj/questionnaire-vscode_extension) 中下载到QLang Extension for Microsoft Visual Studio Code（QLang扩展程序）
 
