@@ -16,7 +16,20 @@ We note the change of our project.
 
 ---
 
-## 1.7.0 (2026-07-08)
+## 1.7.1 (2026-07-09)
+### Added
+- Added 'Update Log' in the settings page.
+
+### Changed
+- Changed the logic of the version checker and added more sources.
+- Fix the issue where clicking the button in the old version doesn't automatically check.
+
+### Removed
+- None
+
+---
+
+## 1.7.0 (Abandon)(2026-07-08)
 ### Added
 - Rewrite the memory management system. Now data types are pretty much free from the limitations of `JavaScript Number`.
 - A new `#gc` macro has been added. In the new memory management system, its function is to delete a variable definition.
