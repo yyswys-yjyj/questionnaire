@@ -1,8 +1,8 @@
 {
     "list": [
         {
-            "version": "v1.7.1(Abandon)",
-            "currentVer": 171,
+            "version": "v1.7.2",
+            "currentVer": 172,
             "details": "## 1.7.2 (2026-07-10)\n凑数用的，其实该版本没有任何更新，是为了确保能够发布到市场而存在"
         },
         {
