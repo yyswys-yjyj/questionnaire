@@ -5,7 +5,7 @@
 
 该项目是源自Operit AI平台上我的一个小项目，包是基于liu-baia的原作[com.com.operit.questionnaire](https://github.com/liu-baia/OperitForge/releases/tag/package-com-operit-questionnaire-v0.1.0-396c8ead)进行二次开发    
 该仓库的包在Operit AI中的包名是com.operit.questionnaire.fix（项目簇：com-operit-questionnaire-fix），代码由AI完成，项目方向就不是AI了用的是person（      
-开源仓库中的包的版本：v1.7.0
+开源仓库中的包的版本：v1.7.1
 
 ## 介绍
 基于原作，不断更新完善，随之加入些新的功能   
