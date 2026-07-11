@@ -10,6 +10,7 @@ var _initialQuestionLayout = readEnv("QUESTIONNAIRE_LAYOUT", ["continuous","comp
 var _initialTimeMode = readEnv("QUESTIONNAIRE_TIME_INPUT_MODE", ["picker","input"], "picker");
 var _initialDisplayMode = readEnv("QUESTIONNAIRE_DISPLAY_MODE", ["normal","hidden","blocked"], "normal");
 var _initialStrictMode = readEnv("QUESTIONNAIRE_STRICT_MODE", ["true","false"], "true");
+var _initialHistoryEnabled = readEnv("QUESTIONNAIRE_HISTORY_ENABLED", ["true","false"], "true");
 var _themeLabel = function(t) { return t === "classic" ? "圆润" : "方正"; };
 var _layoutLabel = function(l) { return l === "row" ? "一行一个" : "LazyRow滑动"; };
 var _questionLayoutLabel = function(l) { return l === "continuous" ? "连续，所有题目连续显示" : "紧凑，一页5题加分页"; };
@@ -30,6 +31,7 @@ export default async function Screen(ctx) {
     var timeModeState = ctx.useState("_timeMode", _initialTimeMode);
     var displayModeState = ctx.useState("_displayMode", _initialDisplayMode);
     var strictModeState = ctx.useState("_strictMode", _initialStrictMode);
+    var historyEnabledState = ctx.useState("_historyEnabled", _initialHistoryEnabled);
 
     var currentTheme = currentThemeState[0];
     var saved = savedState[0];
@@ -96,6 +98,7 @@ export default async function Screen(ctx) {
             Tools.SoftwareSettings.writeEnvironmentVariable("QUESTIONNAIRE_TIME_INPUT_MODE", currentTimeMode);
             Tools.SoftwareSettings.writeEnvironmentVariable("QUESTIONNAIRE_DISPLAY_MODE", currentDisplayMode);
             Tools.SoftwareSettings.writeEnvironmentVariable("QUESTIONNAIRE_STRICT_MODE", currentStrictMode);
+            Tools.SoftwareSettings.writeEnvironmentVariable("QUESTIONNAIRE_HISTORY_ENABLED", historyEnabledState[0]);
             Tools.SoftwareSettings.writeEnvironmentVariable("QUESTIONNAIRE_LAYOUT", currentQuestionLayout);
             savedState[1](true);
             ctx.showToast("已保存");
@@ -220,6 +223,43 @@ export default async function Screen(ctx) {
                 fillMaxWidth: true,
                 content: ctx.UI.Text({ text: "宽松模式（放行非致命错误）", style: "labelMedium", color: currentStrictMode === "false" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
             }),
+            ctx.UI.Divider({ thickness: 0.5, color: onSurfaceVariant.copy({ alpha: 0.3 }) }),
+            ctx.UI.Spacer({ height: 4 }),
+            ctx.UI.Text({ text: "问卷历史记录", style: "titleSmall", color: onSurface }),
+            ctx.UI.Text({ text: "开启后，填写过的问卷可一键补全。关闭后不再记录。", style: "bodySmall", color: onSurfaceVariant }),
+            ctx.UI.OutlinedButton({
+                containerColor: historyEnabledState[0] === "true" ? primary : null,
+                contentColor: historyEnabledState[0] === "true" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
+                onClick: function () { historyEnabledState[1]("true"); savedState[1](false); },
+                fillMaxWidth: true,
+                content: ctx.UI.Text({ text: "开启", style: "labelMedium", color: historyEnabledState[0] === "true" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+            }),
+            ctx.UI.OutlinedButton({
+                containerColor: historyEnabledState[0] === "false" ? primary : null,
+                contentColor: historyEnabledState[0] === "false" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
+                onClick: function () { historyEnabledState[1]("false"); savedState[1](false); },
+                fillMaxWidth: true,
+                content: ctx.UI.Text({ text: "关闭", style: "labelMedium", color: historyEnabledState[0] === "false" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+            }),
+            ctx.UI.OutlinedButton({
+                onClick: function() {
+                    try {
+                        var path = "/sdcard/Download/Operit/questionnaire/history";
+                        if (Tools.Files.exists(path)) {
+                            Tools.Files.deleteFile(path, true);
+                            ctx.showToast("已清理历史记录文件夹");
+                        } else {
+                            ctx.showToast("暂无历史记录");
+                        }
+                    } catch(e) {
+                        ctx.showToast("清理失败：" + String(e));
+                    }
+                },
+                fillMaxWidth: true,
+                containerColor: ctx.MaterialTheme.colorScheme.error,
+                content: ctx.UI.Text({ text: "一键清理历史记录", style: "labelMedium", color: ctx.MaterialTheme.colorScheme.onPrimary }),
+            }),
+            ctx.UI.Divider({ thickness: 0.5, color: onSurfaceVariant.copy({ alpha: 0.3 }) }),
             ctx.UI.Button({
                 onClick: saveTheme, fillMaxWidth: true, containerColor: primary,
                 content: ctx.UI.Text({ text: saved ? "✓ 已保存" : "保存设置", style: "labelMedium", color: ctx.MaterialTheme.colorScheme.onPrimary }),
@@ -377,7 +417,7 @@ export default async function Screen(ctx) {
             ctx.UI.Text({ text: "方正模式：使用 FilterChip 渲染选择题选项，风格方正紧凑，适合多选题较多或空间有限的场景。", style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Spacer({ height: 8 }),
             ctx.UI.Text({ text: "关于问卷插件", style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: "问卷提问插件 v1.7.1", style: "bodySmall", color: onSurfaceVariant }),
+            ctx.UI.Text({ text: "问卷提问插件 v1.7.3", style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Text({ text: "支持题型：single单选、multiple多选、text文本、textarea多行文本、rating评分、likert李克特量表、nps净推荐值、time时间选择。", style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Text({ text: "支持功能：分区标题、必答标识、结果表达式、主题切换（圆润/方正）、按钮布局（一行一个/LazyRow滑动）。", style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Spacer({ height: 8 }),
@@ -398,7 +438,7 @@ export default async function Screen(ctx) {
         if (versionCheckState[0] === "checking") return;
         versionCheckState[1]("checking");
         versionInfoState[1]("正在检查更新...");
-        var currentVer = "171";
+        var currentVer = "173";
         var fmtCur = currentVer.charAt(0) + "." + currentVer.substring(1, 2) + "." + currentVer.substring(2);
         var si = versionSourceState[0];
         if (si < 0 || si >= _versionUrls.length) { si = 2; }
@@ -422,7 +462,7 @@ export default async function Screen(ctx) {
     var versionCheckCard = ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
         ctx.UI.Column({ padding: 16, spacing: 8 }, [
             ctx.UI.Text({ text: "版本检查", style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: "当前版本：v1.7.1", style: "bodyMedium", color: onSurfaceVariant }),
+            ctx.UI.Text({ text: "当前版本：v1.7.3", style: "bodyMedium", color: onSurfaceVariant }),
             ctx.UI.Text({ text: "选择版本源", style: "labelSmall", color: onSurfaceVariant }),
             ctx.UI.LazyRow({ spacing: 6 }, _versionUrls.map(function(url, idx) {
                 return ctx.UI.FilterChip({
@@ -465,7 +505,7 @@ export default async function Screen(ctx) {
                 if (parsed && parsed.list && Array.isArray(parsed.list)) {
                     var lines = [];
                     var newLines = [];
-                    var currentVerNum = 171;
+                    var currentVerNum = 173;
                     for (var ei = 0; ei < parsed.list.length; ei++) {
                         var entry = parsed.list[ei];
                         if (ei > 0) lines.push("---");

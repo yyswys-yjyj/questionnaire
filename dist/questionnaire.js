@@ -58,6 +58,22 @@
                 "en":"Questionnaire layout: continuous (all questions shown) / compact (paginated, 5 per page + submit page), default continuous"
             },
             "required":false
+        },
+        {
+            "name":"QUESTIONNAIRE_HISTORY_ENABLED",
+            "description":{
+                "zh":"问卷历史记录：true（开启，记录填写历史并支持一键补全）/ false（关闭，不记录历史），默认 true",
+                "en":"Questionnaire history: true (enabled, record history with one-click fill) / false (disabled, no history), default true"
+            },
+            "required":false
+        },
+        {
+            "name":"QUESTIONNAIRE_DEBUG_MODE",
+            "description":{
+                "zh":"调试模式：true（开启，在问卷信息页显示调试日志）/ false（关闭），默认 false",
+                "en":"Debug mode: true (show debug logs in questionnaire info page) / false (disabled), default false"
+            },
+            "required":false
         }
     ],
     "tools":[

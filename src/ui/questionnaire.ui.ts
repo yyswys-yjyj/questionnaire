@@ -66,6 +66,10 @@ var theme = data._theme || "classic";
     registerType('time', _renderTime, _submitTime); _qcAnserToType['timePicker'] = 'time';
     _qcRendererReady = true;
     
+    // 历史记录检查：在 QinitCode 执行之前（数据由 main.ts 注入到 data._historyRecords）
+    var _historyRecords = data._historyRecords && Array.isArray(data._historyRecords) ? data._historyRecords : null;
+    var _historyLastRecord = _historyRecords && _historyRecords.length > 0 ? _historyRecords[_historyRecords.length - 1] : null;
+    
     // QinitCode 预处理：在渲染前运行 QinitCode 脚本
     var _qcData = data.qinitcode;
     if (_qcData && typeof _qcData === 'string' && _qcData.trim().length > 0) {
@@ -392,6 +396,31 @@ if (hasCount && data.resultcode) {
             await Tools.Chat.sendMessage(message, chatId, undefined, undefined, { runtime: "main" });
         }
         catch (e) { }
+        // 写入历史记录（通过系统 write_file 追加到数组）
+        try {
+            var _historyData = JSON.parse(dataState[0] || "{}");
+            if (_historyData._historyEnabled === "true" && fingerprint) {
+                var _historyDir = "/sdcard/Download/Operit/questionnaire/history";
+                var _historyFilePath = _historyDir + "/" + fingerprint + ".json";
+                var _historyRecords = [];
+                try {
+                    var _existingRaw = await ctx.callTool("read_file", { path: _historyFilePath });
+                    if (_existingRaw && _existingRaw.content) {
+                        _historyRecords = JSON.parse(_existingRaw.content);
+                        if (!Array.isArray(_historyRecords)) _historyRecords = [];
+                    }
+                } catch(e) { _historyRecords = []; }
+                _historyRecords.push({
+                    fingerprint: fingerprint,
+                    title: _historyData.title || "",
+                    answers: answers,
+                    otherInputs: otherInputs,
+                    timestamp: _historyData._timestamp || new Date().toISOString().replace("T", " ").substring(0, 19),
+                    lastSubmit: new Date().toISOString().replace("T", " ").substring(0, 19),
+                });
+                await ctx.callTool("write_file", { path: _historyFilePath, content: JSON.stringify(_historyRecords) });
+            }
+        } catch(e) { /* 历史记录写入失败不影响主流程 */ }
     }
     function handleCancel() {
         cancelledState[1](true);
@@ -1574,6 +1603,22 @@ if (hasCount && data.resultcode) {
         }
         return e;
     }
+    // 一键补全：有历史记录但未匹配 timestamp
+    var _showFillButton = _historyRecords && _historyRecords.length > 0 && !submitted && !hasInvalid;
+    var _fillAnswers = null;
+    if (_showFillButton) {
+        _fillAnswers = _historyRecords[_historyRecords.length - 1].answers || null;
+        var _fillOtherInputs = _historyRecords[_historyRecords.length - 1].otherInputs || null;
+    }
+    function fillFromHistory() {
+        if (_fillAnswers) {
+            answersState[1](JSON.stringify(_fillAnswers));
+            if (_fillOtherInputs) {
+                otherInputsState[1](JSON.stringify(_fillOtherInputs));
+            }
+        }
+    }
+    
     var headerText = "📋 询问 " + questionCount + " 个问题";
     if (hasInvalid)
         headerText = "表单错误";
@@ -1693,6 +1738,8 @@ if (hasCount && data.resultcode) {
                             ctx.UI.Text({ text: title, style: "titleMedium", color: onSurface, textAlign: "center" }),
                             ctx.UI.Text({ text: "共 " + nonSectionCount + " 题", style: "bodySmall", color: onSurfaceVariant }),
                             ctx.UI.Spacer({ height: 12 }),
+                            _showFillButton ? ctx.UI.OutlinedButton({ key: "fill_btn", onClick: fillFromHistory, containerColor: primary, content: ctx.UI.Text({ text: "一键补全上次填写", style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }), fillMaxWidth: true }) : null,
+                            ctx.UI.Spacer({ height: 4 }),
                             ctx.UI.OutlinedButton({ key: "cancel_btn", onClick: handleCancel, content: ctx.UI.Text({ text: "取消提问", style: "labelSmall", color: onSurfaceVariant }), fillMaxWidth: true }),
                         ]));
                     }
@@ -1715,7 +1762,7 @@ if (hasCount && data.resultcode) {
                                 ctx.UI.Divider({ color: surfaceVariant, thickness: 1 }),
                                 ctx.UI.Text({ text: "关于问卷提问", style: "titleSmall", color: primary }),
                                 ctx.UI.Text({ text: "一个允许 AI 向用户发送问卷提问的插件", style: "bodySmall", color: onSurfaceVariant }),
-                                ctx.UI.Text({ text: "version: 1.7.1", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
+                                ctx.UI.Text({ text: "version: 1.7.3", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
                                 ctx.UI.Text({ text: "作者", style: "titleSmall", color: primary }),
                                 ctx.UI.Text({ text: "原作：liu-baia", style: "bodySmall", color: onSurface }),
                                 ctx.UI.Text({ text: "二次开发：yyswys-yjyj", style: "bodySmall", color: onSurface }),
@@ -1780,6 +1827,7 @@ if (hasCount && data.resultcode) {
                     contentNodes.push(ctx.UI.Row({ key: "actions", horizontalArrangement: "spaceBetween", fillMaxWidth: true, padding: { horizontal: 4, vertical: 4 }, verticalAlignment: "center" }, [
                         ctx.UI.IconButton({ key: "info_btn", icon: ctx.UI.Icon({ name: "info", size: 20, tint: onSurfaceVariant }), onClick: function () { infoOpenState[1](!infoOpenState[0]); } }),
                         ctx.UI.Row({ key: "action_buttons", spacing: 8, horizontalArrangement: "end", verticalAlignment: "center" }, [
+                            _showFillButton ? ctx.UI.OutlinedButton({ key: "fill_btn", onClick: fillFromHistory, containerColor: primary, content: ctx.UI.Text({ text: "一键补全", style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }) }) : null,
                             ctx.UI.OutlinedButton({ key: "cancel_btn", onClick: handleCancel, content: ctx.UI.Text({ text: "取消", style: "labelSmall", color: onSurfaceVariant }) }),
                             ctx.UI.Button({ key: "submit_btn", enabled: isActive, content: ctx.UI.Text({ text: isSubmitting ? "⏳ 计算中..." : "✓ 提交", style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }), containerColor: isActive ? primary : ctx.MaterialTheme.colorScheme.surfaceContainer, border: { width: 1.5, color: primary }, onClick: handleSubmit }),
                         ]),
@@ -1805,7 +1853,7 @@ if (hasCount && data.resultcode) {
                     ctx.UI.Divider({ color: surfaceVariant, thickness: 1 }),
                     ctx.UI.Text({ text: "关于问卷提问", style: "titleSmall", color: primary }),
                     ctx.UI.Text({ text: "一个允许 AI 向用户发送问卷提问的插件", style: "bodySmall", color: onSurfaceVariant }),
-                    ctx.UI.Text({ text: "version: 1.7.1", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
+                    ctx.UI.Text({ text: "version: 1.7.3", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
                     ctx.UI.Text({ text: "作者", style: "titleSmall", color: primary }),
                     ctx.UI.Text({ text: "原作：liu-baia", style: "bodySmall", color: onSurface }),
                     ctx.UI.Text({ text: "二次开发：yyswys-yjyj", style: "bodySmall", color: onSurface }),

@@ -183,7 +183,15 @@ function onXmlRender(event) {
     var timeInputMode = "picker";
     try { var ti = getEnv("QUESTIONNAIRE_TIME_INPUT_MODE"); if (ti === "picker" || ti === "input") timeInputMode = ti; } catch (e) {}
     data._timeInputMode = timeInputMode;
-
+    var historyEnabled = "true";
+    try { var he = getEnv("QUESTIONNAIRE_HISTORY_ENABLED"); if (he === "true" || he === "false") historyEnabled = he; } catch (e) {}
+    data._historyEnabled = historyEnabled;
+    var debugMode = "false";
+    try { var dm = getEnv("QUESTIONNAIRE_DEBUG_MODE"); if (dm === "true" || dm === "false") debugMode = dm; } catch (e) {}
+    data._debugMode = debugMode;
+    if (data._historyEnabled === "true") {
+        data._timestamp = new Date().toISOString().replace("T", " ").substring(0, 19);
+    }
     // resultcode 和 result 互斥
     if (data.count === true && data.resultcode !== undefined && data.result !== undefined) {
         data._hasInvalid = true;
@@ -238,7 +246,39 @@ function onXmlRender(event) {
         } else { data._hasInvalid = true; data._invalidQuestions = data._invalidQuestions.concat(["result 格式错误"]); }
     }
 
-    var fingerprint = simpleHash(inner);
+    var _fpInput = JSON.stringify({ title: data.title, questions: data.questions });
+    var fingerprint = simpleHash(_fpInput);
+    // 在 main 上下文读取历史记录（使用 NativeInterface.callTool 类似 importqlg 的方式）
+    if (data._historyEnabled === "true") {
+        try {
+            var _historyMainPath = "/sdcard/Download/Operit/questionnaire/history/" + fingerprint + ".json";
+            var _historyMainRaw = NativeInterface.callTool("", "read_file", JSON.stringify({ path: _historyMainPath }));
+            data._historyDebug = 'raw: ' + String(_historyMainRaw).substring(0, 300);
+            if (_historyMainRaw) {
+                var _historyMainObj = JSON.parse(_historyMainRaw);
+                var _historyMainContent = null;
+                if (_historyMainObj && _historyMainObj.data && _historyMainObj.data.content) {
+                    _historyMainContent = _historyMainObj.data.content;
+                    _historyMainContent = _historyMainContent.replace(/^\d+\|/gm, "");
+                } else if (_historyMainObj && _historyMainObj.content) {
+                    _historyMainContent = _historyMainObj.content;
+                }
+                if (_historyMainContent) {
+                    var _parsed = JSON.parse(_historyMainContent);
+                    if (Array.isArray(_parsed)) {
+                        data._historyRecords = _parsed;
+                        data._historyDebug += ' | parsed OK: ' + _parsed.length + ' records';
+                    } else {
+                        data._historyDebug += ' | not array';
+                    }
+                } else {
+                    data._historyDebug += ' | no content';
+                }
+            } else {
+                data._historyDebug += ' | empty';
+            }
+        } catch(e) { /* 历史记录读取失败不影响问卷渲染 */ }
+    }
     var chatId = (typeof getChatId === "function") ? getChatId() : "";
     var currentMsgCount = _userMsgCount[chatId] || 0;
     return { handled: true, composeDsl: { screen: questionnaire_ui, state: { _data: JSON.stringify(data), _chatId: chatId, _msgAtCreation: currentMsgCount, _sessionId: String(_sessionId), _answers: "{}", _submitted: false, _expired: false, _collapsed: false, _collapsedForce: false, _otherInputs: "{}", _errorMsg: "", _infoOpen: false, _fingerprint: fingerprint }, memo: { fingerprint: fingerprint }, moduleSpec: { id: "questionnaire_" + fingerprint, runtime: "compose_dsl" } } };
