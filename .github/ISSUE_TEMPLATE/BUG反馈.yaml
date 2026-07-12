@@ -1,0 +1,29 @@
+name: 反馈BUG
+description: 反馈一个BUG
+title: "[Bug]"
+labels: ["BUG"]
+
+body:
+  - type: markdown
+    attributes:
+      value: "## BUG反馈"
+  - type: textarea
+    attributes:
+      label: 请描述你遇到的问题
+      description: 越详细越好...
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 问卷提问 版本号
+      description: 你需要提供你使用的questionnaire版本号
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 分析
+      description: 描在你的版本中的更新内容
+  - type: textarea
+    attributes:
+      label: 复现流程
+      description: 描在你的版本中的更新内容
