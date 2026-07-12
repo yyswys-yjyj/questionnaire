@@ -1,0 +1,19 @@
+name: 外部库上传
+description: 上传你制作的QLang外部库
+title: '[LIB-PUSH] '
+labels: ["lib-push"]
+
+body:
+  - type: textarea
+    attributes:
+      label: 仓库地址/下载链接
+      description: 你的外部库所存放的地方
+    validations:
+      required: true
+      
+  - type: textarea
+    attributes:
+      label: 功能描述
+      description: 简述你的外部库中含有哪些功能（可选）
+    validations:
+      required: true
