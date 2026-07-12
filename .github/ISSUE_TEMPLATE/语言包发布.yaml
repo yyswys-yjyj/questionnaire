@@ -1,0 +1,12 @@
+name: 语言包发布
+description: 上传你制作的语言包
+title: '[LP-PUSH] '
+labels: ["langpack-push"]
+
+body:
+  - type: textarea
+    attributes:
+      label: 语言包JSON
+      description: 将语言包内容复制到此处
+    validations:
+      required: true
