@@ -15,5 +15,3 @@ body:
     attributes:
       label: 功能描述
       description: 简述你的外部库中含有哪些功能（可选）
-    validations:
-      required: true
