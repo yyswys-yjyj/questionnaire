@@ -15,16 +15,16 @@ body:
     attributes:
       value: "> 在你对questionnaire.fix进行修改后并传入Operit AI插件市场，使用该模板对更新日志追加条目（同时合并到仓库）"
   - type: textarea
-      attributes:
-        label: 仓库地址
-        description: 你需要提供你对修改版的开源仓库地址（不填则代表为默认OperitForge仓库）
+    attributes:
+      label: 仓库地址
+      description: 你需要提供你对修改版的开源仓库地址（不填则代表为默认OperitForge仓库）
   - type: textarea
-      attributes:
-        label: 版本号
-        description: 你需要提供你发布的版本中的版本号，不填则代表默认使用发布版本号
+    attributes:
+      label: 版本号
+      description: 你需要提供你发布的版本中的版本号，不填则代表默认使用发布版本号
   - type: textarea
-      attributes:
-        label: 更新日志（可写Markdown）
-        description: 描在你的版本中的更新内容
-      validations:
-        required: true
+    attributes:
+      label: 更新日志（可写Markdown）
+      description: 描在你的版本中的更新内容
+    validations:
+      required: true
