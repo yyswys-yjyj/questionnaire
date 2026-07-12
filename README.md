@@ -22,7 +22,7 @@
 ## 反馈
 如果你发现了BUG或是AI容易混淆语法，或是你有什么好点子，你可以在这个项目提个issue
 
-# 外部库开发指南（v1.7.1）
+# 外部库开发指南（v1.7.x）
 有关 QLang 扩展的安装和使用，请参考项目 [yyswys-yjyj/questionnaire-vscode_extension](https://github.com/yyswys-yjyj/questionnaire-vscode_extension)。
 
 ```
