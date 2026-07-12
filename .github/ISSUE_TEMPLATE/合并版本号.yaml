@@ -2,10 +2,6 @@ name: 合并版本号
 description: 在你对questionnaire.fix进行修改后并传入Operit AI插件市场，使用该模板对更新日志追加条目（同时合并到仓库）
 title: "[Bug]: "
 labels: ["pull request"]
-name: 功能请求
-about: 为这个项目提出一个想法
-title: '[FEATURE] '
-labels: 'enhancement'
 
 body:
   - type: markdown
