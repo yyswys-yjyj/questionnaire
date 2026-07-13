@@ -1,0 +1,19 @@
+name: 提出一个 新功能/建议
+description: 你可以发布一个未在questionnaire中实装的功能，也可以提出一些建议
+title: "[Suggestion]"
+labels: ["Suggestion"]
+
+body:
+  - type: markdown
+    attributes:
+      value: "## 提出建议"
+  - type: textarea
+    attributes:
+      label: 请输入你要提出的建议
+      description: 越详细越好...
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 问卷提问 版本号
+      description: 如果你的建议是针对某些问卷版本，你需要提供目标questionnaire版本号
