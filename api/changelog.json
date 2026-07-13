@@ -6,7 +6,7 @@
             "details": "## 1.7.4 (In-dev)\n### English\n#### Added\n- Added a new feature: Multilingual support\n- Added a new source for CHANGELOG\n#### Known problems\n- jsDelivr CDN in China may be unavailable.So we added a new source for CHANGELOG (Version Checker already has this source)\n\n### 简体中文\n#### 新增\n- 新增多语言功能，你可以使用内置语言包或自定义一份语言包（已经猜到你们会怎么玩了）\n- 对“更新日志”部分新增了一个源\n#### 已知问题\n- jsDelivr CDN 缓存问题极其严重，目前推荐大家用GitHub Raw，版本检查器用服务器源就行\n\nNow is unreleased. Wait for the miracles of the future... | 目前还处于开发中，敬请期待"
         },
         {
-            "version": "v1.7.3(Under-review)",
+            "version": "v1.7.3",
             "currentVer": 173,
             "details": "## 1.7.3 (2026-07-11)\n### Added | 新增\n- 新增一个小功能，现在能够记住你在问卷填了什么了，并当你再次遇到同一份问卷时提供一个“一键填写”功能\n### Changed | 修改\n- 修复了上个版本的错误的版本号"
         },
