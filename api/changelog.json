@@ -1,9 +1,9 @@
 {
     "list": [
         {
-            "version": "Unreleased(In-dev)",
+            "version": "v1.7.4(In-test|Unreleased)",
             "currentVer": 174,
-            "details": "## 1.7.4 (In-dev)\n### English\n#### Added\n- Added a new feature: Multilingual support\n- Added a new source for CHANGELOG\n#### Known problems\n- jsDelivr CDN in China may be unavailable.So we added a new source for CHANGELOG (Version Checker already has this source)\n\n### 简体中文\n#### 新增\n- 新增多语言功能，你可以使用内置语言包或自定义一份语言包（已经猜到你们会怎么玩了）\n- 对“更新日志”部分新增了一个源\n#### 已知问题\n- jsDelivr CDN 缓存问题极其严重，目前推荐大家用GitHub Raw，版本检查器用服务器源就行\n\nNow is unreleased. Wait for the miracles of the future... | 目前还处于开发中，敬请期待"
+            "details": "## 1.7.4 (In-dev)\n### English\n#### Added\n- Added a new feature: Multilingual support\n- Added a new source for CHANGELOG\n\n### 简体中文\n#### 新增\n- 新增多语言功能，你可以使用内置语言包或自定义一份语言包（已经猜到你们会怎么玩了）\n- 对“更新日志”部分新增了一个源"
         },
         {
             "version": "v1.7.3",
