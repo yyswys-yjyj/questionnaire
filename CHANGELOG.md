@@ -17,6 +17,20 @@ We note the change of our project.
 
 ---
 
+## 1.7.4 (2026-07-14)
+### Added
+- Added a new feature: Multilingual support
+- Added a new source for CHANGELOG
+
+### Changed
+- None
+
+### Removed
+- None
+
+
+---
+
 ## 1.7.3 (2026-07-11)
 ### Added
 - Added a small new feature: now it can remember what you filled in on a survey and offer a 'one-click fill' option when you encounter the same survey again.
