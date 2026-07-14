@@ -5,14 +5,14 @@
 
 该项目是源自Operit AI平台上我的一个小项目，包是基于liu-baia的原作[com.com.operit.questionnaire](https://github.com/liu-baia/OperitForge/releases/tag/package-com-operit-questionnaire-v0.1.0-396c8ead)进行二次开发    
 该仓库的包在Operit AI中的包名是com.operit.questionnaire.fix（项目簇：com-operit-questionnaire-fix），代码由AI完成，项目方向就不是AI了用的是person（      
-开源仓库中的包的版本：v1.7.1
+开源仓库中的包的版本：v1.7.4
 
 ## 介绍
 基于原作，不断更新完善，随之加入些新的功能   
 ~~不过现在似乎已经沉浸在自己的艺术当中了（~~
 
 ## 更新日志
-### 1.7.3 (2026-07-11)
+### 1.7.4 (2026-07-14)
 #### Added | 新增
 - 新增多语言功能，你可以使用内置语言包或自定义一份语言包
 - 为“更新日志”部分新增了一个源"
