@@ -1,7 +1,7 @@
 {
     "list": [
         {
-            "version": "v1.7.4(Under-review)",
+            "version": "v1.7.4",
             "currentVer": 174,
             "details": "## 1.7.4 (2026-07-14)\n### English\n#### Added\n- Added a new feature: Multilingual support\n- Added a new source for CHANGELOG\n\n### 简体中文\n#### 新增\n- 新增多语言功能，你可以使用内置语言包或自定义一份语言包（已经猜到你们会怎么玩了）\n- 为“更新日志”部分新增了一个源"
         },
