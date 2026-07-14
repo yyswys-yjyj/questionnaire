@@ -3,6 +3,111 @@
 import { executeResultCode } from "./runtime/runtime.js";
 import { executeQLang } from "../qlgruntime/index.js";
 import { compileAndRun as _qcCompileAndRun, execBlock as _qcExecBlock } from "../qinitcode/index.js";
+function _t(key, lang) {
+    var _result = null;
+    if (lang && lang[key]) _result = lang[key];
+    if (!_result) {
+        var langPack = {
+        "ui.form.submit": "提交",
+        "ui.form.cancel": "取消",
+        "ui.form.fill": "一键补全",
+        "ui.form.submitted": "已提交",
+        "ui.form.expired": "已过期",
+        "ui.form.infoTitle": "问卷信息",
+        "ui.form.version": "版本",
+        "ui.form.type": "类型",
+        "ui.form.questions": "题目数",
+        "ui.form.fingerprint": "指纹",
+        "ui.form.required": "必答",
+        "ui.form.other": "其他…",
+        "ui.form.missing": "还有必答题未填",
+        "ui.form.submitting": "提交中...",
+        "ui.form.parseError": "解析失败",
+        "ui.form.invalidFormat": "格式错误",
+        "ui.form.historyFill": "一键补全",
+        "ui.form.noAnswer": "(未填)",
+        "ui.form.emptySubmit": "(用户未填写任何内容)",
+        "ui.form.remind": "提醒",
+        "ui.form.expiredHint": "该问卷已过期",
+        "ui.form.collapsedHint": "点击展开",
+        "ui.form.sectionResult": "结果",
+        "ui.form.rollSpec": "卷谱",
+        "ui.form.asking": "📋 询问 %d 个问题",
+        "ui.form.cancelled": "用户取消了本次问卷提问",
+        "ui.form.cancelledTitle": "提问被终止",
+        "ui.form.reported": "已报告表单问题",
+        "ui.form.computing": "⏳ 计算中...",
+        "ui.form.submitBtn": "✓ 提交",
+        "ui.form.submitBtnFull": "✓ 提交问卷",
+        "ui.form.cancelAsk": "取消提问",
+        "ui.form.textPlaceholder": "输入...",
+        "ui.form.textareaPlaceholder": "输入多行文本...",
+        "ui.form.otherPlaceholder": "请输入自定义内容...",
+        "ui.form.otherPrefix": "其他: ",
+        "ui.form.star": " 星",
+        "ui.form.starHint": "点击评分",
+        "ui.form.starLabel": " 星 - ",
+        "ui.form.ratingVeryBad": "很差",
+        "ui.form.ratingBad": "较差",
+        "ui.form.ratingNormal": "一般",
+        "ui.form.ratingGood": "满意",
+        "ui.form.ratingVeryGood": "非常满意",
+        "ui.form.likertStronglyDisagree": "非常不同意",
+        "ui.form.likertDisagree": "不同意",
+        "ui.form.likertNeutral": "一般",
+        "ui.form.likertAgree": "同意",
+        "ui.form.likertStronglyAgree": "非常同意",
+        "ui.form.likertSelected": "已选: ",
+        "ui.form.npsPromoter": "推荐者",
+        "ui.form.npsPassive": "被动者",
+        "ui.form.npsDetractor": "贬损者",
+        "ui.form.npsScore": "评分: ",
+        "ui.form.npsMin": "0（不可能）",
+        "ui.form.npsMax": "10（非常可能）",
+        "ui.form.npsClear": "清除选择",
+        "ui.form.timeError": "格式错误，需要 hh:mm:ss",
+        "ui.form.timeInputted": "已输入: ",
+        "ui.form.timeExample": "示例: 14:30:00",
+        "ui.form.timeHour": "时",
+        "ui.form.timeMin": "分",
+        "ui.form.timeSec": "秒",
+        "ui.form.timeSelected": "已选: ",
+        "ui.form.infoTitleLabel": "标题：",
+        "ui.form.infoIdLabel": "ID：",
+        "ui.form.infoTypeLabel": "类型：",
+        "ui.form.infoNone": "无",
+        "ui.form.questionCount": " 题",
+        "ui.form.scriptMode": " · 脚本式",
+        "ui.form.resultMode": " · 结果表达式",
+        "ui.form.resultOnlyMode": " · 仅结果",
+        "ui.form.aboutTitle": "关于问卷提问",
+        "ui.form.aboutDesc": "一个允许 AI 向用户发送问卷提问的插件",
+        "ui.form.authorTitle": "作者",
+        "ui.form.authorOriginal": "原作：",
+        "ui.form.authorModder": "二次开发：",
+        "ui.form.versionLabel": "version: ",
+        "ui.form.resultSection": "── 结果 ──",
+        "ui.form.rollSpecLabel": "卷谱: ",
+        "ui.form.errorTitle": "表单错误",
+        "ui.form.errorJson": "JSON 格式错误",
+        "ui.form.errorEmpty": "问卷数据为空",
+        "ui.form.errorMissingId": "缺少题目 ID",
+        "ui.form.errorResult": "结果表达式错误",
+        "ui.form.errorType": "题目配置错误",
+        "ui.form.errorField": "字段配置错误",
+        "ui.form.errorRuntimeScript": "结果脚本运行时错误: ",
+        "ui.form.errorRuntimeResult": "结果表达式运行时错误: ",
+        "ui.form.missingIdDesc": "以下题目缺少 id 字段：",
+        "ui.form.unknown": "未知",
+        "ui.form.totalQuestions": "共 %d 题",
+        "ui.form.answeredCount": "已回答 %d / %d 题",
+        "ui.form.remindMsg": "⚠️ "
+    };
+        _result = langPack[key] || key;
+    }
+    return _result;
+}
+
 export default function Screen(ctx) {
     var _qcAnserToType = {};
     var _typeRegistry = {};
@@ -42,6 +147,9 @@ export default function Screen(ctx) {
     var hasInvalid = data._hasInvalid === true;
 var isBlocked = data._blockedMode === true;
 var invalidQuestions = data._invalidQuestions || [];
+var langPathEnv = "";
+try { langPathEnv = ctx.getEnv("QUESTIONNAIRE_LANG_PATH") || ""; } catch(e){}
+var isLangNeeded = !langPathEnv && !submitted && !expired && !cancelled;
 var theme = data._theme || "classic";
     var buttonLayout = data._buttonLayout || "scroll";
     var timeInputMode = data._timeInputMode || "picker";
@@ -230,7 +338,7 @@ var answerColor = primary;
             }
         }
         if (missingRequired.length > 0) {
-            errorMsgState[1]("还有 " + missingRequired.length + " 道必答题未填");
+            errorMsgState[1](_t("ui.form.missing",data._lang).replace("%d", String(missingRequired.length)));
             return;
         }
         submittingState[1](true);
@@ -280,7 +388,7 @@ var answerColor = primary;
         var message = lines.join("\n");
         // 全空时插入占位文本
         if (!hasAnyAnswer) {
-            message += "\n（用户未填写任何内容）";
+            message += "\n" + _t("ui.form.emptySubmit",data._lang);
         }
         // 结果表达式计算
         var hasCount = data.count === true;
@@ -317,7 +425,7 @@ if (hasCount && data.resultcode) {
         if (!data._invalidQuestions)
             data._invalidQuestions = [];
         submittingState[1](false);
-        data._invalidQuestions.push("结果脚本运行时错误: " + String(e));
+        data._invalidQuestions.push(_t("ui.form.errorRuntimeScript",data._lang) + String(e));
         dataState[1](JSON.stringify(data));
         return;
     }
@@ -341,7 +449,7 @@ if (hasCount && data.resultcode) {
                 if (!data._invalidQuestions)
                     data._invalidQuestions = [];
                 submittingState[1](false);
-                data._invalidQuestions.push("结果表达式运行时错误: " + String(e));
+                data._invalidQuestions.push(_t("ui.form.errorRuntimeResult",data._lang) + String(e));
                 dataState[1](JSON.stringify(data));
                 return;
             }
@@ -375,7 +483,7 @@ if (hasCount && data.resultcode) {
             if (hasCount && (data.resultcode || data.result)) {
                 // 有结果表达式/脚本，卷谱在问卷内容之后、结果之前
                 // 当前 message 结构是：问卷内容 + 结果文本
-                // 找到结果分隔标记 "── 结果 ──" 并在前面插入
+                // 找到结果分隔标记 _t("ui.form.resultSection",data._lang) 并在前面插入
                 var resultMarker = "\n\n── 结果 ──";
                 var ri = message.lastIndexOf(resultMarker);
                 if (ri >= 0) {
@@ -425,7 +533,7 @@ if (hasCount && data.resultcode) {
     function handleCancel() {
         cancelledState[1](true);
         try {
-            Tools.Chat.sendMessage("用户取消了本次问卷提问", chatId, undefined, undefined, { runtime: "main" });
+            Tools.Chat.sendMessage(_t("ui.form.cancelled",data._lang), chatId, undefined, undefined, { runtime: "main" });
         }
         catch (e) { }
     }
@@ -446,17 +554,17 @@ if (hasCount && data.resultcode) {
         return Array.isArray(ans) ? ans.join(", ") : String(ans);
     }
     function _submitSingle(q, ans, oi) {
-        if (q.enableOther && ans === "__other__") return "其他: " + (oi[q.id] || "");
+        if (q.enableOther && ans === "__other__") return _t("ui.form.otherPrefix",data._lang) + (oi[q.id] || "");
         return String(ans);
     }
-    function _submitRating(q, ans) { return String(ans) + " 星"; }
+    function _submitRating(q, ans) { return String(ans) + _t("ui.form.star",data._lang); }
     function _submitLikert(q, ans) {
         var opts = q.options || [];
         var li = Math.min(Math.max(parseInt(ans) - 1, 0), opts.length - 1);
         return opts[li] + " (" + ans + "/5)";
     }
     function _submitNps(q, ans) {
-        var label = parseInt(ans) >= 9 ? "推荐者" : (parseInt(ans) >= 7 ? "被动者" : "贬损者");
+        var label = parseInt(ans) >= 9 ? _t("ui.form.npsPromoter",data._lang) : (parseInt(ans) >= 7 ? _t("ui.form.npsDetractor",data._lang) : _t("ui.form.npsDetractor",data._lang));
         return ans + "/10 (" + label + ")";
     }
     function _submitTextarea(q, ans) { return "```\n" + String(ans) + "\n```"; }
@@ -479,7 +587,7 @@ if (hasCount && data.resultcode) {
             var displayAnswer = "";
             if (hasAnswer) {
                 if (q.enableOther && answer === "__other__") {
-                    displayAnswer = "其他: " + (otherInputs[q.id] || "");
+                    displayAnswer = _t("ui.form.otherPrefix",data._lang) + (otherInputs[q.id] || "");
                 } else {
                     displayAnswer = "";
                 }
@@ -488,7 +596,7 @@ if (hasCount && data.resultcode) {
                 ctx.UI.Text({ text: qText, style: "labelMedium", color: onSurface }),
                 hasAnswer
                     ? ctx.UI.Text({ text: "    └ " + displayAnswer, style: "bodyMedium", color: answerColor })
-                    : ctx.UI.Text({ text: "    └ (未填)", style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
+                    : ctx.UI.Text({ text: _t("ui.form.noAnswer",data._lang), style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
             ]);
         }
         if (isExpired)
@@ -529,7 +637,7 @@ if (hasCount && data.resultcode) {
                         key: q.id + "_other_btn",
                         selected: isOtherSelected,
                         onClick: function () { setAnswer(q.id, "__other__"); },
-                        label: ctx.UI.Text({ text: "其他…", style: "labelSmall", color: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+                        label: ctx.UI.Text({ text: _t("ui.form.other",data._lang), style: "labelSmall", color: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
                         leadingIcon: isOtherSelected ? ctx.UI.Icon({ name: "check", size: 16, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
                     }));
                 }
@@ -540,7 +648,7 @@ if (hasCount && data.resultcode) {
                         contentColor: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
                         onClick: function () { setAnswer(q.id, "__other__"); },
                         border: { width: 1.5, color: onSurfaceVariant },
-                        content: ctx.UI.Text({ text: "其他…", style: "labelSmall", color: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+                        content: ctx.UI.Text({ text: _t("ui.form.other",data._lang), style: "labelSmall", color: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
                     }));
                 }
             })();
@@ -551,7 +659,7 @@ if (hasCount && data.resultcode) {
             nodes.push(ctx.UI.TextField({
                 value: otherVal,
                 onValueChange: function (newVal) { setOtherInput(q.id, newVal); },
-                placeholder: "请输入自定义内容...",
+                placeholder: _t("ui.form.otherPlaceholder",data._lang),
                 singleLine: true,
                 enabled: true,
                 style: "compact",
@@ -568,7 +676,7 @@ if (hasCount && data.resultcode) {
                 ctx.UI.Text({ text: qText, style: "labelMedium", color: onSurface }),
                 hasAnswer
                     ? ctx.UI.Text({ text: "    └ " + displayAnswer, style: "bodyMedium", color: answerColor })
-                    : ctx.UI.Text({ text: "    └ (未填)", style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
+                    : ctx.UI.Text({ text: _t("ui.form.noAnswer",data._lang), style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
             ]);
         }
         if (isExpired) return null;
@@ -613,7 +721,7 @@ if (hasCount && data.resultcode) {
                 ctx.UI.Text({ text: qText, style: "labelMedium", color: onSurface }),
                 hasAnswer
                     ? ctx.UI.Text({ text: "    └ " + displayAnswer, style: "bodyMedium", color: answerColor })
-                    : ctx.UI.Text({ text: "    └ (未填)", style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
+                    : ctx.UI.Text({ text: _t("ui.form.noAnswer",data._lang), style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
             ]);
         }
         if (isExpired) return null;
@@ -621,7 +729,7 @@ if (hasCount && data.resultcode) {
         nodes.push(ctx.UI.TextField({
             value: textVal,
             onValueChange: function (newVal) { setAnswer(q.id, newVal); },
-            placeholder: "输入...",
+            placeholder: _t("ui.form.textPlaceholder",data._lang),
             singleLine: true,
             enabled: true,
             style: "compact",
@@ -637,7 +745,7 @@ if (hasCount && data.resultcode) {
                 ctx.UI.Text({ text: qText, style: "labelMedium", color: onSurface }),
                 hasAnswer
                     ? ctx.UI.Text({ text: "    └ " + displayAnswer, style: "bodyMedium", color: answerColor })
-                    : ctx.UI.Text({ text: "    └ (未填)", style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
+                    : ctx.UI.Text({ text: _t("ui.form.noAnswer",data._lang), style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
             ]);
         }
         if (isExpired) return null;
@@ -645,7 +753,7 @@ if (hasCount && data.resultcode) {
         nodes.push(ctx.UI.TextField({
             value: areaVal,
             onValueChange: function (newVal) { setAnswer(q.id, newVal); },
-            placeholder: "输入多行文本...",
+            placeholder: _t("ui.form.textareaPlaceholder",data._lang),
             singleLine: false,
             minLines: 3,
             maxLines: 8,
@@ -663,12 +771,12 @@ if (hasCount && data.resultcode) {
                 ctx.UI.Text({ text: qText, style: "labelMedium", color: onSurface }),
                 hasAnswer
                     ? ctx.UI.Text({ text: "    └ " + displayAnswer, style: "bodyMedium", color: answerColor })
-                    : ctx.UI.Text({ text: "    └ (未填)", style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
+                    : ctx.UI.Text({ text: _t("ui.form.noAnswer",data._lang), style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
             ]);
         }
         if (isExpired) return null;
         var ratingVal = parseInt(answer) || 0;
-        var ratingLabels = ["", "很差", "较差", "一般", "满意", "非常满意"];
+        var ratingLabels = ["", _t("ui.form.ratingVeryBad",data._lang), _t("ui.form.ratingBad",data._lang), _t("ui.form.ratingNormal",data._lang), _t("ui.form.ratingGood",data._lang), _t("ui.form.ratingVeryGood",data._lang)];
         var ratingRow1 = [], ratingRow2 = [];
         for (var si = 1; si <= 5; si++) {
             (function (starIdx) {
@@ -694,7 +802,7 @@ if (hasCount && data.resultcode) {
             ctx.UI.Row({ key: q.id + "_stars_1", spacing: 6, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, ratingRow1),
             ctx.UI.Row({ key: q.id + "_stars_2", spacing: 6, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, ratingRow2),
         ]));
-        var label = ratingVal > 0 ? (ratingVal + " 星 - " + ratingLabels[ratingVal]) : "点击评分";
+        var label = ratingVal > 0 ? (ratingVal + _t("ui.form.starLabel",data._lang) + ratingLabels[ratingVal]) : _t("ui.form.starHint",data._lang);
         nodes.push(ctx.UI.Text({ text: label, style: "bodySmall", color: onSurfaceVariant }));
         return null;
     }
@@ -709,11 +817,11 @@ if (hasCount && data.resultcode) {
                 ctx.UI.Text({ text: qText, style: "labelMedium", color: onSurface }),
                 hasAnswer
                     ? ctx.UI.Text({ text: "    └ " + displayAnswer, style: "bodyMedium", color: answerColor })
-                    : ctx.UI.Text({ text: "    └ (未填)", style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
+                    : ctx.UI.Text({ text: _t("ui.form.noAnswer",data._lang), style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
             ]);
         }
         if (isExpired) return null;
-        var likertOpts = q.options || ["非常不同意", "不同意", "一般", "同意", "非常同意"];
+        var likertOpts = q.options || [_t("ui.form.likertStronglyDisagree",data._lang), _t("ui.form.likertDisagree",data._lang), _t("ui.form.ratingNormal",data._lang), _t("ui.form.likertAgree",data._lang), _t("ui.form.likertStronglyAgree",data._lang)];
         var likertVal = parseInt(answer) || 0;
         var halfLen = Math.ceil(likertOpts.length / 2);
         var likertRow1Btns = [], likertRow2Btns = [];
@@ -746,7 +854,7 @@ if (hasCount && data.resultcode) {
         ]));
         if (likertVal > 0) {
             var likertIdx2 = Math.min(Math.max(likertVal - 1, 0), likertOpts.length - 1);
-            nodes.push(ctx.UI.Text({ text: "已选: " + likertOpts[likertIdx2], style: "bodySmall", color: answerColor }));
+            nodes.push(ctx.UI.Text({ text: _t("ui.form.likertSelected",data._lang) + likertOpts[likertIdx2], style: "bodySmall", color: answerColor }));
         }
         return null;
     }
@@ -754,13 +862,13 @@ if (hasCount && data.resultcode) {
     function _renderNps(q, idx, nodes, qText, answer, isSubmitted) {
         if (isSubmitted) {
             var hasAnswer = answer !== undefined && answer !== null && answer !== "";
-            var npsLabel2 = parseInt(answer) >= 9 ? "推荐者" : (parseInt(answer) >= 7 ? "被动者" : "贬损者");
+            var npsLabel2 = parseInt(answer) >= 9 ? _t("ui.form.npsPromoter",data._lang) : (parseInt(answer) >= 7 ? _t("ui.form.npsDetractor",data._lang) : _t("ui.form.npsDetractor",data._lang));
             var displayAnswer = hasAnswer ? (answer + " (" + npsLabel2 + ")") : "";
             return ctx.UI.Column({ key: "qa_" + q.id, spacing: 2 }, [
                 ctx.UI.Text({ text: qText, style: "labelMedium", color: onSurface }),
                 hasAnswer
                     ? ctx.UI.Text({ text: "    └ " + displayAnswer, style: "bodyMedium", color: answerColor })
-                    : ctx.UI.Text({ text: "    └ (未填)", style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
+                    : ctx.UI.Text({ text: _t("ui.form.noAnswer",data._lang), style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
             ]);
         }
         if (isExpired) return null;
@@ -792,13 +900,13 @@ if (hasCount && data.resultcode) {
         }
         nodes.push(ctx.UI.Column({ key: q.id + "_nps_col", spacing: 4, padding: { vertical: 4 } }, npsRows));
         if (npsVal >= 0) {
-            var npsLabel = npsVal >= 9 ? "推荐者" : (npsVal >= 7 ? "被动者" : "贬损者");
-            nodes.push(ctx.UI.Text({ text: "评分: " + npsVal + " (" + npsLabel + ")", style: "bodySmall", color: answerColor }));
+            var npsLabel = npsVal >= 9 ? _t("ui.form.npsPromoter",data._lang) : (npsVal >= 7 ? _t("ui.form.npsDetractor",data._lang) : _t("ui.form.npsDetractor",data._lang));
+            nodes.push(ctx.UI.Text({ text: _t("ui.form.npsScore",data._lang) + npsVal + " (" + npsLabel + ")", style: "bodySmall", color: answerColor }));
         }
         else {
             nodes.push(ctx.UI.Row({ key: q.id + "_nps_hint", spacing: 8, horizontalArrangement: "center", fillMaxWidth: true, padding: { top: 2 } }, [
-                ctx.UI.Text({ text: "0（不可能）", style: "labelSmall", color: onSurfaceVariant }),
-                ctx.UI.Text({ text: "10（非常可能）", style: "labelSmall", color: onSurfaceVariant }),
+                ctx.UI.Text({ text: _t("ui.form.npsMin",data._lang), style: "labelSmall", color: onSurfaceVariant }),
+                ctx.UI.Text({ text: _t("ui.form.npsMax",data._lang), style: "labelSmall", color: onSurfaceVariant }),
             ]));
         }
         return null;
@@ -812,7 +920,7 @@ if (hasCount && data.resultcode) {
                 ctx.UI.Text({ text: qText, style: "labelMedium", color: onSurface }),
                 hasAnswer
                     ? ctx.UI.Text({ text: "    └ " + displayAnswer, style: "bodyMedium", color: answerColor })
-                    : ctx.UI.Text({ text: "    └ (未填)", style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
+                    : ctx.UI.Text({ text: _t("ui.form.noAnswer",data._lang), style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
             ]);
         }
         if (isExpired) return null;
@@ -828,7 +936,7 @@ if (hasCount && data.resultcode) {
         }
         if (timeInputMode === "input") {
             var timeInputVal = answer || "";
-            var timeError = timeInputVal && !validateTimeFormat(timeInputVal) ? "格式错误，需要 hh:mm:ss" : "";
+            var timeError = timeInputVal && !validateTimeFormat(timeInputVal) ? _t("ui.form.timeError",data._lang) : "";
             var timeInputNodes = [
                 ctx.UI.TextField({
                     value: timeInputVal,
@@ -843,9 +951,9 @@ if (hasCount && data.resultcode) {
                 timeInputNodes.push(ctx.UI.Text({ text: timeError, style: "bodySmall", color: errorColor, padding: { top: 2 } }));
             }
             if (validateTimeFormat(timeInputVal)) {
-                timeInputNodes.push(ctx.UI.Text({ text: "已输入: " + timeInputVal, style: "bodySmall", color: answerColor, padding: { top: 2 } }));
+                timeInputNodes.push(ctx.UI.Text({ text: _t("ui.form.timeInputted",data._lang) + timeInputVal, style: "bodySmall", color: answerColor, padding: { top: 2 } }));
             } else if (timeInputVal) {
-                timeInputNodes.push(ctx.UI.Text({ text: "示例: 14:30:00", style: "bodySmall", color: onSurfaceVariant, padding: { top: 2 } }));
+                timeInputNodes.push(ctx.UI.Text({ text: _t("ui.form.timeExample",data._lang), style: "bodySmall", color: onSurfaceVariant, padding: { top: 2 } }));
             }
             nodes.push(ctx.UI.Column({ key: q.id + "_input_col", spacing: 4, fillMaxWidth: true, padding: { vertical: 4 } }, timeInputNodes));
         } else {
@@ -878,7 +986,7 @@ if (hasCount && data.resultcode) {
                 })(hStr);
             }
             // 省略了分钟和秒的按钮代码太长，保持原样
-            nodes.push(ctx.UI.Text({ text: "时", style: "labelSmall", color: onSurfaceVariant, padding: { top: 4, bottom: 2 } }));
+            nodes.push(ctx.UI.Text({ text: _t("ui.form.timeHour",data._lang), style: "labelSmall", color: onSurfaceVariant, padding: { top: 4, bottom: 2 } }));
             nodes.push(ctx.UI.LazyRow({ key: q.id + "_hour_row", spacing: 4 }, hourBtnNodes));
         }
         return null;
@@ -922,7 +1030,7 @@ if (hasCount && data.resultcode) {
             var displayAnswer = "";
             if (hasAnswer) {
                 if (q.type === "single" && q.enableOther && answer === "__other__") {
-                    displayAnswer = "其他: " + (otherInputs[q.id] || "");
+                    displayAnswer = _t("ui.form.otherPrefix",data._lang) + (otherInputs[q.id] || "");
                 }
                 else if (q.type === "rating") {
                     displayAnswer = renderStarsText(parseInt(answer || 0));
@@ -933,7 +1041,7 @@ if (hasCount && data.resultcode) {
                     displayAnswer = likertOpts[li];
                 }
                 else if (q.type === "nps") {
-                    var npsLabel2 = parseInt(answer) >= 9 ? "推荐者" : (parseInt(answer) >= 7 ? "被动者" : "贬损者");
+                    var npsLabel2 = parseInt(answer) >= 9 ? _t("ui.form.npsPromoter",data._lang) : (parseInt(answer) >= 7 ? _t("ui.form.npsDetractor",data._lang) : _t("ui.form.npsDetractor",data._lang));
                     displayAnswer = answer + " (" + npsLabel2 + ")";
                 }
                 else if (q.type === "textarea") {
@@ -950,7 +1058,7 @@ if (hasCount && data.resultcode) {
                 ctx.UI.Text({ text: qText, style: "labelMedium", color: onSurface }),
                 hasAnswer
                     ? ctx.UI.Text({ text: "    └ " + displayAnswer, style: "bodyMedium", color: answerColor })
-                    : ctx.UI.Text({ text: "    └ (未填)", style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
+                    : ctx.UI.Text({ text: _t("ui.form.noAnswer",data._lang), style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) }),
             ]);
         }
         if (isExpired)
@@ -1007,7 +1115,7 @@ if (hasCount && data.resultcode) {
                             key: q.id + "_other_btn",
                             selected: isOtherSelected,
                             onClick: function () { setAnswer(q.id, "__other__"); },
-                            label: ctx.UI.Text({ text: "其他…", style: "labelSmall", color: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+                            label: ctx.UI.Text({ text: _t("ui.form.other",data._lang), style: "labelSmall", color: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
                             leadingIcon: isOtherSelected ? ctx.UI.Icon({ name: "check", size: 16, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
                         }));
                     }
@@ -1018,7 +1126,7 @@ if (hasCount && data.resultcode) {
                             contentColor: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
                             onClick: function () { setAnswer(q.id, "__other__"); },
                             border: { width: 1.5, color: onSurfaceVariant },
-                            content: ctx.UI.Text({ text: "其他…", style: "labelSmall", color: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+                            content: ctx.UI.Text({ text: _t("ui.form.other",data._lang), style: "labelSmall", color: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
                         }));
                     }
                 })();
@@ -1029,7 +1137,7 @@ if (hasCount && data.resultcode) {
                 nodes.push(ctx.UI.TextField({
                     value: otherVal,
                     onValueChange: function (newVal) { setOtherInput(q.id, newVal); },
-                    placeholder: "请输入自定义内容...",
+                    placeholder: _t("ui.form.otherPlaceholder",data._lang),
                     singleLine: true,
                     enabled: true,
                     style: "compact",
@@ -1073,7 +1181,7 @@ if (hasCount && data.resultcode) {
             nodes.push(ctx.UI.TextField({
                 value: textVal,
                 onValueChange: function (newVal) { setAnswer(q.id, newVal); },
-                placeholder: "输入...",
+                placeholder: _t("ui.form.textPlaceholder",data._lang),
                 singleLine: true,
                 enabled: true,
                 style: "compact",
@@ -1084,7 +1192,7 @@ if (hasCount && data.resultcode) {
             nodes.push(ctx.UI.TextField({
                 value: areaVal,
                 onValueChange: function (newVal) { setAnswer(q.id, newVal); },
-                placeholder: "输入多行文本...",
+                placeholder: _t("ui.form.textareaPlaceholder",data._lang),
                 singleLine: false,
                 minLines: 3,
                 maxLines: 8,
@@ -1107,7 +1215,7 @@ if (hasCount && data.resultcode) {
             // --- input 模式：直接输入 hh:mm:ss ---
             if (timeInputMode === "input") {
                 var timeInputVal = answer || "";
-                var timeError = timeInputVal && !validateTimeFormat(timeInputVal) ? "格式错误，需要 hh:mm:ss" : "";
+                var timeError = timeInputVal && !validateTimeFormat(timeInputVal) ? _t("ui.form.timeError",data._lang) : "";
                 var timeInputNodes = [
                     ctx.UI.TextField({
                         value: timeInputVal,
@@ -1122,9 +1230,9 @@ if (hasCount && data.resultcode) {
                     timeInputNodes.push(ctx.UI.Text({ text: timeError, style: "bodySmall", color: errorColor, padding: { top: 2 } }));
                 }
                 if (validateTimeFormat(timeInputVal)) {
-                    timeInputNodes.push(ctx.UI.Text({ text: "已输入: " + timeInputVal, style: "bodySmall", color: answerColor, padding: { top: 2 } }));
+                    timeInputNodes.push(ctx.UI.Text({ text: _t("ui.form.timeInputted",data._lang) + timeInputVal, style: "bodySmall", color: answerColor, padding: { top: 2 } }));
                 } else if (timeInputVal) {
-                    timeInputNodes.push(ctx.UI.Text({ text: "示例: 14:30:00", style: "bodySmall", color: onSurfaceVariant, padding: { top: 2 } }));
+                    timeInputNodes.push(ctx.UI.Text({ text: _t("ui.form.timeExample",data._lang), style: "bodySmall", color: onSurfaceVariant, padding: { top: 2 } }));
                 }
                 nodes.push(ctx.UI.Column({ key: q.id + "_input_col", spacing: 4, fillMaxWidth: true, padding: { vertical: 4 } }, timeInputNodes));
             } else {
@@ -1210,23 +1318,23 @@ if (hasCount && data.resultcode) {
                     }
                     return rows;
                 }
-                nodes.push(ctx.UI.Text({ text: "时", style: "labelSmall", color: onSurfaceVariant, padding: { top: 4, bottom: 2 } }));
+                nodes.push(ctx.UI.Text({ text: _t("ui.form.timeHour",data._lang), style: "labelSmall", color: onSurfaceVariant, padding: { top: 4, bottom: 2 } }));
                 nodes.push(ctx.UI.LazyRow({ key: q.id + "_hour_row", spacing: 4 }, hourBtnNodes));
-                nodes.push(ctx.UI.Text({ text: "分", style: "labelSmall", color: onSurfaceVariant, padding: { top: 4, bottom: 2 } }));
+                nodes.push(ctx.UI.Text({ text: _t("ui.form.timeMin",data._lang), style: "labelSmall", color: onSurfaceVariant, padding: { top: 4, bottom: 2 } }));
                 nodes.push(ctx.UI.Column({ key: q.id + "_min_col", spacing: 4, fillMaxWidth: true }, splitRows(minBtnNodes, 20)));
-                nodes.push(ctx.UI.Text({ text: "秒", style: "labelSmall", color: onSurfaceVariant, padding: { top: 4, bottom: 2 } }));
+                nodes.push(ctx.UI.Text({ text: _t("ui.form.timeSec",data._lang), style: "labelSmall", color: onSurfaceVariant, padding: { top: 4, bottom: 2 } }));
                 nodes.push(ctx.UI.Column({ key: q.id + "_sec_col", spacing: 4, fillMaxWidth: true }, splitRows(secBtnNodes, 20)));
                 var displayTime = hourVal + ":" + minVal + ":" + secVal;
                 if (!answer)
                     displayTime = "";
                 if (displayTime) {
-                    nodes.push(ctx.UI.Text({ text: "已选: " + displayTime, style: "bodySmall", color: answerColor, padding: { top: 2 } }));
+                    nodes.push(ctx.UI.Text({ text: _t("ui.form.likertSelected",data._lang) + displayTime, style: "bodySmall", color: answerColor, padding: { top: 2 } }));
                 }
             }
         }
         else if (q.type === "rating") {
             var ratingVal = parseInt(answer) || 0;
-            var ratingLabels = ["", "很差", "较差", "一般", "满意", "非常满意"];
+            var ratingLabels = ["", _t("ui.form.ratingVeryBad",data._lang), _t("ui.form.ratingBad",data._lang), _t("ui.form.ratingNormal",data._lang), _t("ui.form.ratingGood",data._lang), _t("ui.form.ratingVeryGood",data._lang)];
             var ratingRow1 = [], ratingRow2 = [];
             for (var si = 1; si <= 5; si++) {
                 (function (starIdx) {
@@ -1252,11 +1360,11 @@ if (hasCount && data.resultcode) {
                 ctx.UI.Row({ key: q.id + "_stars_1", spacing: 6, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, ratingRow1),
                 ctx.UI.Row({ key: q.id + "_stars_2", spacing: 6, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, ratingRow2),
             ]));
-            var label = ratingVal > 0 ? (ratingVal + " 星 - " + ratingLabels[ratingVal]) : "点击评分";
+            var label = ratingVal > 0 ? (ratingVal + _t("ui.form.starLabel",data._lang) + ratingLabels[ratingVal]) : _t("ui.form.starHint",data._lang);
             nodes.push(ctx.UI.Text({ text: label, style: "bodySmall", color: onSurfaceVariant }));
         }
         else if (q.type === "likert") {
-            var likertOpts = q.options || ["非常不同意", "不同意", "一般", "同意", "非常同意"];
+            var likertOpts = q.options || [_t("ui.form.likertStronglyDisagree",data._lang), _t("ui.form.likertDisagree",data._lang), _t("ui.form.ratingNormal",data._lang), _t("ui.form.likertAgree",data._lang), _t("ui.form.likertStronglyAgree",data._lang)];
             var likertVal = parseInt(answer) || 0;
             var halfLen = Math.ceil(likertOpts.length / 2);
             var likertRow1Btns = [], likertRow2Btns = [];
@@ -1289,7 +1397,7 @@ if (hasCount && data.resultcode) {
             ]));
             if (likertVal > 0) {
                 var likertIdx2 = Math.min(Math.max(likertVal - 1, 0), likertOpts.length - 1);
-                nodes.push(ctx.UI.Text({ text: "已选: " + likertOpts[likertIdx2], style: "bodySmall", color: answerColor }));
+                nodes.push(ctx.UI.Text({ text: _t("ui.form.likertSelected",data._lang) + likertOpts[likertIdx2], style: "bodySmall", color: answerColor }));
             }
         }
         else if (q.type === "nps") {
@@ -1321,13 +1429,13 @@ if (hasCount && data.resultcode) {
             }
             nodes.push(ctx.UI.Column({ key: q.id + "_nps_col", spacing: 4, padding: { vertical: 4 } }, npsRows));
             if (npsVal >= 0) {
-                var npsLabel = npsVal >= 9 ? "推荐者" : (npsVal >= 7 ? "被动者" : "贬损者");
-                nodes.push(ctx.UI.Text({ text: "评分: " + npsVal + " (" + npsLabel + ")", style: "bodySmall", color: answerColor }));
+                var npsLabel = npsVal >= 9 ? _t("ui.form.npsPromoter",data._lang) : (npsVal >= 7 ? _t("ui.form.npsDetractor",data._lang) : _t("ui.form.npsDetractor",data._lang));
+                nodes.push(ctx.UI.Text({ text: _t("ui.form.npsScore",data._lang) + npsVal + " (" + npsLabel + ")", style: "bodySmall", color: answerColor }));
             }
             else {
                 nodes.push(ctx.UI.Row({ key: q.id + "_nps_hint", spacing: 8, horizontalArrangement: "center", fillMaxWidth: true, padding: { top: 2 } }, [
-                    ctx.UI.Text({ text: "0（不可能）", style: "labelSmall", color: onSurfaceVariant }),
-                    ctx.UI.Text({ text: "10（非常可能）", style: "labelSmall", color: onSurfaceVariant }),
+                    ctx.UI.Text({ text: _t("ui.form.npsMin",data._lang), style: "labelSmall", color: onSurfaceVariant }),
+                    ctx.UI.Text({ text: _t("ui.form.npsMax",data._lang), style: "labelSmall", color: onSurfaceVariant }),
                 ]));
             }
         }
@@ -1340,7 +1448,7 @@ if (hasCount && data.resultcode) {
                         else { setAnswer(q.id, ""); }
                         if (q.enableOther) setOtherInput(q.id, "");
                     },
-                    content: ctx.UI.Text({ text: "清除选择", style: "labelSmall", color: onSurfaceVariant }),
+                    content: ctx.UI.Text({ text: _t("ui.form.npsClear",data._lang), style: "labelSmall", color: onSurfaceVariant }),
                 }),
             ]));
         }
@@ -1555,7 +1663,7 @@ if (hasCount && data.resultcode) {
                     if (qs[qi] && qs[qi].id === qId2) {
                         var qd = qs[qi];
                         if (qd.type === 'rating') {
-                            var rLabels = ["", "很差", "较差", "一般", "满意", "非常满意"];
+                            var rLabels = ["", _t("ui.form.ratingVeryBad",data._lang), _t("ui.form.ratingBad",data._lang), _t("ui.form.ratingNormal",data._lang), _t("ui.form.ratingGood",data._lang), _t("ui.form.ratingVeryGood",data._lang)];
                             var idx2 = parseInt(v2);
                             if (idx2 >= 1 && idx2 <= 5)
                                 return rLabels[idx2];
@@ -1567,7 +1675,7 @@ if (hasCount && data.resultcode) {
                         }
                         if (qd.type === 'nps') {
                             var nv = parseInt(v2);
-                            return nv >= 9 ? "推荐者" : (nv >= 7 ? "被动者" : "贬损者");
+                            return nv >= 9 ? _t("ui.form.npsPromoter",data._lang) : (nv >= 7 ? _t("ui.form.npsDetractor",data._lang) : _t("ui.form.npsDetractor",data._lang));
                         }
                         break;
                     }
@@ -1619,11 +1727,11 @@ if (hasCount && data.resultcode) {
         }
     }
     
-    var headerText = "📋 询问 " + questionCount + " 个问题";
+    var headerText = _t("ui.form.asking",data._lang).replace("%d", String(questionCount));
     if (hasInvalid)
-        headerText = "表单错误";
+        headerText = _t("ui.form.parseError", data._lang);
     if (isSubmitted)
-        headerText = "📋 已提交问卷";
+        headerText = '📋 ' + _t("ui.form.submitted", data._lang);
     var headerColor = onSurface;
     var headerOnClick = null;
     if (isExpired) {
@@ -1658,14 +1766,14 @@ if (hasCount && data.resultcode) {
     var contentNodes = [];
     if (cancelled) {
         contentNodes.push(ctx.UI.Column({ key: "cancelled", padding: { horizontal: 16, vertical: 12 }, horizontalAlignment: "centerHorizontally", fillMaxWidth: true }, [
-            ctx.UI.Text({ text: "提问被终止", style: "titleSmall", color: onSurfaceVariant }),
+            ctx.UI.Text({ text: _t("ui.form.cancelledTitle",data._lang), style: "titleSmall", color: onSurfaceVariant }),
         ]));
     }
         else if (isSubmitting) {
         contentNodes.push(ctx.UI.Column({ key: "computing", padding: { horizontal: 16, vertical: 24 }, horizontalAlignment: "centerHorizontally", fillMaxWidth: true }, [
             ctx.UI.CircularProgressIndicator({ modifier: { size: 32 } }),
             ctx.UI.Spacer({ height: 12 }),
-            ctx.UI.Text({ text: "结果计算中...", style: "bodyMedium", color: onSurfaceVariant }),
+            ctx.UI.Text({ text: _t("ui.form.submitting",data._lang), style: "bodyMedium", color: onSurfaceVariant }),
         ]));
     }
     else if (isContentVisible) {
@@ -1679,44 +1787,59 @@ if (hasCount && data.resultcode) {
                     contentNodes.push(qaNode);
             }
         }
+        else if (isLangNeeded) {
+            contentNodes.push(ctx.UI.Card({ key: "lang_card", fillMaxWidth: true, containerColor: surfaceVariant }, [
+                ctx.UI.Column({ padding: { horizontal: 16, vertical: 16 }, spacing: 12, horizontalAlignment: "centerHorizontally", fillMaxWidth: true }, [
+                    ctx.UI.Icon({ name: "warning", size: 32, tint: primary }),
+                    ctx.UI.Text({ text: "Language Not Set / 未设置语言", style: "titleSmall", color: onSurface, textAlign: "center" }),
+                    ctx.UI.Text({ text: "Please set a language pack first via Questionnaire Settings, then restart Operit to use this questionnaire. / 请先在问卷设置中设置语言包，然后重启 Operit 以使用本问卷。", style: "bodySmall", color: onSurfaceVariant, textAlign: "center" }),
+                    ctx.UI.Spacer({ height: 8 }),
+                    ctx.UI.OutlinedButton({
+                        fillMaxWidth: true,
+                        onClick: handleCancel,
+                        content: ctx.UI.Text({ text: _t("ui.form.cancel",data._lang), style: "labelSmall", color: onSurfaceVariant }),
+                    }),
+                ]),
+            ]));
+        }
         else if (isActive) {
             if (hasInvalid) {
                 var reported = reportedState[0];
                 if (reported) {
                     contentNodes.push(ctx.UI.Column({ key: "reported", padding: { horizontal: 16, vertical: 12 }, horizontalAlignment: "centerHorizontally", fillMaxWidth: true }, [
-                        ctx.UI.Text({ text: "已报告表单问题", style: "titleSmall", color: onSurfaceVariant }),
+                        ctx.UI.Text({ text: _t("ui.form.reported",data._lang), style: "titleSmall", color: onSurfaceVariant }),
                     ]));
                 }
                 else {
                     var firstInvalid = invalidQuestions.length > 0 ? String(invalidQuestions[0]) : "";
-                    var isSyntaxError = firstInvalid.indexOf("JSON 语法错误") >= 0;
-                    var isEmpty = firstInvalid.indexOf("问卷数据为空") >= 0 || firstInvalid.indexOf("格式不正确") >= 0;
+                    var isSyntaxError = firstInvalid.indexOf("JSON 语法错误") >= 0 || firstInvalid.indexOf("JSON") >= 0;
+                    var isEmpty = firstInvalid.indexOf(_t("ui.form.errorEmpty",data._lang)) >= 0 || firstInvalid.indexOf("格式不正确") >= 0 || firstInvalid.indexOf("为空或格式不正确") >= 0;
                     var isMissingId = data._hasMissingIds === true;
-                    var isResultError = firstInvalid.indexOf("result 格式错误") >= 0 || firstInvalid.indexOf("结果表达式") >= 0 || firstInvalid.indexOf("引用了不存在") >= 0;
+                    var isResultError = firstInvalid.indexOf("result 格式错误") >= 0 || firstInvalid.indexOf("结果表达式") >= 0 || firstInvalid.indexOf("引用了不存在") >= 0 || firstInvalid.indexOf("resultcode") >= 0;
                     var isTypeError = firstInvalid.indexOf("type 不合法") >= 0 || firstInvalid.indexOf("选项不足") >= 0;
                     var isFieldError = firstInvalid.indexOf("question 为空") >= 0 || firstInvalid.indexOf("不支持的字段") >= 0 || firstInvalid.indexOf("enableOther") >= 0 || firstInvalid.indexOf("required") >= 0 || firstInvalid.indexOf("不应有") >= 0;
-                    var errorTitle = "表单错误";
+                    var errorTitle = _t("ui.form.errorTitle",data._lang);
                     if (isSyntaxError)
-                        errorTitle = "JSON 格式错误";
+                        errorTitle = _t("ui.form.errorJson",data._lang);
                     else if (isEmpty)
-                        errorTitle = "问卷数据为空";
+                        errorTitle = _t("ui.form.errorEmpty",data._lang);
                     else if (isMissingId)
-                        errorTitle = "缺少题目 ID";
+                        errorTitle = _t("ui.form.errorMissingId",data._lang);
                     else if (isResultError)
-                        errorTitle = "结果表达式错误";
+                        errorTitle = _t("ui.form.errorResult",data._lang);
                     else if (isTypeError)
-                        errorTitle = "题目配置错误";
+                        errorTitle = _t("ui.form.errorType",data._lang);
                     else if (isFieldError)
-                        errorTitle = "字段配置错误";
-                    var errorDesc = isSyntaxError ? firstInvalid : (isEmpty ? firstInvalid : (isMissingId ? ("以下题目缺少 id 字段：" + (invalidQuestions.length > 0 ? invalidQuestions.join("、") : "未知")) : firstInvalid));
+                        errorTitle = _t("ui.form.errorField",data._lang);
+                    var errorDesc = isSyntaxError ? firstInvalid : (isEmpty ? firstInvalid : (isMissingId ? (_t("ui.form.missingIdDesc",data._lang) + (invalidQuestions.length > 0 ? invalidQuestions.join("、") : _t("ui.form.unknown",data._lang))) : firstInvalid));
                     contentNodes.push(ctx.UI.Card({ key: "invalid_card", fillMaxWidth: true, containerColor: surfaceVariant }, [
                         ctx.UI.Column({ key: "invalid_col", padding: { horizontal: 16, vertical: 16 }, spacing: 8, horizontalAlignment: "centerHorizontally" }, [
                             ctx.UI.Text({ text: errorTitle, style: "titleSmall", color: isBlocked ? yellowColor : errorColor }),
                             ctx.UI.Text({ text: errorDesc, style: "bodySmall", color: onSurfaceVariant }),
                             ctx.UI.Row({ key: "invalid_actions", spacing: 12, horizontalArrangement: "center", fillMaxWidth: true, padding: { top: 8 } }, [
-                                ctx.UI.OutlinedButton({ key: "invalid_cancel", onClick: handleCancel, content: ctx.UI.Text({ text: "取消", style: "labelSmall", color: onSurfaceVariant }) }),
-                                isBlocked ? null : ctx.UI.Button({ key: "invalid_remind", content: ctx.UI.Text({ text: "提醒", style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }), containerColor: errorColor, onClick: function () {
-                var remindMsg = "⚠️ " + errorTitle + "：" + (invalidQuestions.length > 0 ? invalidQuestions.join("、") : "未知");
+                                ctx.UI.OutlinedButton({ key: "invalid_cancel", onClick: handleCancel, content: ctx.UI.Text({ text: _t("ui.form.cancel",data._lang), style: "labelSmall", color: onSurfaceVariant }) }),
+                                isBlocked ? null : ctx.UI.Button({ key: "invalid_remind", content: ctx.UI.Text({ text: _t("ui.form.remind",data._lang), style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }), containerColor: errorColor, onClick: function () {
+                var remindMsg = "⚠️ " + errorTitle + "：" + (invalidQuestions.length > 0 ? invalidQuestions.join("、") : _t("ui.form.unknown",data._lang));
                 infoOpenState[1](false);
                 try {
                                             Tools.Chat.sendMessage(remindMsg, chatId, undefined, undefined, { runtime: "main" });
@@ -1736,36 +1859,36 @@ if (hasCount && data.resultcode) {
                         // 第0页：取消
                         contentNodes.push(ctx.UI.Column({ key: "page_cancel", padding: { vertical: 16, horizontal: 8 }, spacing: 8, horizontalAlignment: "centerHorizontally", fillMaxWidth: true }, [
                             ctx.UI.Text({ text: title, style: "titleMedium", color: onSurface, textAlign: "center" }),
-                            ctx.UI.Text({ text: "共 " + nonSectionCount + " 题", style: "bodySmall", color: onSurfaceVariant }),
+                            ctx.UI.Text({ text: _t("ui.form.totalQuestions",data._lang).replace("%d", String(nonSectionCount)), style: "bodySmall", color: onSurfaceVariant }),
                             ctx.UI.Spacer({ height: 12 }),
-                            _showFillButton ? ctx.UI.OutlinedButton({ key: "fill_btn", onClick: fillFromHistory, containerColor: primary, content: ctx.UI.Text({ text: "一键补全上次填写", style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }), fillMaxWidth: true }) : null,
+                            _showFillButton ? ctx.UI.OutlinedButton({ key: "fill_btn", onClick: fillFromHistory, containerColor: primary, content: ctx.UI.Text({ text: _t("ui.form.fill",data._lang), style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }), fillMaxWidth: true }) : null,
                             ctx.UI.Spacer({ height: 4 }),
-                            ctx.UI.OutlinedButton({ key: "cancel_btn", onClick: handleCancel, content: ctx.UI.Text({ text: "取消提问", style: "labelSmall", color: onSurfaceVariant }), fillMaxWidth: true }),
+                            ctx.UI.OutlinedButton({ key: "cancel_btn", onClick: handleCancel, content: ctx.UI.Text({ text: _t("ui.form.cancelAsk",data._lang), style: "labelSmall", color: onSurfaceVariant }), fillMaxWidth: true }),
                         ]));
                     }
                     else if (pageIndex === submitPage) {
                         // 提交页
                         contentNodes.push(ctx.UI.Column({ key: "page_submit", padding: { vertical: 24, horizontal: 8 }, spacing: 12, horizontalAlignment: "centerHorizontally", fillMaxWidth: true }, [
-                            ctx.UI.Text({ text: "已回答 " + (function(){ var _fc=0; for(var _fqi=0;_fqi<questions.length;_fqi++){ var _fq=questions[_fqi]; if(_fq.type==='section') continue; var _fa=answers[_fq.id]; if(_fa!==undefined && _fa!==null && _fa!=='' && !(Array.isArray(_fa) && _fa.length===0)) _fc++; } return _fc; })() + " / " + nonSectionCount + " 题", style: "bodyMedium", color: onSurface, textAlign: "center" }),
+                            ctx.UI.Text({ text: _t("ui.form.answeredCount",data._lang).replace("%d", String((function(){ var _fc=0; for(var _fqi=0;_fqi<questions.length;_fqi++){ var _fq=questions[_fqi]; if(_fq.type==='section') continue; var _fa=answers[_fq.id]; if(_fa!==undefined && _fa!==null && _fa!=='' && !(Array.isArray(_fa) && _fa.length===0)) _fc++; } return _fc; })())).replace("%d", String(nonSectionCount)), style: "bodyMedium", color: onSurface, textAlign: "center" }),
                             ctx.UI.Spacer({ height: 8 }),
-                            ctx.UI.Button({ key: "submit_btn", enabled: isActive, content: ctx.UI.Text({ text: isSubmitting ? "⏳ 计算中..." : "✓ 提交问卷", style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }), containerColor: isActive ? primary : ctx.MaterialTheme.colorScheme.surfaceContainer, border: { width: 1.5, color: primary }, fillMaxWidth: true, onClick: handleSubmit }),
+                            ctx.UI.Button({ key: "submit_btn", enabled: isActive, content: ctx.UI.Text({ text: isSubmitting ? _t("ui.form.computing",data._lang) : _t("ui.form.submitBtnFull",data._lang), style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }), containerColor: isActive ? primary : ctx.MaterialTheme.colorScheme.surfaceContainer, border: { width: 1.5, color: primary }, fillMaxWidth: true, onClick: handleSubmit }),
                         ]));
                     }
                     else if (pageIndex === infoPage) {
                         // info页
                         contentNodes.push(ctx.UI.Card({ key: "info_card", fillMaxWidth: true, padding: { horizontal: 8, vertical: 4 } }, [
                             ctx.UI.Column({ key: "info_content", spacing: 4, padding: { vertical: 8, horizontal: 8 } }, [
-                                ctx.UI.Text({ text: "问卷信息", style: "titleSmall", color: primary }),
-                                ctx.UI.Text({ text: "标题：" + (title || "无"), style: "bodySmall", color: onSurface }),
-                                ctx.UI.Text({ text: "ID：" + (fingerprint || "无"), style: "bodySmall", color: onSurfaceVariant }),
-                                ctx.UI.Text({ text: "类型：" + questionCount + " 题" + (data.count === true ? (data.resultcode ? " · 脚本式" : " · 结果表达式") : "") + (data.output_raw === false ? " · 仅结果" : ""), style: "bodySmall", color: onSurfaceVariant }),
+                                ctx.UI.Text({ text: _t("ui.form.infoTitle",data._lang), style: "titleSmall", color: primary }),
+                                ctx.UI.Text({ text: _t("ui.form.infoTitleLabel",data._lang) + (title || _t("ui.form.infoNone",data._lang)), style: "bodySmall", color: onSurface }),
+                                ctx.UI.Text({ text: _t("ui.form.infoIdLabel",data._lang) + (fingerprint || _t("ui.form.infoNone",data._lang)), style: "bodySmall", color: onSurfaceVariant }),
+                                ctx.UI.Text({ text: _t("ui.form.infoTypeLabel",data._lang) + questionCount + _t("ui.form.questionCount",data._lang) + (data.count === true ? (data.resultcode ? _t("ui.form.scriptMode",data._lang) : _t("ui.form.resultMode",data._lang)) : "") + (data.output_raw === false ? _t("ui.form.resultOnlyMode",data._lang) : ""), style: "bodySmall", color: onSurfaceVariant }),
                                 ctx.UI.Divider({ color: surfaceVariant, thickness: 1 }),
-                                ctx.UI.Text({ text: "关于问卷提问", style: "titleSmall", color: primary }),
-                                ctx.UI.Text({ text: "一个允许 AI 向用户发送问卷提问的插件", style: "bodySmall", color: onSurfaceVariant }),
-                                ctx.UI.Text({ text: "version: 1.7.3", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
-                                ctx.UI.Text({ text: "作者", style: "titleSmall", color: primary }),
-                                ctx.UI.Text({ text: "原作：liu-baia", style: "bodySmall", color: onSurface }),
-                                ctx.UI.Text({ text: "二次开发：yyswys-yjyj", style: "bodySmall", color: onSurface }),
+                                ctx.UI.Text({ text: _t("ui.form.aboutTitle",data._lang), style: "titleSmall", color: primary }),
+                                ctx.UI.Text({ text: _t("ui.form.aboutDesc",data._lang), style: "bodySmall", color: onSurfaceVariant }),
+                                ctx.UI.Text({ text: _t("ui.form.versionLabel",data._lang) + "1.7.4", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
+                                ctx.UI.Text({ text: _t("ui.form.authorTitle",data._lang), style: "titleSmall", color: primary }),
+                                ctx.UI.Text({ text: _t("ui.form.authorOriginal",data._lang) + "liu-baia", style: "bodySmall", color: onSurface }),
+                                ctx.UI.Text({ text: _t("ui.form.authorModder",data._lang) + "yyswys-yjyj", style: "bodySmall", color: onSurface }),
                             ]),
                         ]));
                     }
@@ -1827,9 +1950,9 @@ if (hasCount && data.resultcode) {
                     contentNodes.push(ctx.UI.Row({ key: "actions", horizontalArrangement: "spaceBetween", fillMaxWidth: true, padding: { horizontal: 4, vertical: 4 }, verticalAlignment: "center" }, [
                         ctx.UI.IconButton({ key: "info_btn", icon: ctx.UI.Icon({ name: "info", size: 20, tint: onSurfaceVariant }), onClick: function () { infoOpenState[1](!infoOpenState[0]); } }),
                         ctx.UI.Row({ key: "action_buttons", spacing: 8, horizontalArrangement: "end", verticalAlignment: "center" }, [
-                            _showFillButton ? ctx.UI.OutlinedButton({ key: "fill_btn", onClick: fillFromHistory, containerColor: primary, content: ctx.UI.Text({ text: "一键补全", style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }) }) : null,
-                            ctx.UI.OutlinedButton({ key: "cancel_btn", onClick: handleCancel, content: ctx.UI.Text({ text: "取消", style: "labelSmall", color: onSurfaceVariant }) }),
-                            ctx.UI.Button({ key: "submit_btn", enabled: isActive, content: ctx.UI.Text({ text: isSubmitting ? "⏳ 计算中..." : "✓ 提交", style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }), containerColor: isActive ? primary : ctx.MaterialTheme.colorScheme.surfaceContainer, border: { width: 1.5, color: primary }, onClick: handleSubmit }),
+                            _showFillButton ? ctx.UI.OutlinedButton({ key: "fill_btn", onClick: fillFromHistory, containerColor: primary, content: ctx.UI.Text({ text: _t("ui.form.fill",data._lang), style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }) }) : null,
+                            ctx.UI.OutlinedButton({ key: "cancel_btn", onClick: handleCancel, content: ctx.UI.Text({ text: _t("ui.form.cancel",data._lang), style: "labelSmall", color: onSurfaceVariant }) }),
+                            ctx.UI.Button({ key: "submit_btn", enabled: isActive, content: ctx.UI.Text({ text: isSubmitting ? _t("ui.form.computing",data._lang) : _t("ui.form.submitBtn",data._lang), style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }), containerColor: isActive ? primary : ctx.MaterialTheme.colorScheme.surfaceContainer, border: { width: 1.5, color: primary }, onClick: handleSubmit }),
                         ]),
                     ]));
                 }
@@ -1846,17 +1969,17 @@ if (hasCount && data.resultcode) {
         if (!isPaging && infoOpen) {
             contentNodes.push(ctx.UI.Card({ key: "info_card", fillMaxWidth: true, padding: { horizontal: 8, vertical: 4 } }, [
                 ctx.UI.Column({ key: "info_content", spacing: 4, padding: { vertical: 8, horizontal: 8 } }, [
-                    ctx.UI.Text({ text: "问卷信息", style: "titleSmall", color: primary }),
-                    ctx.UI.Text({ text: "标题：" + (title || "无"), style: "bodySmall", color: onSurface }),
-                    ctx.UI.Text({ text: "ID：" + (fingerprint || "无"), style: "bodySmall", color: onSurfaceVariant }),
-                    ctx.UI.Text({ text: "类型：" + questionCount + " 题" + (data.count === true ? (data.resultcode ? " · 脚本式" : " · 结果表达式") : "") + (data.output_raw === false ? " · 仅结果" : ""), style: "bodySmall", color: onSurfaceVariant }),
+                    ctx.UI.Text({ text: _t("ui.form.infoTitle",data._lang), style: "titleSmall", color: primary }),
+                    ctx.UI.Text({ text: _t("ui.form.infoTitleLabel",data._lang) + (title || _t("ui.form.infoNone",data._lang)), style: "bodySmall", color: onSurface }),
+                    ctx.UI.Text({ text: _t("ui.form.infoIdLabel",data._lang) + (fingerprint || _t("ui.form.infoNone",data._lang)), style: "bodySmall", color: onSurfaceVariant }),
+                    ctx.UI.Text({ text: _t("ui.form.infoTypeLabel",data._lang) + questionCount + _t("ui.form.questionCount",data._lang) + (data.count === true ? (data.resultcode ? _t("ui.form.scriptMode",data._lang) : _t("ui.form.resultMode",data._lang)) : "") + (data.output_raw === false ? _t("ui.form.resultOnlyMode",data._lang) : ""), style: "bodySmall", color: onSurfaceVariant }),
                     ctx.UI.Divider({ color: surfaceVariant, thickness: 1 }),
-                    ctx.UI.Text({ text: "关于问卷提问", style: "titleSmall", color: primary }),
-                    ctx.UI.Text({ text: "一个允许 AI 向用户发送问卷提问的插件", style: "bodySmall", color: onSurfaceVariant }),
-                    ctx.UI.Text({ text: "version: 1.7.3", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
-                    ctx.UI.Text({ text: "作者", style: "titleSmall", color: primary }),
-                    ctx.UI.Text({ text: "原作：liu-baia", style: "bodySmall", color: onSurface }),
-                    ctx.UI.Text({ text: "二次开发：yyswys-yjyj", style: "bodySmall", color: onSurface }),
+                    ctx.UI.Text({ text: _t("ui.form.aboutTitle",data._lang), style: "titleSmall", color: primary }),
+                    ctx.UI.Text({ text: _t("ui.form.aboutDesc",data._lang), style: "bodySmall", color: onSurfaceVariant }),
+                    ctx.UI.Text({ text: _t("ui.form.versionLabel",data._lang) + "1.7.4", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
+                    ctx.UI.Text({ text: _t("ui.form.authorTitle",data._lang), style: "titleSmall", color: primary }),
+                    ctx.UI.Text({ text: _t("ui.form.authorOriginal",data._lang) + "liu-baia", style: "bodySmall", color: onSurface }),
+                    ctx.UI.Text({ text: _t("ui.form.authorModder",data._lang) + "yyswys-yjyj", style: "bodySmall", color: onSurface }),
                 ]),
             ]));
         }

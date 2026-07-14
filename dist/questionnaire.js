@@ -74,6 +74,14 @@
                 "en":"Debug mode: true (show debug logs in questionnaire info page) / false (disabled), default false"
             },
             "required":false
+        },
+        {
+            "name":"QUESTIONNAIRE_LANG_PATH",
+            "description":{
+                "zh":"当前语言包文件路径，留空表示使用内置英文。设置后问卷 UI 文本会从该语言包加载翻译。默认空。",
+                "en":"Current language pack file path. Empty means use built-in English. When set, questionnaire UI text loads translations from this file. Default empty."
+            },
+            "required":false
         }
     ],
     "tools":[

@@ -246,6 +246,43 @@ function onXmlRender(event) {
         } else { data._hasInvalid = true; data._invalidQuestions = data._invalidQuestions.concat(["result 格式错误"]); }
     }
 
+    // 读取语言包
+    data._lang = null;
+    try {
+        var _langPath = getEnv("QUESTIONNAIRE_LANG_PATH");
+        data._langDebug = "langPath=" + _langPath;
+        if (_langPath) {
+            var _langRaw = NativeInterface.callTool("", "read_file", JSON.stringify({ path: _langPath }));
+            if (_langRaw) {
+                var _langObj = JSON.parse(_langRaw);
+                if (_langObj && _langObj.data && _langObj.data.content) {
+                    var _langContent = _langObj.data.content;
+                    if (typeof _langContent === 'string') {
+                        _langContent = _langContent.replace(/^\s*\d+\|/gm, "");
+                    }
+                    var _langParsed = typeof _langContent === 'object' ? _langContent : JSON.parse(_langContent);
+                    if (_langParsed && _langParsed.lang) {
+                        data._lang = _langParsed.lang;
+                        data._langDebug += " | OK keys=" + Object.keys(data._lang).sort().join(",");
+                    } else {
+                        data._langDebug += " | parsed_no_lang";
+                    }
+                } else if (_langObj && _langObj.lang) {
+                    data._lang = _langObj.lang;
+                    data._langDebug += " | direct_lang keys=" + Object.keys(data._lang).sort().join(",");
+                } else {
+                    data._langDebug += " | raw_no_data obj_keys=" + Object.keys(_langObj || {}).join(",");
+                }
+            } else {
+                data._langDebug += " | raw_null";
+            }
+        } else {
+            data._langDebug += " | EMPTY";
+        }
+    } catch(e) {
+        data._langDebug += " | ERR=" + (e && e.message ? e.message : String(e));
+    }
+
     var _fpInput = JSON.stringify({ title: data.title, questions: data.questions });
     var fingerprint = simpleHash(_fpInput);
     // 在 main 上下文读取历史记录（使用 NativeInterface.callTool 类似 importqlg 的方式）
