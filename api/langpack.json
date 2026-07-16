@@ -1,1 +1,16 @@
-{}
+{
+  "list":[
+    {
+      "id":"zh_cn",
+      "author":"Questionnaire",
+      "version":174,
+      "url":""
+    },
+    {
+      "id":"en_us",
+      "author":"Questionnaire",
+      "version":174,
+      "url":""
+    }
+  ]
+}
