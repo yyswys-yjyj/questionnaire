@@ -3,7 +3,7 @@
         {
             "version": "Unreleased",
             "currentVer": 175,
-            "details": "## The next version(Planning)\n### 计划\n- 1.删除v1.7.4中的开发残留\n- 2.建立市场，从云端拉取用户分享的资源"
+            "details": "## The next version(Planning)\n### 计划\n- 1.删除v1.7.4中的开发残留\n- 2.建立市场，从云端拉取用户分享的资源\nn### 已完成\n- 1.Github的审查机已完成配置，你可以通过issue发布一个语言包到GitHub，为1.7.5版本的市场功能做准备"
         },
         {
             "version": "v1.7.4",
