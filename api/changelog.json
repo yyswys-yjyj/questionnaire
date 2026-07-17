@@ -1,9 +1,9 @@
 {
     "list": [
         {
-            "version": "Unreleased",
+            "version": "v1.7.5",
             "currentVer": 175,
-            "details": "## The next version(Planning)\n### 计划\n- 1.删除v1.7.4中的开发残留\n- 2.建立市场，从云端拉取用户分享的资源\n### 已完成\n- 1.Github的审查机已完成配置，你可以通过issue发布一个语言包到GitHub，为1.7.5版本的市场功能做准备"
+            "details": "## 1.7.5 (2026-07-17)\n### English\n#### Added\n- Added a market for language package\n\n### 简体中文\n#### 新增\n- 新增语言包市场\n\n### Notice | 提醒\n- 在更新到新版本时，你需要前往 工具箱/语言包市场/刷新/语言包管理 来重新安装语言包以同步新版特性\n- When updating to a new version, you need to go to Toolbox/Language Pack Market/Refresh/Language Pack Management to reinstall the language pack to sync the new version features\n\n语言包细节比对：https://github.com/yyswys-yjyj/questionnaire/wiki/Make-a-Language-pack"
         },
         {
             "version": "v1.7.4",
