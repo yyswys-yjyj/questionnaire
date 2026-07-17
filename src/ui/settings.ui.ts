@@ -8,7 +8,7 @@ var _settingsLang = null;
 /* _settingsLang 将在 Screen 函数内用 ctx.callTool 初始化 */
 function _t(key) {
     if (_settingsLang && _settingsLang[key]) return _settingsLang[key];
-    var en = {
+    var builtin = {
         "ui.setting.title": "问卷主题设置",
         "ui.setting.theme": "主题设置",
         "ui.setting.layout": "按钮布局",
@@ -82,7 +82,7 @@ function _t(key) {
         "ui.setting.foundPacks": "找到 %d 个语言包，请关闭设置页后重新打开",
         "ui.setting.switched": "已切换语言包，请关闭设置页后重新打开生效",
         "ui.setting.currentPack": "当前语言包：",
-        "ui.setting.builtinEn": "内置语言包",
+        "ui.setting.builtinLang": "内置语言包",
         "ui.setting.latestVerText": "✓ 已是最新版 v",
         "ui.setting.newVerText": "⚠ 发现新版本 v",
         "ui.setting.currentVerText": "当前版本：",
@@ -95,6 +95,42 @@ function _t(key) {
         "ui.setting.lparen": "（",
         "ui.setting.rparen": "）",
         "ui.setting.lang.author": "语言包作者：",
+
+        "ui.market.langpack.title": "语言包市场",
+        "ui.market.langpack.refresh": "刷新",
+        "ui.market.langpack.download": "下载",
+        "ui.market.langpack.installed": "已安装",
+        "ui.market.langpack.loadFail": "加载市场列表失败",
+        "ui.market.langpack.downloadFail": "下载失败",
+        "ui.market.langpack.downloadSuccess": "下载成功",
+        "ui.market.langpack.publishTitle": "发布你的语言包",
+        "ui.market.langpack.publishDesc": "在 GitHub 提交 Issue 来发布你的语言包",
+        "ui.market.langpack.publishBtn": "在 GitHub 发布",
+        "ui.market.langpack.noItems": "暂无可用语言包",
+        "ui.market.langpack.fetching": "获取中...",
+        "ui.market.langpack.installing": "安装中...",
+        "ui.market.langpack.checkFail": "检查失败：",
+        "ui.market.langpack.version": "版本",
+        "ui.market.langpack.authorLabel": "作者",
+        "ui.market.langpack.reinstall": "重新安装",
+
+        "ui.market.langpack.title": "语言包市场",
+        "ui.market.langpack.refresh": "刷新",
+        "ui.market.langpack.download": "下载",
+        "ui.market.langpack.installed": "已安装",
+        "ui.market.langpack.loadFail": "加载市场列表失败",
+        "ui.market.langpack.downloadFail": "下载失败",
+        "ui.market.langpack.downloadSuccess": "下载成功",
+        "ui.market.langpack.publishTitle": "发布你的语言包",
+        "ui.market.langpack.publishDesc": "在 GitHub 提交 Issue 来发布你的语言包",
+        "ui.market.langpack.publishBtn": "在 GitHub 发布",
+        "ui.market.langpack.noItems": "暂无可用语言包",
+        "ui.market.langpack.fetching": "获取中...",
+        "ui.market.langpack.installing": "安装中...",
+        "ui.market.langpack.checkFail": "检查失败：",
+        "ui.market.langpack.version": "版本",
+        "ui.market.langpack.authorLabel": "作者",
+        "ui.market.langpack.reinstall": "重新安装",
 
         "ui.setting.roundDesc": "圆润",
         "ui.setting.squareDesc": "方正",
@@ -143,7 +179,7 @@ function _t(key) {
         "ui.setting.type.nps": "NPS 净推荐值",
         "ui.setting.type.time": "时间选择",
     };
-    return en[key] || key;
+    return builtin[key] || key;
 }
 var _initialTheme = readEnv("QUESTIONNAIRE_THEME", ["classic","compact"], "classic");
 var _initialLayout = readEnv("QUESTIONNAIRE_BUTTON_LAYOUT", ["row","scroll"], "scroll");
@@ -230,7 +266,7 @@ export default async function Screen(ctx) {
         if (_settingsLang && _settingsLang[key]) return _settingsLang[key];
         var _sl = settingsLangState[0];
         if (_sl && _sl[key]) return _sl[key];
-        var en = {
+        var builtin = {
             "ui.setting.title": "问卷主题设置",
             "ui.setting.theme": "主题设置",
             "ui.setting.layout": "按钮布局",
@@ -306,7 +342,7 @@ export default async function Screen(ctx) {
             "ui.setting.foundPacks": "找到 %d 个语言包，请关闭设置页后重新打开",
             "ui.setting.switched": "已切换语言包，请关闭设置页后重新打开生效",
             "ui.setting.currentPack": "当前语言包：",
-            "ui.setting.builtinEn": "内置语言包",
+            "ui.setting.builtinLang": "内置语言包",
             "ui.setting.latestVerText": "✓ 已是最新版 v",
             "ui.setting.newVerText": "⚠ 发现新版本 v",
             "ui.setting.currentVerText": "当前版本：",
@@ -363,7 +399,7 @@ export default async function Screen(ctx) {
             "ui.setting.rparen": "）",
         "ui.setting.lang.author": "语言包作者：",
         };
-        return en[key] || key;
+        return builtin[key] || key;
     };
     var isCompact = currentTheme === "compact";
     var isRowLayout = currentLayout === "row";
@@ -971,7 +1007,7 @@ export default async function Screen(ctx) {
                         "ui.setting.foundPacks": "找到 %d 个语言包，请关闭设置页后重新打开",
                         "ui.setting.switched": "已切换语言包，请关闭设置页后重新打开生效",
                         "ui.setting.currentPack": "当前语言包：",
-                        "ui.setting.builtinEn": "内置语言包",
+                        "ui.setting.builtinLang": "内置语言包",
                         "ui.setting.latestVerText": "✓ 已是最新版 v",
                         "ui.setting.newVerText": "⚠ 发现新版本 v",
                         "ui.setting.currentVerText": "当前版本：",
@@ -1029,6 +1065,27 @@ export default async function Screen(ctx) {
                         "ui.setting.lparen": "（",
                         "ui.setting.rparen": "）",
         "ui.setting.lang.author": "语言包作者：",
+                        "ui.market.langpack.title": "语言包市场",
+                        "ui.market.langpack.refresh": "刷新",
+                        "ui.market.langpack.download": "下载",
+                        "ui.market.langpack.installed": "已安装",
+                        "ui.market.langpack.loadFail": "加载市场列表失败",
+                        "ui.market.langpack.downloadFail": "下载失败",
+                        "ui.market.langpack.downloadSuccess": "下载成功",
+                        "ui.market.langpack.publishTitle": "发布你的语言包",
+                        "ui.market.langpack.publishDesc": "在 GitHub 提交 Issue 来发布你的语言包",
+                        "ui.market.langpack.publishBtn": "在 GitHub 发布",
+                        "ui.market.langpack.noItems": "暂无可用语言包",
+                        "ui.market.langpack.fetching": "获取中...",
+                        "ui.market.langpack.installing": "安装中...",
+                        "ui.market.langpack.checkFail": "检查失败：",
+                        "ui.market.langpack.version": "版本",
+                        "ui.market.langpack.authorLabel": "作者",
+                        "ui.market.langpack.reinstall": "重新安装",
+                        "ui.market.langpack.manageTitle": "语言包管理",
+                        "ui.market.langpack.manageRefresh": "请刷新",
+                        "ui.market.langpack.manageEmpty": "当前无语言包",
+                        "ui.market.langpack.manageDelete": "删除",
                     }},
                     { id: "en_us", lang: {
                         "ui.form.submit": "Submit",
@@ -1198,8 +1255,29 @@ export default async function Screen(ctx) {
                         "ui.setting.foundPacks": "Found %d pack(s), please close and reopen settings",
                         "ui.setting.switched": "Language pack switched, please close and reopen settings",
                         "ui.setting.currentPack": "Current pack: ",
-                        "ui.setting.builtinEn": "Built-in Language Pack",
+                        "ui.setting.builtinLang": "Built-in Language Pack",
                         "ui.setting.lang.author": "Language Pack Author: ",
+                        "ui.market.langpack.title": "Language Pack Market",
+                        "ui.market.langpack.refresh": "Refresh",
+                        "ui.market.langpack.download": "Download",
+                        "ui.market.langpack.installed": "Installed",
+                        "ui.market.langpack.loadFail": "Failed to load market list",
+                        "ui.market.langpack.downloadFail": "Download failed",
+                        "ui.market.langpack.downloadSuccess": "Downloaded successfully",
+                        "ui.market.langpack.publishTitle": "Publish Your Language Pack",
+                        "ui.market.langpack.publishDesc": "Submit an Issue on GitHub to publish your language pack",
+                        "ui.market.langpack.publishBtn": "Publish on GitHub",
+                        "ui.market.langpack.noItems": "No language packs available",
+                        "ui.market.langpack.fetching": "Fetching...",
+                        "ui.market.langpack.installing": "Installing...",
+                        "ui.market.langpack.checkFail": "Check failed: ",
+                        "ui.market.langpack.version": "Version",
+                        "ui.market.langpack.authorLabel": "Author",
+                        "ui.market.langpack.reinstall": "Reinstall",
+                        "ui.market.langpack.manageTitle": "Language Pack Management",
+                        "ui.market.langpack.manageRefresh": "Please refresh",
+                        "ui.market.langpack.manageEmpty": "No language packs available",
+                        "ui.market.langpack.manageDelete": "Delete",
                         "ui.setting.latestVerText": "Already the latest version v",
                         "ui.setting.newVerText": "New version v",
                         "ui.setting.currentVerText": "Current Version: ",
@@ -1309,7 +1387,7 @@ export default async function Screen(ctx) {
         return ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
             ctx.UI.Column({ padding: 16, spacing: 8 }, [
                 ctx.UI.Text({ text: _t("ui.setting.lang",), style: "titleSmall", color: onSurface }),
-                ctx.UI.Text({ text: currentLangPathState[0] ? _t("ui.setting.currentPack") + currentLangPathState[0].split("/").pop().replace(".json", "") : _t("ui.setting.lang.current") + "：" + _t("ui.setting.builtinEn"), style: "bodySmall", color: onSurfaceVariant }),
+                ctx.UI.Text({ text: currentLangPathState[0] ? _t("ui.setting.currentPack") + currentLangPathState[0].split("/").pop().replace(".json", "") : _t("ui.setting.lang.current") + "：" + _t("ui.setting.builtinLang"), style: "bodySmall", color: onSurfaceVariant }),
                 ctx.UI.Button({
                     onClick: scanLangPacks,
                     fillMaxWidth: true,
@@ -1342,7 +1420,7 @@ export default async function Screen(ctx) {
             ctx.UI.Text({ text: _t("ui.setting.about.square"), style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Spacer({ height: 8 }),
             ctx.UI.Text({ text: _t("ui.setting.aboutPlugin"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.pluginInfo") + "v1.7.4", style: "bodySmall", color: onSurfaceVariant }),
+            ctx.UI.Text({ text: _t("ui.setting.pluginInfo") + "v1.7.5", style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Text({ text: _t("ui.setting.supportedTypes"), style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Text({ text: _t("ui.setting.supportedFeatures"), style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Spacer({ height: 8 }),
@@ -1364,7 +1442,7 @@ export default async function Screen(ctx) {
         if (versionCheckState[0] === "checking") return;
         versionCheckState[1]("checking");
         versionInfoState[1](_t("ui.setting.checking"));
-        var currentVer = "174";
+        var currentVer = "175";
         var fmtCur = currentVer.charAt(0) + "." + currentVer.substring(1, 2) + "." + currentVer.substring(2);
         var si = versionSourceState[0];
         if (si < 0 || si >= _versionUrls.length) { si = 2; }
@@ -1388,7 +1466,7 @@ export default async function Screen(ctx) {
     var versionCheckCard = ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
         ctx.UI.Column({ padding: 16, spacing: 8 }, [
             ctx.UI.Text({ text: _t("ui.setting.versionCheck"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.currentVerText") + "1.7.4", style: "bodyMedium", color: onSurfaceVariant }),
+            ctx.UI.Text({ text: _t("ui.setting.currentVerText") + "1.7.5", style: "bodyMedium", color: onSurfaceVariant }),
             ctx.UI.Text({ text: _t("ui.setting.selectSource"), style: "labelSmall", color: onSurfaceVariant }),
             ctx.UI.LazyRow({ spacing: 6 }, _versionUrls.map(function(url, idx) {
                 return ctx.UI.FilterChip({
@@ -1432,7 +1510,7 @@ export default async function Screen(ctx) {
                 if (parsed && parsed.list && Array.isArray(parsed.list)) {
                     var lines = [];
                     var newLines = [];
-                    var currentVerNum = 174;
+                    var currentVerNum = 175;
                     for (var ei = 0; ei < parsed.list.length; ei++) {
                         var entry = parsed.list[ei];
                         if (ei > 0) lines.push("---");

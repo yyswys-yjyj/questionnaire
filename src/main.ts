@@ -1,6 +1,7 @@
 // @ts-nocheck
 import questionnaire_ui from "./ui/questionnaire.ui.js";
 import settings_ui from "./ui/settings.ui.js";
+import market_ui from "./ui/market.ui.js";
 
 var _userMsgCount = {};
 var _sessionId = Date.now();
@@ -40,6 +41,14 @@ function registerToolPkg() {
         screen: settings_ui,
         params: {},
         title: { zh: "问卷主题设置", en: "Questionnaire Theme" },
+    } as any);
+
+    ToolPkg.registerToolboxUiModule({
+        id: "questionnaire_market",
+        runtime: "compose_dsl",
+        screen: market_ui,
+        params: {},
+        title: { zh: "语言包市场", en: "Language Pack Market" },
     } as any);
     return true;
 }
