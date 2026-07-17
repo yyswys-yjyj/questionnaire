@@ -13,6 +13,12 @@
       "url":"https://raw.githubusercontent.com/yyswys-yjyj/questionnaire/refs/heads/main/api/langpack/en_us_175.json"
     },
     {
+      "id":"zh_tw",
+      "author":"Questionnaire",
+      "version":175,
+      "url":"https://raw.githubusercontent.com/yyswys-yjyj/questionnaire/refs/heads/main/api/langpack/zh_tw_175.json"
+    },
+    {
       "id":"zh_cn",
       "author":"Questionnaire",
       "version":174,
