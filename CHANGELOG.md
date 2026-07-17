@@ -17,6 +17,19 @@ We note the change of our project.
 
 ---
 
+## 1.7.5 (2026-07-17)
+### Added
+- Added a market for language package
+
+### Changed
+- None
+
+### Removed
+- None
+
+
+---
+
 ## 1.7.4 (2026-07-14)
 ### Added
 - Added a new feature: Multilingual support
