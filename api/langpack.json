@@ -3,6 +3,12 @@
     {
       "id":"zh_cn",
       "author":"Questionnaire",
+      "version":175,
+      "url":"https://raw.githubusercontent.com/yyswys-yjyj/questionnaire/refs/heads/main/api/langpack/zh_cn_175.json"
+    },
+    {
+      "id":"zh_cn",
+      "author":"Questionnaire",
       "version":174,
       "url":"https://raw.githubusercontent.com/yyswys-yjyj/questionnaire/refs/heads/main/api/langpack/zh_cn_174.json"
     },
