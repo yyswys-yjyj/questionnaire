@@ -1,6 +1,11 @@
 {
     "list": [
         {
+            "version": "Unreleased",
+            "currentVer": 176,
+            "details": "## v1.7.6(In-plan)\n###计划 | Plan\n- 重建市场上传体系，改为AI自动审核（已完成）\n- 将语言包市场上传入口搬到客户端\n- Rebuild the market upload system, change it to AI automatic review（Done）\n- Move the language pack market upload entry to the client"
+        },
+        {
             "version": "v1.7.5",
             "currentVer": 175,
             "details": "## 1.7.5 (2026-07-17)\n### English\n#### Added\n- Added a market for language package\n\n### 简体中文\n#### 新增\n- 新增语言包市场\n\n### Notice | 提醒\n- 在更新到新版本时，你需要前往 工具箱/语言包市场/刷新/语言包管理 来重新安装语言包以同步新版特性\n- When updating to a new version, you need to go to Toolbox/Language Pack Market/Refresh/Language Pack Management to reinstall the language pack to sync the new version features\n\n语言包细节比对：https://github.com/yyswys-yjyj/questionnaire/wiki/Make-a-Language-pack"
