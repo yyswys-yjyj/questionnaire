@@ -3,7 +3,7 @@
         {
             "version": "Unreleased",
             "currentVer": 176,
-            "details": "## v1.7.6(In-plan)\n###计划 | Plan\n- 重建市场上传体系，改为AI自动审核（已完成）\n- 将语言包市场上传入口搬到客户端\n- Rebuild the market upload system, change it to AI automatic review（Done）\n- Move the language pack market upload entry to the client"
+            "details": "## v1.7.6(In-plan)\n### 计划 | Plan\n- 重建市场上传体系，改为AI自动审核（已完成）\n- 将语言包市场上传入口搬到客户端\n- Rebuild the market upload system, change it to AI automatic review（Done）\n- Move the language pack market upload entry to the client"
         },
         {
             "version": "v1.7.5",
