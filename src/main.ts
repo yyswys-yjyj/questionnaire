@@ -2,6 +2,8 @@
 import questionnaire_ui from "./ui/questionnaire.ui.js";
 import settings_ui from "./ui/settings.ui.js";
 import market_ui from "./ui/market.ui.js";
+import draft_editor_ui from "./ui/draft_editor.ui.js";
+import { onAskXmlRender } from "./ask/askrender.js";
 
 var _userMsgCount = {};
 var _sessionId = Date.now();
@@ -22,7 +24,18 @@ function registerToolPkg() {
     } catch (e) {}
 
     ToolPkg.registerXmlRenderPlugin({ id: "questionnaire_xml", tag: "questionnaire", function: onXmlRender });
+    ToolPkg.registerXmlRenderPlugin({ id: "questionnaire_ask_xml", tag: "ask_questionnaire", function: onAskXmlRender });
     ToolPkg.registerMessageProcessingPlugin({ id: "questionnaire_message", function: onMessageProcessing });
+
+    // 子页面路由：草稿编辑器（settings 草稿管理「编辑」navigate 进入，ctx.params.id = 要编辑的草稿实例 id）
+    // 单一实例语义：加载该草稿 → 编辑 → 保存回写同一 id 同一文件
+    ToolPkg.registerUiRoute({
+        id: "draft_editor",
+        runtime: "compose_dsl",
+        screen: draft_editor_ui,
+        params: {},
+        title: { zh: "编辑草稿", en: "Edit Draft" },
+    });
 
     ToolPkg.ipc.on("questionnaire.check_expired", function (payload) { return { expired: true }; });
 

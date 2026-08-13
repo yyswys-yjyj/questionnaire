@@ -11,6 +11,7 @@ function _t(key, lang) {
         "ui.form.submit": "提交",
         "ui.form.cancel": "取消",
         "ui.form.fill": "一键补全",
+        "ui.form.fillOk": "已自动补全上次的答案",
         "ui.form.submitted": "已提交",
         "ui.form.expired": "已过期",
         "ui.form.infoTitle": "问卷信息",
@@ -35,6 +36,9 @@ function _t(key, lang) {
         "ui.form.asking": "📋 询问 %d 个问题",
         "ui.form.cancelled": "用户取消了本次问卷提问",
         "ui.form.cancelledTitle": "提问被终止",
+        "ui.form.edit": "修改",
+        "ui.form.editResubmit": "🔄 修改后重新提交",
+        "ui.form.unfilled": "未填项：",
         "ui.form.reported": "已报告表单问题",
         "ui.form.computing": "⏳ 计算中...",
         "ui.form.submitBtn": "✓ 提交",
@@ -125,11 +129,13 @@ export default function Screen(ctx) {
     var sessionIdState = ctx.useState("_sessionId", "");
     var otherInputsState = ctx.useState("_otherInputs", "{}");
     var errorMsgState = ctx.useState("_errorMsg", "");
+    var fillHintState = ctx.useState("_fillHint", "");
     var infoOpenState = ctx.useState("_infoOpen", false);
     var pageIndexState = ctx.useState("_pageIndex", 0);
     var fingerprintState = ctx.useState("_fingerprint", "");
     var cancelledState = ctx.useState("_cancelled", false);
     var reportedState = ctx.useState("_reported", false);
+    var editedState = ctx.useState("_edited", false);
     var data = JSON.parse(dataState[0] || "{}");
     var answers = JSON.parse(answersState[0] || "{}");
     var otherInputs = JSON.parse(otherInputsState[0] || "{}");
@@ -259,15 +265,29 @@ var theme = data._theme || "classic";
         }
     }
     
-    // 计算总元素（含 section），分页按总元素数分
-    var totalElementCount = questions.length;
+    // 分页按非 section 题目数分（section 不计入每页名额）
     var nonSectionCount = 0;
     for (var _nsi = 0; _nsi < questions.length; _nsi++) {
         if (questions[_nsi].type !== "section") nonSectionCount++;
     }
-    // 紧凑模式下：第0页=取消，中间页=每5元素，提交页，最后=info页
+    // 紧凑模式下：第0页=取消，中间页=每5题，提交页，最后=info页
     var pageIndex = pageIndexState[0];
-    var totalQuestionPages = Math.ceil(totalElementCount / PAGE_SIZE);
+    var totalQuestionPages = Math.ceil(nonSectionCount / PAGE_SIZE);
+    // 分页边界：每页恰好 PAGE_SIZE 道题，section 不计入名额
+    // 满页（凑满 PAGE_SIZE 题）后：切点 = 下一个元素位置本身；
+    // 若下一个是 section，则 section 归下一页（跟随其后题目同页），切点不再跳过它——
+    // 否则 section 后题目不足时切点越界丢失，后续页会空白。
+    // 注意：切点只允许在非 section 元素上触发，且切点之后必须还有非 section 题目，
+    // 否则满页后连续 section / 末尾 section 会切出多余空页。
+    var pageBounds = [0];
+    var _bcnt = 0;
+    var _nonSecTotal = nonSectionCount;
+    for (var _bi = 0; _bi < questions.length; _bi++) {
+        if (questions[_bi].type !== "section") _bcnt++;
+        if (questions[_bi].type !== "section" && _bcnt % PAGE_SIZE === 0 && _bcnt < _nonSecTotal && _bi + 1 < questions.length) {
+            pageBounds.push(_bi + 1);
+        }
+    }
     var questionStartPage = 1;
     var submitPage = questionStartPage + totalQuestionPages;
     var infoPage = submitPage + 1;
@@ -295,6 +315,7 @@ var answerColor = primary;
     var isActive = !isExpired && !isSubmitted && !isSubmitting;
     var isContentVisible = !collapsed;
     function setAnswer(qId, value) {
+        if (fillHintState[0]) fillHintState[1]("");
         var newAnswers = JSON.parse(JSON.stringify(answers));
         newAnswers[qId] = value;
         answersState[1](JSON.stringify(newAnswers));
@@ -313,6 +334,7 @@ var answerColor = primary;
         setAnswer(qId, current);
     }
     function setOtherInput(qId, value) {
+        if (fillHintState[0]) fillHintState[1]("");
         var newOthers = JSON.parse(JSON.stringify(otherInputs));
         newOthers[qId] = value;
         otherInputsState[1](JSON.stringify(newOthers));
@@ -359,6 +381,7 @@ var answerColor = primary;
         var hasAnyAnswer = !allEmpty;
         errorMsgState[1]("");
         var lines = ["📋 " + title];
+        var unfilledList = [];
         for (var i = 0; i < questions.length; i++) {
             var q = questions[i];
             if (q.type === "section") {
@@ -367,8 +390,10 @@ var answerColor = primary;
                 continue;
             }
             var ans = answers[q.id];
-            if (ans === undefined || ans === null || ans === "" || (Array.isArray(ans) && ans.length === 0))
+            if (ans === undefined || ans === null || ans === "" || (Array.isArray(ans) && ans.length === 0)) {
+                unfilledList.push(q.question);
                 continue;
+            }
             var ansText = "";
             // 查 _typeRegistry——优先用原始类型（mySelect），然后查映射后的类型（single）
             var _submitType_orig = q._qcOriginalType || 'NONE';
@@ -386,6 +411,10 @@ var answerColor = primary;
             lines.push(q.question + ": " + ansText);
         }
         var message = lines.join("\n");
+        // 修改后重新提交：消息头部注明
+        if (editedState[0]) {
+            message = _t("ui.form.editResubmit", data._lang) + "\n" + message;
+        }
         // 全空时插入占位文本
         if (!hasAnyAnswer) {
             message += "\n" + _t("ui.form.emptySubmit",data._lang);
@@ -461,6 +490,17 @@ if (hasCount && data.resultcode) {
                 else {
                     message = resultText.trim();
                 }
+            }
+        }
+        // 未填项：插入到表单与卷谱之间
+        if (unfilledList.length > 0) {
+            var unfilledText = "\n\n" + _t("ui.form.unfilled", data._lang) + "\n" + unfilledList.join("\n");
+            var _resultMarker = "\n\n── 结果 ──";
+            var _umi = message.lastIndexOf(_resultMarker);
+            if (_umi >= 0) {
+                message = message.substring(0, _umi) + unfilledText + "\n" + message.substring(_umi);
+            } else {
+                message += unfilledText;
             }
         }
         // 生成卷谱（如果启用）
@@ -1724,6 +1764,11 @@ if (hasCount && data.resultcode) {
             if (_fillOtherInputs) {
                 otherInputsState[1](JSON.stringify(_fillOtherInputs));
             }
+            errorMsgState[1]("");
+            fillHintState[1](_t("ui.form.fillOk", data._lang));
+            try { ctx.showToast(_t("ui.form.fillOk", data._lang)); } catch (e) {}
+            // 紧凑分页：补全后跳到第一题页，让用户直接看到补全效果
+            if (isPaging && pageIndex === 0) goToPage(questionStartPage);
         }
     }
     
@@ -1761,8 +1806,18 @@ if (hasCount && data.resultcode) {
         ctx.UI.Spacer({ width: 8 }),
         ctx.UI.Text({ text: headerText, style: "titleSmall", color: headerColor }),
     ];
+    // 提交完成且未过期：头部右侧显示"修改"按钮，点击回到编辑态并自动带出刚填写的答案
+    var editBtn = (isSubmitted && !isExpired) ? ctx.UI.IconButton({
+        key: "edit_btn",
+        icon: "edit",
+        tint: primary,
+        onClick: function () { editedState[1](true); fillHintState[1](""); submittedState[1](false); },
+    }) : null;
     var headerPadding = isExpired ? { horizontal: 8, vertical: 4 } : { horizontal: 8, vertical: 10 };
-    var headerRow = ctx.UI.Row({ key: "header", padding: headerPadding, verticalAlignment: "center", fillMaxWidth: true, onClick: headerOnClick }, headerNodes);
+    var headerRow = ctx.UI.Row({ key: "header", padding: headerPadding, verticalAlignment: "center", fillMaxWidth: true, onClick: headerOnClick, horizontalArrangement: "spaceBetween" }, [
+        ctx.UI.Row({ key: "header_left", spacing: 0, verticalAlignment: "center" }, headerNodes),
+        editBtn,
+    ]);
     var contentNodes = [];
     if (cancelled) {
         contentNodes.push(ctx.UI.Column({ key: "cancelled", padding: { horizontal: 16, vertical: 12 }, horizontalAlignment: "centerHorizontally", fillMaxWidth: true }, [
@@ -1853,6 +1908,13 @@ if (hasCount && data.resultcode) {
                 }
             }
             else {
+                // 一键补全成功提示条
+                if (fillHintState[0]) {
+                    contentNodes.push(ctx.UI.Row({ key: "fill_hint", fillMaxWidth: true, padding: { horizontal: 8, vertical: 4 }, horizontalArrangement: "center", verticalAlignment: "center", spacing: 4 }, [
+                        ctx.UI.Icon({ name: "check_circle", size: 16, tint: primary }),
+                        ctx.UI.Text({ text: fillHintState[0], style: "bodySmall", color: primary }),
+                    ]));
+                }
                 if (isPaging) {
                     // 紧凑模式：分页显示
                     if (pageIndex === 0) {
@@ -1885,7 +1947,7 @@ if (hasCount && data.resultcode) {
                                 ctx.UI.Divider({ color: surfaceVariant, thickness: 1 }),
                                 ctx.UI.Text({ text: _t("ui.form.aboutTitle",data._lang), style: "titleSmall", color: primary }),
                                 ctx.UI.Text({ text: _t("ui.form.aboutDesc",data._lang), style: "bodySmall", color: onSurfaceVariant }),
-                                ctx.UI.Text({ text: _t("ui.form.versionLabel",data._lang) + "1.7.5", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
+                                ctx.UI.Text({ text: _t("ui.form.versionLabel",data._lang) + "1.7.6", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
                                 ctx.UI.Text({ text: _t("ui.form.authorTitle",data._lang), style: "titleSmall", color: primary }),
                                 ctx.UI.Text({ text: _t("ui.form.authorOriginal",data._lang) + "liu-baia", style: "bodySmall", color: onSurface }),
                                 ctx.UI.Text({ text: _t("ui.form.authorModder",data._lang) + "yyswys-yjyj", style: "bodySmall", color: onSurface }),
@@ -1893,10 +1955,10 @@ if (hasCount && data.resultcode) {
                         ]));
                     }
                     else {
-                        // 题目页：基于总元素索引分页（含 section），题号全局连续
+                        // 题目页：按非 section 题数分页（section 跟随其后题目同页，不计入名额）
                         var pageQuestionIdx = pageIndex - questionStartPage;
-                        var startIdx = pageQuestionIdx * PAGE_SIZE;
-                        var endIdx = Math.min(startIdx + PAGE_SIZE, totalElementCount);
+                        var startIdx = (pageBounds[pageQuestionIdx] !== undefined) ? pageBounds[pageQuestionIdx] : questions.length;
+                        var endIdx = (pageBounds[pageQuestionIdx + 1] !== undefined) ? pageBounds[pageQuestionIdx + 1] : questions.length;
                         // 计算当前页起始之前有多少非 section 题，作为题号偏移
                         var globalQIdx = 0;
                         for (var _gqi = 0; _gqi < startIdx; _gqi++) {
@@ -1976,7 +2038,7 @@ if (hasCount && data.resultcode) {
                     ctx.UI.Divider({ color: surfaceVariant, thickness: 1 }),
                     ctx.UI.Text({ text: _t("ui.form.aboutTitle",data._lang), style: "titleSmall", color: primary }),
                     ctx.UI.Text({ text: _t("ui.form.aboutDesc",data._lang), style: "bodySmall", color: onSurfaceVariant }),
-                    ctx.UI.Text({ text: _t("ui.form.versionLabel",data._lang) + "1.7.5", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
+                    ctx.UI.Text({ text: _t("ui.form.versionLabel",data._lang) + "1.7.6", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
                     ctx.UI.Text({ text: _t("ui.form.authorTitle",data._lang), style: "titleSmall", color: primary }),
                     ctx.UI.Text({ text: _t("ui.form.authorOriginal",data._lang) + "liu-baia", style: "bodySmall", color: onSurface }),
                     ctx.UI.Text({ text: _t("ui.form.authorModder",data._lang) + "yyswys-yjyj", style: "bodySmall", color: onSurface }),

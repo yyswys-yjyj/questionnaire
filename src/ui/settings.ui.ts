@@ -96,6 +96,21 @@ function _t(key) {
         "ui.setting.rparen": "）",
         "ui.setting.lang.author": "语言包作者：",
 
+        "ui.setting.drafts": "问卷草稿管理",
+        "ui.setting.draftsDesc": "查看 / 编辑 / 删除问卷草稿",
+        "ui.setting.draftsScanning": "扫描中...",
+        "ui.setting.draftsEmpty": "暂无问卷草稿",
+        "ui.setting.draftsCount": "题",
+        "ui.setting.draftsFail": "扫描草稿失败：",
+        "ui.setting.draftDeleted": "已删除",
+        "ui.setting.draftDelFail": "删除失败：",
+        "ui.setting.draftEditHint": "已记录待编辑问卷 ID：",
+        "ui.setting.draftDone": "已完成",
+        "ui.setting.draftReady": "已就绪",
+        "ui.setting.draftPending": "未发布",
+        "ui.setting.draftFilled": "已填",
+        "ui.setting.draftUnfilled": "未填",
+
         "ui.market.langpack.title": "语言包市场",
         "ui.market.langpack.refresh": "刷新",
         "ui.market.langpack.download": "下载",
@@ -131,6 +146,27 @@ function _t(key) {
         "ui.market.langpack.version": "版本",
         "ui.market.langpack.authorLabel": "作者",
         "ui.market.langpack.reinstall": "重新安装",
+        "ui.market.langpack.manageTitle": "语言包管理",
+        "ui.market.langpack.manageRefresh": "请刷新",
+        "ui.market.langpack.manageEmpty": "当前无语言包",
+        "ui.market.langpack.manageDelete": "删除",
+        "ui.market.langpack.expand": "展开",
+        "ui.market.langpack.collapse": "收起",
+        "ui.market.langpack.noAuthor": "未知作者",
+        "ui.market.langpack.fillBoth": "请填写邮箱和JSON内容",
+        "ui.market.langpack.submitting": "提交中...",
+        "ui.market.langpack.submitFail": "提交失败: ",
+        "ui.market.langpack.deleteOk": "已删除",
+        "ui.market.langpack.deleteFail": "删除失败: ",
+        "ui.market.langpack.dlOk": "下载成功",
+        "ui.market.langpack.dlFail": "下载失败: ",
+        "ui.market.langpack.search": "搜索语言包...",
+        "ui.market.langpack.prev": "上一页",
+        "ui.market.langpack.next": "下一页",
+        "ui.market.langpack.update": "更新",
+        "ui.market.langpack.upToDate": "已是最新",
+        "ui.market.langpack.readFail": "读取版本失败",
+        "ui.market.langpack.selectFile": "选择文件",
 
         "ui.setting.roundDesc": "圆润",
         "ui.setting.squareDesc": "方正",
@@ -195,6 +231,7 @@ var _timeModeLabel = function(m) { return m === "picker" ? _t("ui.setting.timePi
 var _displayModeLabel = function(d) { return d === "normal" ? _t("ui.setting.displayNormal") : (d === "hidden" ? _t("ui.setting.displayHidden") : _t("ui.setting.displayBlocked")); };
 
 export default async function Screen(ctx) {
+    var _PLUGIN_VER = 176;
     var primary = ctx.MaterialTheme.colorScheme.primary;
     var onSurface = ctx.MaterialTheme.colorScheme.onSurface;
     var onSurfaceVariant = ctx.MaterialTheme.colorScheme.onSurfaceVariant;
@@ -243,6 +280,13 @@ export default async function Screen(ctx) {
     var langScanning = langScanningState[0];
     var settingsLangState = ctx.useState("_settingsLang", _settingsLang);
     var settingsLang = settingsLangState[0];
+    // 草稿管理 state
+    var ASK_DIR_SET = "/sdcard/Download/Operit/questionnaire/userask";
+    var draftsState = ctx.useState("_drafts", null);
+    var draftsScanningState = ctx.useState("_draftsScanning", false);
+    var expandedDraftState = ctx.useState("_expandedDraft", "");
+    var drafts = draftsState[0];
+    var draftsScanning = draftsScanningState[0];
     // 同步初始化 _settingsLang—在渲染前读取语言包
     try {
         var initPath = currentLangPathState[0];
@@ -398,6 +442,21 @@ export default async function Screen(ctx) {
             "ui.setting.lparen": "（",
             "ui.setting.rparen": "）",
         "ui.setting.lang.author": "语言包作者：",
+
+        "ui.setting.drafts": "问卷草稿管理",
+        "ui.setting.draftsDesc": "查看 / 编辑 / 删除问卷草稿",
+        "ui.setting.draftsScanning": "扫描中...",
+        "ui.setting.draftsEmpty": "暂无问卷草稿",
+        "ui.setting.draftsCount": "题",
+        "ui.setting.draftsFail": "扫描草稿失败：",
+        "ui.setting.draftDeleted": "已删除",
+        "ui.setting.draftDelFail": "删除失败：",
+        "ui.setting.draftEditHint": "已记录待编辑问卷 ID：",
+        "ui.setting.draftDone": "已完成",
+        "ui.setting.draftReady": "已就绪",
+        "ui.setting.draftPending": "未发布",
+        "ui.setting.draftFilled": "已填",
+        "ui.setting.draftUnfilled": "未填",
         };
         return builtin[key] || key;
     };
@@ -842,6 +901,7 @@ export default async function Screen(ctx) {
                         "ui.form.submit": "提交",
                         "ui.form.cancel": "取消",
                         "ui.form.fill": "一键补全",
+                        "ui.form.fillOk": "已自动补全上次的答案",
                         "ui.form.submitted": "已提交",
                         "ui.form.expired": "已过期",
                         "ui.form.infoTitle": "问卷信息",
@@ -866,6 +926,9 @@ export default async function Screen(ctx) {
                         "ui.form.asking": "📋 询问 %d 个问题",
                         "ui.form.cancelled": "用户取消了本次问卷提问",
                         "ui.form.cancelledTitle": "提问被终止",
+                        "ui.form.edit": "修改",
+                        "ui.form.editResubmit": "🔄 修改后重新提交",
+                        "ui.form.unfilled": "未填项：",
                         "ui.form.reported": "已报告表单问题",
                         "ui.form.computing": "⏳ 计算中...",
                         "ui.form.submitBtn": "✓ 提交",
@@ -934,6 +997,87 @@ export default async function Screen(ctx) {
                         "ui.form.totalQuestions": "共 %d 题",
                         "ui.form.answeredCount": "已回答 %d / %d 题",
                         "ui.form.remindMsg": "⚠️ ",
+
+"ui.ask.title": "问卷询问",
+"ui.ask.subtitle": "向 AI 出题，AI 将通过工具作答",
+"ui.ask.titlePlaceholder": "输入问卷标题...",
+"ui.ask.addQuestion": "＋ 添加题目",
+"ui.ask.editQuestion": "编辑题目",
+"ui.ask.edit": "编辑",
+"ui.ask.delete": "删除",
+"ui.ask.type": "题型",
+"ui.ask.question": "题干",
+"ui.ask.questionPlaceholder": "输入题目内容...",
+"ui.ask.options": "选项",
+"ui.ask.optionsPlaceholder": "选项用逗号分隔，例如：是,否",
+"ui.ask.required": "必答",
+"ui.ask.confirm": "确认添加",
+"ui.ask.cancel": "取消",
+"ui.ask.saved": "✓ 已保存",
+"ui.ask.started": "✓ 已出题，问卷ID已发送给 AI",
+"ui.ask.noTitle": "请先输入问卷标题",
+"ui.ask.noQuestions": "请至少添加一道题目",
+"ui.ask.ready": "已就绪",
+"ui.ask.done": "已完成",
+"ui.ask.unpublished": "未发布",
+"ui.ask.unfilled": "未填",
+"ui.ask.filled": "已填",
+"ui.ask.answered": "已答",
+"ui.ask.total": "共 %d 题",
+"ui.ask.answer": "答案",
+"ui.ask.type.single": "单选",
+"ui.ask.type.multiple": "多选",
+"ui.ask.type.text": "文本",
+"ui.ask.type.textarea": "多行文本",
+"ui.ask.type.rating": "评分",
+"ui.ask.aiReady": "请使用 ask 子包工具作答（query / read / answer / finish）",
+"ui.ask.finishedAt": "完成时间",
+"ui.ask.emptyQuestions": "暂无题目，点击下方按钮添加",
+"ui.ask.needOptions": "选择题型至少需要 2 个选项",
+"ui.ask.fetching": "加载草稿中...",
+"ui.ask.draftListEmpty": "未找到草稿：目录为空或 list_files 无返回",
+"ui.ask.draftScanDone": "扫描完成，无未完成草稿",
+"ui.ask.draftListFail": "列出草稿失败: ",
+"ui.ask.draftSwitched": "已切换到草稿：",
+"ui.ask.draftLoadFail": "加载草稿失败: ",
+"ui.ask.draftPickerTitle": "继续填写未完成问卷",
+"ui.ask.draftPickerEmpty": "暂无未完成问卷",
+"ui.de.title": "编辑草稿",
+"ui.de.loading": "加载草稿中...",
+"ui.de.titlePlaceholder": "输入问卷标题...",
+"ui.de.noTitle": "请输入问卷标题",
+"ui.de.noId": "缺少草稿 ID",
+"ui.de.corrupt": "草稿不存在或已损坏",
+"ui.de.loadFail": "加载草稿失败: ",
+"ui.de.saveFail": "保存失败: ",
+"ui.de.saved": "✓ 已保存到该草稿",
+"ui.de.questionEmpty": "题干不能为空",
+"ui.de.needOptions": "选择题型至少需要 2 个选项",
+"ui.de.add": "＋ 添加题目",
+"ui.de.empty": "暂无题目，点击上方按钮添加",
+"ui.de.editQuestion": "编辑题目",
+"ui.de.addQuestion": "添加题目",
+"ui.de.type": "题型",
+"ui.de.question": "题干",
+"ui.de.questionPlaceholder": "输入题目内容...",
+"ui.de.options": "选项（逗号分隔）",
+"ui.de.optionsPlaceholder": "例如：是,否",
+"ui.de.required": "必答",
+"ui.de.cancel": "取消",
+"ui.de.confirm": "确定",
+"ui.de.count": "题",
+"ui.de.done": "已完成",
+"ui.de.ready": "已就绪",
+"ui.de.pending": "未发布",
+"ui.de.type.single": "单选",
+"ui.de.type.multiple": "多选",
+"ui.de.type.text": "单行文本",
+"ui.de.type.textarea": "多行文本",
+"ui.de.type.rating": "评分",
+"ui.de.type.likert": "李克特",
+"ui.de.type.nps": "NPS",
+"ui.de.type.time": "时间",
+"ui.ask.saveFail": "保存失败: ",
                         "ui.setting.title": "问卷主题设置",
                         "ui.setting.theme": "主题设置",
                         "ui.setting.layout": "按钮布局",
@@ -1065,6 +1209,21 @@ export default async function Screen(ctx) {
                         "ui.setting.lparen": "（",
                         "ui.setting.rparen": "）",
         "ui.setting.lang.author": "语言包作者：",
+
+        "ui.setting.drafts": "问卷草稿管理",
+        "ui.setting.draftsDesc": "查看 / 编辑 / 删除问卷草稿",
+        "ui.setting.draftsScanning": "扫描中...",
+        "ui.setting.draftsEmpty": "暂无问卷草稿",
+        "ui.setting.draftsCount": "题",
+        "ui.setting.draftsFail": "扫描草稿失败：",
+        "ui.setting.draftDeleted": "已删除",
+        "ui.setting.draftDelFail": "删除失败：",
+        "ui.setting.draftEditHint": "已记录待编辑问卷 ID：",
+        "ui.setting.draftDone": "已完成",
+        "ui.setting.draftReady": "已就绪",
+        "ui.setting.draftPending": "未发布",
+        "ui.setting.draftFilled": "已填",
+        "ui.setting.draftUnfilled": "未填",
                         "ui.market.langpack.title": "语言包市场",
                         "ui.market.langpack.refresh": "刷新",
                         "ui.market.langpack.download": "下载",
@@ -1082,7 +1241,23 @@ export default async function Screen(ctx) {
                         "ui.market.langpack.version": "版本",
                         "ui.market.langpack.authorLabel": "作者",
                         "ui.market.langpack.reinstall": "重新安装",
-                        "ui.market.langpack.manageTitle": "语言包管理",
+
+                        "ui.market.langpack.expand": "展开",
+                        "ui.market.langpack.collapse": "收起",
+                        "ui.market.langpack.noAuthor": "未知作者",
+                        "ui.market.langpack.fillBoth": "请填写邮箱和JSON内容",
+                        "ui.market.langpack.submitting": "提交中...",
+                        "ui.market.langpack.submitFail": "提交失败: ",
+                        "ui.market.langpack.deleteOk": "已删除",
+                        "ui.market.langpack.deleteFail": "删除失败: ",
+                        "ui.market.langpack.dlOk": "下载成功",
+                        "ui.market.langpack.dlFail": "下载失败: ",
+                        "ui.market.langpack.search": "搜索语言包...",
+                        "ui.market.langpack.prev": "上一页",
+                        "ui.market.langpack.next": "下一页",
+                        "ui.market.langpack.update": "更新",
+                        "ui.market.langpack.upToDate": "已是最新",
+                        "ui.market.langpack.readFail": "读取版本失败",                        "ui.market.langpack.selectFile": "选择文件",                        "ui.market.langpack.manageTitle": "语言包管理",
                         "ui.market.langpack.manageRefresh": "请刷新",
                         "ui.market.langpack.manageEmpty": "当前无语言包",
                         "ui.market.langpack.manageDelete": "删除",
@@ -1091,6 +1266,7 @@ export default async function Screen(ctx) {
                         "ui.form.submit": "Submit",
                         "ui.form.cancel": "Cancel",
                         "ui.form.fill": "Auto Fill",
+                        "ui.form.fillOk": "Auto-filled from history",
                         "ui.form.submitted": "Submitted",
                         "ui.form.expired": "Expired",
                         "ui.form.infoTitle": "Questionnaire Info",
@@ -1115,6 +1291,9 @@ export default async function Screen(ctx) {
                         "ui.form.asking": "📋 Asking %d questions",
                         "ui.form.cancelled": "User cancelled the questionnaire",
                         "ui.form.cancelledTitle": "Questionnaire terminated",
+                        "ui.form.edit": "Edit",
+                        "ui.form.editResubmit": "🔄 Resubmitted after edit",
+                        "ui.form.unfilled": "Unfilled:",
                         "ui.form.reported": "Reported form issues",
                         "ui.form.computing": "⏳ Computing...",
                         "ui.form.submitBtn": "✓ Submit",
@@ -1182,6 +1361,87 @@ export default async function Screen(ctx) {
                         "ui.form.totalQuestions": "%d questions total",
                         "ui.form.answeredCount": "Answered %d / %d",
                         "ui.form.remindMsg": "⚠️ ",
+
+"ui.ask.title": "Ask Questionnaire",
+"ui.ask.subtitle": "Quiz the AI; it answers via tools",
+"ui.ask.titlePlaceholder": "Enter questionnaire title...",
+"ui.ask.addQuestion": "＋ Add Question",
+"ui.ask.editQuestion": "Edit Question",
+"ui.ask.edit": "Edit",
+"ui.ask.delete": "Delete",
+"ui.ask.type": "Type",
+"ui.ask.question": "Question",
+"ui.ask.questionPlaceholder": "Enter question text...",
+"ui.ask.options": "Options",
+"ui.ask.optionsPlaceholder": "Options separated by commas, e.g. Yes,No",
+"ui.ask.required": "Required",
+"ui.ask.confirm": "Add",
+"ui.ask.cancel": "Cancel",
+"ui.ask.saved": "✓ Saved",
+"ui.ask.started": "✓ Created, questionnaire ID sent to AI",
+"ui.ask.noTitle": "Please enter a title first",
+"ui.ask.noQuestions": "Add at least one question",
+"ui.ask.ready": "Ready",
+"ui.ask.done": "Done",
+"ui.ask.unpublished": "Unpublished",
+"ui.ask.unfilled": "Unfilled",
+"ui.ask.filled": "Filled",
+"ui.ask.answered": "Answered",
+"ui.ask.total": "%d questions",
+"ui.ask.answer": "Answer",
+"ui.ask.type.single": "Single",
+"ui.ask.type.multiple": "Multiple",
+"ui.ask.type.text": "Text",
+"ui.ask.type.textarea": "Textarea",
+"ui.ask.type.rating": "Rating",
+"ui.ask.aiReady": "Use ask tools to answer (query / read / answer / finish)",
+"ui.ask.finishedAt": "Finished at",
+"ui.ask.emptyQuestions": "No questions yet, add below",
+"ui.ask.needOptions": "Choice types need at least 2 options",
+"ui.ask.fetching": "Loading drafts...",
+"ui.ask.draftListEmpty": "No drafts found: directory empty or list_files returned nothing",
+"ui.ask.draftScanDone": "Scan complete, no drafts",
+"ui.ask.draftListFail": "List drafts failed: ",
+"ui.ask.draftSwitched": "Switched to draft: ",
+"ui.ask.draftLoadFail": "Load draft failed: ",
+"ui.ask.draftPickerTitle": "Continue unfinished questionnaire",
+"ui.ask.draftPickerEmpty": "No unfinished questionnaires",
+"ui.de.title": "Edit Draft",
+"ui.de.loading": "Loading draft...",
+"ui.de.titlePlaceholder": "Enter questionnaire title...",
+"ui.de.noTitle": "Please enter a title",
+"ui.de.noId": "Missing draft ID",
+"ui.de.corrupt": "Draft missing or corrupted",
+"ui.de.loadFail": "Load draft failed: ",
+"ui.de.saveFail": "Save failed: ",
+"ui.de.saved": "✓ Saved to this draft",
+"ui.de.questionEmpty": "Question text cannot be empty",
+"ui.de.needOptions": "Choice types need at least 2 options",
+"ui.de.add": "＋ Add Question",
+"ui.de.empty": "No questions yet, add one above",
+"ui.de.editQuestion": "Edit Question",
+"ui.de.addQuestion": "Add Question",
+"ui.de.type": "Type",
+"ui.de.question": "Question",
+"ui.de.questionPlaceholder": "Enter question text...",
+"ui.de.options": "Options (comma separated)",
+"ui.de.optionsPlaceholder": "e.g. Yes,No",
+"ui.de.required": "Required",
+"ui.de.cancel": "Cancel",
+"ui.de.confirm": "Confirm",
+"ui.de.count": "Q",
+"ui.de.done": "Done",
+"ui.de.ready": "Ready",
+"ui.de.pending": "Unpublished",
+"ui.de.type.single": "Single",
+"ui.de.type.multiple": "Multiple",
+"ui.de.type.text": "Text",
+"ui.de.type.textarea": "Textarea",
+"ui.de.type.rating": "Rating",
+"ui.de.type.likert": "Likert",
+"ui.de.type.nps": "NPS",
+"ui.de.type.time": "Time",
+"ui.ask.saveFail": "Save failed: ",
                         "ui.setting.title": "Theme Settings",
                         "ui.setting.theme": "Theme Settings",
                         "ui.setting.layout": "Button Layout",
@@ -1257,6 +1517,20 @@ export default async function Screen(ctx) {
                         "ui.setting.currentPack": "Current pack: ",
                         "ui.setting.builtinLang": "Built-in Language Pack",
                         "ui.setting.lang.author": "Language Pack Author: ",
+                        "ui.setting.drafts": "Questionnaire Drafts",
+                        "ui.setting.draftsDesc": "View / Edit / Delete questionnaire drafts",
+                        "ui.setting.draftsScanning": "Scanning...",
+                        "ui.setting.draftsEmpty": "No questionnaire drafts",
+                        "ui.setting.draftsCount": "Q",
+                        "ui.setting.draftsFail": "Scan drafts failed: ",
+                        "ui.setting.draftDeleted": "Deleted",
+                        "ui.setting.draftDelFail": "Delete failed: ",
+                        "ui.setting.draftEditHint": "Recorded draft ID to edit: ",
+                        "ui.setting.draftDone": "Done",
+                        "ui.setting.draftReady": "Ready",
+                        "ui.setting.draftPending": "Unpublished",
+                        "ui.setting.draftFilled": "Filled",
+                        "ui.setting.draftUnfilled": "Unfilled",
                         "ui.market.langpack.title": "Language Pack Market",
                         "ui.market.langpack.refresh": "Refresh",
                         "ui.market.langpack.download": "Download",
@@ -1274,7 +1548,27 @@ export default async function Screen(ctx) {
                         "ui.market.langpack.version": "Version",
                         "ui.market.langpack.authorLabel": "Author",
                         "ui.market.langpack.reinstall": "Reinstall",
+
                         "ui.market.langpack.manageTitle": "Language Pack Management",
+                        "ui.market.langpack.manageRefresh": "Please refresh",
+                        "ui.market.langpack.manageEmpty": "No language packs",
+                        "ui.market.langpack.manageDelete": "Delete",
+                        "ui.market.langpack.expand": "Expand",
+                        "ui.market.langpack.collapse": "Collapse",
+                        "ui.market.langpack.noAuthor": "Unknown Author",
+                        "ui.market.langpack.fillBoth": "Please enter email and JSON",
+                        "ui.market.langpack.submitting": "Submitting...",
+                        "ui.market.langpack.submitFail": "Submit failed: ",
+                        "ui.market.langpack.deleteOk": "Deleted",
+                        "ui.market.langpack.deleteFail": "Delete failed: ",
+                        "ui.market.langpack.dlOk": "Download OK",
+                        "ui.market.langpack.dlFail": "Download failed: ",
+                        "ui.market.langpack.search": "Search language packs...",
+                        "ui.market.langpack.prev": "Prev",
+                        "ui.market.langpack.next": "Next",
+                        "ui.market.langpack.update": "Update",
+                        "ui.market.langpack.upToDate": "Up to date",
+                        "ui.market.langpack.readFail": "Failed to read version",                        "ui.market.langpack.selectFile": "Select file",                        "ui.market.langpack.manageTitle": "Language Pack Management",
                         "ui.market.langpack.manageRefresh": "Please refresh",
                         "ui.market.langpack.manageEmpty": "No language packs available",
                         "ui.market.langpack.manageDelete": "Delete",
@@ -1342,7 +1636,7 @@ export default async function Screen(ctx) {
                     try {
                         await ctx.callTool("read_file", { path: dpPath });
                     } catch(e) {
-                        var dpContent = JSON.stringify({ id: dp.id, author: "Questionnaire", lang: dp.lang }, null, 2);
+                        var dpContent = JSON.stringify({ id: dp.id, author: "Questionnaire", version: _PLUGIN_VER, lang: dp.lang }, null, 2);
                         await ctx.callTool("write_file", { path: dpPath, content: dpContent });
                     }
                     packs.push({ id: dp.id, path: dpPath, displayName: dp.id === "zh_cn" ? "简体中文" : "English (US)", author: "Questionnaire" });
@@ -1383,6 +1677,134 @@ export default async function Screen(ctx) {
         }
     }
 
+    // ===== 草稿管理区 =====
+    var ASK_DIR_LIST = "/sdcard/Download/Operit/questionnaire/userask";
+    function loadDraftList() {
+        if (draftsScanning) return;
+        draftsScanningState[1](true);
+        draftsState[1](null);
+        return ctx.callTool("make_directory", { path: ASK_DIR_LIST, create_parents: true })
+            .then(function () { return ctx.callTool("list_files", { path: ASK_DIR_LIST }); })
+            .then(function (dir) {
+                var entries = [];
+                if (dir && dir.entries) entries = dir.entries;
+                else if (dir && dir.data && dir.data.entries) entries = dir.data.entries;
+                else if (Array.isArray(dir)) entries = dir;
+                else if (dir && Array.isArray(dir.data)) entries = dir.data;
+                else if (dir && Array.isArray(dir.files)) entries = dir.files;
+                var chain = Promise.resolve();
+                var out = [];
+                for (var di = 0; di < entries.length; di++) {
+                    (function (entry) {
+                        var name = typeof entry === "string" ? entry : (entry.name || entry.path || "");
+                        if (typeof name !== "string" || !name.endsWith(".json")) return;
+                        var fid = name.replace(/\.json$/, "").split("/").pop();
+                        chain = chain.then(function () {
+                            return ctx.callTool("read_file", { path: ASK_DIR_LIST + "/" + fid + ".json" }).then(function (fr) {
+                                try {
+                                    var fc = String((fr && fr.content) || "").replace(/^\s*\d+\|/gm, "");
+                                    var fo = JSON.parse(fc);
+                                    if (fo && fo.id) {
+                                        out.push({ id: fo.id, title: fo.title || "", status: fo.status || "draft", questions: fo.questions || [], updatedAt: fo.updatedAt || fo.createdAt || 0, raw: fo });
+                                    }
+                                } catch (e) {}
+                            }).catch(function () {});
+                        });
+                    })(entries[di]);
+                }
+                return chain.then(function () {
+                    out.sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+                    draftsState[1](out);
+                    draftsScanningState[1](false);
+                });
+            })
+            .catch(function (e) {
+                draftsState[1]([]);
+                draftsScanningState[1](false);
+                ctx.showToast(_t("ui.setting.draftsFail") + String(e));
+            });
+    }
+    function deleteDraft(id) {
+        return ctx.callTool("delete_file", { path: ASK_DIR_LIST + "/" + id + ".json" })
+            .then(function () {
+                ctx.showToast(_t("ui.setting.draftDeleted"));
+                if (expandedDraftState[0] === id) expandedDraftState[1]("");
+                loadDraftList();
+            })
+            .catch(function (e) { ctx.showToast(_t("ui.setting.draftDelFail") + String(e)); });
+    }
+    function editDraft(id) {
+        // 单一实例编辑：先写环境变量记录要编辑的草稿 id（navigate 第二参不会传给子页面 ctx.params，
+        // 参考 openbridge 用 active 状态传递的模式），再 navigate 进入编辑器
+        try {
+            if (typeof Tools !== "undefined" && Tools.SoftwareSettings && typeof Tools.SoftwareSettings.writeEnvironmentVariable === "function") {
+                Tools.SoftwareSettings.writeEnvironmentVariable("QUESTIONNAIRE_EDIT_DRAFT", id);
+            }
+        } catch (e) {}
+        try {
+            if (typeof ctx.navigate === "function") {
+                ctx.navigate("toolpkg:com.operit.questionnaire.fix:ui:draft_editor", {});
+            } else {
+                ctx.showToast("navigate 不可用");
+            }
+        } catch (e) { ctx.showToast(_t("ui.setting.draftEditHint") + id); }
+    }
+    var _draftStatusLabel = function (s) {
+        if (s === "done") return _t("ui.setting.draftDone");
+        if (s === "ready") return _t("ui.setting.draftReady");
+        return _t("ui.setting.draftPending");
+    };
+    function renderDraftsSection() {
+        var nodes = [];
+        nodes.push(ctx.UI.Text({ text: _t("ui.setting.drafts"), style: "titleSmall", color: onSurface }));
+        nodes.push(ctx.UI.Row({ fillMaxWidth: true, verticalAlignment: "center", horizontalArrangement: "spaceBetween" }, [
+            ctx.UI.Text({ text: _t("ui.setting.draftsDesc"), style: "bodySmall", color: onSurfaceVariant }),
+            ctx.UI.IconButton({
+                icon: "refresh",
+                onClick: loadDraftList,
+                enabled: !draftsScanning,
+            }),
+        ]));
+        if (draftsScanning) {
+            nodes.push(ctx.UI.Row({ verticalAlignment: "center", horizontalArrangement: "center", fillMaxWidth: true, spacing: 8, padding: { vertical: 8 } }, [
+                ctx.UI.CircularProgressIndicator({ strokeWidth: 2, color: primary, modifier: { size: 16 } }),
+                ctx.UI.Text({ text: _t("ui.setting.draftsScanning"), style: "bodySmall", color: onSurfaceVariant }),
+            ]));
+        } else if (!drafts || drafts.length === 0) {
+            nodes.push(ctx.UI.Text({ text: _t("ui.setting.draftsEmpty"), style: "bodySmall", color: onSurfaceVariant, padding: { vertical: 6 } }));
+        } else {
+            for (var dni = 0; dni < drafts.length; dni++) {
+                (function (d) {
+                    var isOpen = expandedDraftState[0] === d.id;
+                    nodes.push(ctx.UI.Card({ fillMaxWidth: true, containerColor: "surfaceContainer" }, [
+                        ctx.UI.Column({ padding: 10, spacing: 6 }, [
+                            // 单条草稿整体 LazyRow：标题列 + 操作按钮横向滚动，标题过长时按钮不被挤出
+                            ctx.UI.LazyRow({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8 }, [
+                                ctx.UI.Column({ spacing: 1 }, [
+                                    ctx.UI.Text({ text: d.title || "(无标题)", style: "bodyMedium", fontWeight: "bold", maxLines: 1, overflow: "ellipsis" }),
+                                    ctx.UI.Text({ text: d.id + " · " + _draftStatusLabel(d.status) + " · " + d.questions.length + " " + _t("ui.setting.draftsCount"), style: "labelSmall", color: onSurfaceVariant }),
+                                ]),
+                                ctx.UI.IconButton({ icon: "visibility", onClick: function () { expandedDraftState[1](isOpen ? "" : d.id); } }),
+                                ctx.UI.IconButton({ icon: "edit", onClick: function () { editDraft(d.id); } }),
+                                ctx.UI.IconButton({ icon: "delete", onClick: function () { deleteDraft(d.id); } }),
+                            ]),
+                            isOpen ? ctx.UI.Column({ spacing: 4 }, d.questions.map(function (q, qi) {
+                                var filled = (q.answer !== null && q.answer !== undefined && q.answer !== "");
+                                return ctx.UI.Row({ fillMaxWidth: true, verticalAlignment: "center", horizontalArrangement: "spaceBetween", spacing: 4, padding: { top: 2 } }, [
+                                    ctx.UI.Text({ text: (qi + 1) + ". " + q.question + (q.required ? " *" : ""), style: "bodySmall", maxLines: 2, overflow: "ellipsis" }),
+                                    ctx.UI.Text({ text: filled ? _t("ui.setting.draftFilled") : _t("ui.setting.draftUnfilled"), style: "labelSmall", color: filled ? primary : onSurfaceVariant }),
+                                ]);
+                            })) : null,
+                        ]),
+                    ]));
+                })(drafts[dni]);
+            }
+        }
+        return ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
+            ctx.UI.Column({ padding: 16, spacing: 8 }, nodes),
+        ]);
+    }
+
     function renderLangPacksSection() {
         return ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
             ctx.UI.Column({ padding: 16, spacing: 8 }, [
@@ -1420,7 +1842,7 @@ export default async function Screen(ctx) {
             ctx.UI.Text({ text: _t("ui.setting.about.square"), style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Spacer({ height: 8 }),
             ctx.UI.Text({ text: _t("ui.setting.aboutPlugin"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.pluginInfo") + "v1.7.5", style: "bodySmall", color: onSurfaceVariant }),
+            ctx.UI.Text({ text: _t("ui.setting.pluginInfo") + "v1.7.6", style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Text({ text: _t("ui.setting.supportedTypes"), style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Text({ text: _t("ui.setting.supportedFeatures"), style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Spacer({ height: 8 }),
@@ -1442,7 +1864,7 @@ export default async function Screen(ctx) {
         if (versionCheckState[0] === "checking") return;
         versionCheckState[1]("checking");
         versionInfoState[1](_t("ui.setting.checking"));
-        var currentVer = "175";
+        var currentVer = String(_PLUGIN_VER);
         var fmtCur = currentVer.charAt(0) + "." + currentVer.substring(1, 2) + "." + currentVer.substring(2);
         var si = versionSourceState[0];
         if (si < 0 || si >= _versionUrls.length) { si = 2; }
@@ -1466,7 +1888,7 @@ export default async function Screen(ctx) {
     var versionCheckCard = ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
         ctx.UI.Column({ padding: 16, spacing: 8 }, [
             ctx.UI.Text({ text: _t("ui.setting.versionCheck"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.currentVerText") + "1.7.5", style: "bodyMedium", color: onSurfaceVariant }),
+            ctx.UI.Text({ text: _t("ui.setting.currentVerText") + "1.7.6", style: "bodyMedium", color: onSurfaceVariant }),
             ctx.UI.Text({ text: _t("ui.setting.selectSource"), style: "labelSmall", color: onSurfaceVariant }),
             ctx.UI.LazyRow({ spacing: 6 }, _versionUrls.map(function(url, idx) {
                 return ctx.UI.FilterChip({
@@ -1510,7 +1932,7 @@ export default async function Screen(ctx) {
                 if (parsed && parsed.list && Array.isArray(parsed.list)) {
                     var lines = [];
                     var newLines = [];
-                    var currentVerNum = 175;
+                    var currentVerNum = _PLUGIN_VER;
                     for (var ei = 0; ei < parsed.list.length; ei++) {
                         var entry = parsed.list[ei];
                         if (ei > 0) lines.push("---");
@@ -1609,6 +2031,7 @@ export default async function Screen(ctx) {
         settingsSection,
         typePicker,
         previewCard,
+        renderDraftsSection(),
         renderLangPacksSection(),
         aboutCard,
         versionCheckCard,
