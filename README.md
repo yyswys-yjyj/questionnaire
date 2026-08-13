@@ -5,16 +5,22 @@
 
 该项目是源自Operit AI平台上我的一个小项目，包是基于liu-baia的原作[com.com.operit.questionnaire](https://github.com/liu-baia/OperitForge/releases/tag/package-com-operit-questionnaire-v0.1.0-396c8ead)进行二次开发    
 该仓库的包在Operit AI中的包名是com.operit.questionnaire.fix（项目簇：com-operit-questionnaire-fix），代码由AI完成，项目方向就不是AI了用的是person（      
-开源仓库中的包的版本：v1.7.5
+开源仓库中的包的版本：v1.7.6
 
 ## 介绍
 基于原作，不断更新完善，随之加入些新的功能   
 ~~不过现在似乎已经沉浸在自己的艺术当中了（~~
 
 ## 更新日志
-### 1.7.5 (2026-07-17)
+### 1.7.6 (2026-08-13)
 #### Added | 新增
-- 新增语言包市场
+- 新增“问卷询问”，现在用户可以向AI发送问卷来提问了，同步新增的还有问卷草稿管理器
+- 新增“问卷修改”，现在，当你提交了问卷以后你可以修改问卷重新提交
+
+#### 修改 | Changed
+- 重写了语言包市场（虽然语言包提交在176版本中还是只能传GitHub，后续会做）
+- 修复了分页布局中sec题型被计入为一个题目的bug
+- 修复了“一键补全”没有反馈的bug
 
 ## 外部库上传
 你可以提个issue，上传你的外部库
