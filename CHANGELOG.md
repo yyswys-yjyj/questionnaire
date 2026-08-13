@@ -17,6 +17,19 @@ We note the change of our project.
 
 ---
 
+## 1.7.6 (2026-08-13)
+#### Added
+- Added 'Questionnaire Inquiry', now users can send questionnaires to AI for questions. Also added a Questionnaire Draft Manager.
+- Added 'Questionnaire Edit', now you can modify and resubmit a questionnaire after submitting it.
+
+#### Changed
+- Rewrote the Language Pack Market (though in version 176, language packs can still only be submitted via GitHub, more options coming later)
+- Fixed a bug where sec question types were counted as a single question in paginated layouts
+- Fixed a bug where 'One-Click Complete' gave no feedback ...
+
+
+---
+
 ## 1.7.5 (2026-07-17)
 ### Added
 - Added a market for language package
