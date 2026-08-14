@@ -17,6 +17,16 @@ We note the change of our project.
 
 ---
 
+## 1.7.10 (2026-08-14)
+#### Added
+- Added custom market source feature
+
+#### Changed
+- Adjusted the UI of the questionnaire builder, now it looks much more coordinated.
+
+
+---
+
 ## 1.7.6 (2026-08-13)
 #### Added
 - Added 'Questionnaire Inquiry', now users can send questionnaires to AI for questions. Also added a Questionnaire Draft Manager.
