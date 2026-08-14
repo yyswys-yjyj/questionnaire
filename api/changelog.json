@@ -1,19 +1,9 @@
 {
     "list": [
         {
-            "version": "v1.7.6(Version Conflict)",
-            "currentVer": 178,
-            "details": "## 1.7.6 (Version Conflict | Might be delayed | 2026-08-13)\n### English\n#### Added\n- Added 'Questionnaire Inquiry', now users can send questionnaires to AI for questions. Also added a Questionnaire Draft Manager.\n- Added 'Questionnaire Edit', now you can modify and resubmit a questionnaire after submitting it.\n\n#### Changes\n- Rewrote the Language Pack Market (though in version 176, language packs can still only be submitted via GitHub, more options coming later)\n- Fixed a bug where sec question types were counted as a single question in paginated layouts\n- Fixed a bug where 'One-Click Complete' gave no feedback ...\n\n### 简体中文\n#### 新增\n- 新增“问卷询问”，现在用户可以向AI发送问卷来提问了，同步新增的还有问卷草稿管理器\n- 新增“问卷修改”，现在，当你提交了问卷以后你可以修改问卷重新提交\n\n#### 修改\n- 重写了语言包市场（虽然语言包提交在176版本中还是只能传GitHub，后续会做）\n- 修复了分页布局中sec题型被计入为一个题目的bug\n- 修复了“一键补全”没有反馈的bug"
-        },
-        {
-            "version": "v1.7.7",
-            "currentVer": 177,
-            "details": "## 1.7.7 (Unknown)\n### English\nThe collaborator submitted this version, but we haven't merged it yet.\n\n### 简体中文\n协作者提交了该版本，但我们尚未执行合并操作"
-        },
-        {
-            "version": "v1.7.6",
-            "currentVer": 176,
-            "details": "## 1.7.6 (Unknown)\n### English\nThe collaborator submitted this version, but we haven't merged it yet.\n\n### 简体中文\n协作者提交了该版本，但我们尚未执行合并操作"
+            "version": "v1.7.10(In-test | Repush)",
+            "currentVer": 17A,
+            "details": "## 1.7.10 (2026-08-14)\n### English\n#### Added\n- Added 'Questionnaire Inquiry', now users can send questionnaires to AI for questions. Also added a Questionnaire Draft Manager.\n- Added 'Questionnaire Edit', now you can modify and resubmit a questionnaire after submitting it.\n\n#### Changes\n- Rewrote the Language Pack Market (though in version 176, language packs can still only be submitted via GitHub, more options coming later)\n- Fixed a bug where sec question types were counted as a single question in paginated layouts\n- Fixed a bug where 'One-Click Complete' gave no feedback ...\n\n### 简体中文\n#### 新增\n- 新增“问卷询问”，现在用户可以向AI发送问卷来提问了，同步新增的还有问卷草稿管理器\n- 新增“问卷修改”，现在，当你提交了问卷以后你可以修改问卷重新提交\n\n#### 修改\n- 重写了语言包市场（虽然语言包提交在176版本中还是只能传GitHub，后续会做）\n- 修复了分页布局中sec题型被计入为一个题目的bug\n- 修复了“一键补全”没有反馈的bug"
         },
         {
             "version": "v1.7.5",
