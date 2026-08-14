@@ -39,6 +39,7 @@ export default async function Screen(ctx) {
         "ui.ask.options": "选项",
         "ui.ask.optionsPlaceholder": "选项用逗号分隔，例如：是,否",
         "ui.ask.required": "必答",
+        "ui.ask.allowOther": "启用其他",
         "ui.ask.confirm": "确认添加",
         "ui.ask.cancel": "取消",
         "ui.ask.saved": "✓ 已保存",
@@ -71,6 +72,9 @@ export default async function Screen(ctx) {
         "ui.ask.draftLoadFail": "加载草稿失败: ",
         "ui.ask.draftPickerTitle": "继续填写未完成问卷",
         "ui.ask.draftPickerEmpty": "暂无未完成问卷",
+        "ui.ask.noAskId": "问卷 ID 未分配",
+        "ui.ask.idLabel": "问卷ID: ",
+        "ui.ask.untitled": "(无标题)",
     };
     function _t(key) { return (_askLang && _askLang[key]) || _builtin[key] || key; }
 
@@ -87,6 +91,7 @@ export default async function Screen(ctx) {
     var addQuestionState = ctx.useState("_addQuestion", "");
     var addOptionsState = ctx.useState("_addOptions", "");
     var addRequiredState = ctx.useState("_addRequired", false);
+    var addAllowOtherState = ctx.useState("_addAllowOther", false); // 单选/多选启用"其他"
     var savedState = ctx.useState("_saved", false);
     var editQidState = ctx.useState("_editQid", "");   // 正在编辑的题目 id，空=新增
     var menuOpenState = ctx.useState("_menuOpen", ""); // 折叠菜单打开的题目 id
@@ -188,8 +193,16 @@ export default async function Screen(ctx) {
                 var fc = String((fr && fr.content) || "").replace(/^\s*\d+\|/gm, "");
                 var fo = JSON.parse(fc);
                 var qs = fo && fo.questions ? fo.questions : [];
-                // 切换：更新 askId、title、questions、status
-                askIdState[1](id);
+                // 从草稿加载：只复制题目（保留题目 id），不改变当前问卷的 askId
+                // 剥离每题的已填答案（answer 清空），只复制干净的题目模板
+                qs = qs.map(function (q) {
+                    return {
+                        id: q.id, type: q.type, question: q.question,
+                        subtitle: q.subtitle || "", options: Array.isArray(q.options) ? q.options.slice() : [],
+                        required: !!q.required, allowOther: !!q.allowOther, answer: null,
+                    };
+                });
+                // 这样加载后仍用当前 askId 保存，草稿题目以原 id 并入当前问卷
                 titleState[1](fo.title || "");
                 questionsState[1](JSON.stringify(qs));
                 askStatusState[1](fo.status || "draft");
@@ -202,7 +215,7 @@ export default async function Screen(ctx) {
     // 保存草稿（构建模式）— 用 render 自动分配的稳定 askId，ID 至始至终不变
     function saveDraft(status) {
         var s = status || "draft";
-        if (!askId) { showBanner("问卷 ID 未分配", true); return Promise.resolve(null); }
+        if (!askId) { showBanner(_t("ui.ask.noAskId"), true); return Promise.resolve(null); }
         var askObj = {
             id: askId,
             title: title,
@@ -232,10 +245,13 @@ export default async function Screen(ctx) {
         return saveDraft("ready").then(function (askObj) {
             if (!askObj) return;
             askStatusState[1]("ready");
+            // 提交后本地直接重绘为只读呈现态（无需等待 AI 回发 XML 切 state）
+            // 切 modeState 到 complete（非 built）→ 走 else 呈现模式：隐藏所有构建按钮，进入只读待作答
+            modeState[1]("complete");
             try {
                 Tools.Chat.sendMessage(
                     "📝 " + _t("ui.ask.title") + "：「" + askObj.title + "」" + _t("ui.ask.ready") + "\n" +
-                    "问卷ID: " + askObj.id + "\n" +
+                    _t("ui.ask.idLabel") + askObj.id + "\n" +
                     _t("ui.ask.aiReady"),
                     chatId, undefined, undefined, { runtime: "main" }
                 );
@@ -262,7 +278,7 @@ export default async function Screen(ctx) {
                     newQs[ei] = {
                         id: newQs[ei].id, type: type, question: qText,
                         subtitle: newQs[ei].subtitle || "", options: opts,
-                        required: addRequiredState[0], answer: newQs[ei].answer || null,
+                        required: addRequiredState[0], allowOther: addAllowOtherState[0], answer: newQs[ei].answer || null,
                     };
                     break;
                 }
@@ -276,6 +292,7 @@ export default async function Screen(ctx) {
                 subtitle: "",
                 options: opts,
                 required: addRequiredState[0],
+                allowOther: addAllowOtherState[0],
                 answer: null,
             });
         }
@@ -283,6 +300,7 @@ export default async function Screen(ctx) {
         addQuestionState[1]("");
         addOptionsState[1]("");
         addRequiredState[1](false);
+        addAllowOtherState[1](false);
         editQidState[1]("");
         addingState[1](false);
         savedState[1](false);
@@ -294,6 +312,7 @@ export default async function Screen(ctx) {
         addQuestionState[1](q.question || "");
         addOptionsState[1](Array.isArray(q.options) ? q.options.join(",") : "");
         addRequiredState[1](!!q.required);
+        addAllowOtherState[1](!!q.allowOther);
         editQidState[1](q.id);
         addingState[1](true);
     }
@@ -324,13 +343,20 @@ export default async function Screen(ctx) {
         // 头部：标题输入 + 出题按钮（标签头右侧）
         rows.push(UI.Card({ fillMaxWidth: true, containerColor: "primaryContainer" }, [
             UI.Column({ padding: 14, spacing: 8 }, [
-// 头部：标题 + 操作按钮（整行 LazyRow 横向滚动，title 过长时滚动查看，按钮不被挤走）
-                UI.LazyRow({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8 }, [
-                    UI.Text({ text: _t("ui.ask.title"), style: "titleLarge", fontWeight: "bold", color: "onPrimaryContainer" }),
-                    saved ? UI.Text({ text: "✓", style: "labelMedium", color: "onPrimaryContainer" }) : null,
-                    UI.IconButton({ icon: "folder_open", tint: "onPrimaryContainer", onClick: function () { openPickerState[1](true); return loadDrafts(); } }),
-                    UI.IconButton({ icon: "save", tint: "onPrimaryContainer", onClick: function () { return saveDraft("draft"); } }),
-                    UI.IconButton({ icon: "send", tint: "onPrimaryContainer", onClick: function () { return startAsk(); } }),
+                // 头部：标题(左，可滚动兜底) + 操作按钮(右，spaceBetween 固定靠右)
+                // 左文字区 content weight:1 撑开，spaceBetween 保证按钮组被推到最右
+                UI.Row({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8, horizontalArrangement: "spaceBetween" }, [
+                    // 左文字区：标题 + 保存标记，包在 LazyRow(weight:1) 里，溢出时只滚文字
+                    UI.LazyRow({ weight: 1, verticalAlignment: "center", spacing: 8 }, [
+                        UI.Text({ text: _t("ui.ask.title"), style: "titleLarge", fontWeight: "bold", color: "onPrimaryContainer" }),
+                        saved ? UI.Text({ text: "✓", style: "labelMedium", color: "onPrimaryContainer" }) : null,
+                    ]),
+                    // 右按钮区：固定靠右，永不被文字挤压
+                    UI.Row({ verticalAlignment: "center", spacing: 4 }, [
+                        UI.IconButton({ icon: "folder_open", tint: "onPrimaryContainer", onClick: function () { openPickerState[1](true); return loadDrafts(); } }),
+                        UI.IconButton({ icon: "save", tint: "onPrimaryContainer", onClick: function () { return saveDraft("draft"); } }),
+                        UI.IconButton({ icon: "send", tint: "onPrimaryContainer", onClick: function () { return startAsk(); } }),
+                    ]),
                 ]),
                 UI.TextField({
                     value: title,
@@ -352,8 +378,10 @@ export default async function Screen(ctx) {
         if (openPickerState[0]) {
             var drafts = draftsState[0];
             var pickerNodes = [
-                UI.LazyRow({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8 }, [
-                    UI.Text({ text: _t("ui.ask.draftPickerTitle"), style: "titleSmall", fontWeight: "bold", color: onSurface }),
+                UI.Row({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8, horizontalArrangement: "spaceBetween" }, [
+                    UI.Column({ weight: 1 }, [
+                        UI.Text({ text: _t("ui.ask.draftPickerTitle"), style: "titleSmall", fontWeight: "bold", color: onSurface }),
+                    ]),
                     UI.IconButton({ icon: "close", onClick: function () { openPickerState[1](false); } }),
                 ]),
             ];
@@ -373,9 +401,10 @@ export default async function Screen(ctx) {
                 var pageDrafts = drafts.slice(startIdx, startIdx + per);
                 for (var pdi = 0; pdi < pageDrafts.length; pdi++) {
                     (function (d) {
-                        pickerNodes.push(UI.LazyRow({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8, onClick: function () { return pickDraft(d.id); } }, [
-                            UI.Column({ spacing: 1 }, [
-                                UI.Text({ text: d.title || "(无标题)", style: "bodyMedium", fontWeight: "bold", maxLines: 1, overflow: "ellipsis" }),
+                        // 草稿条目：用 Row 整行可点（LazyRow 的可滚动手势会吞掉 onClick，导致点了无法加载）
+                        pickerNodes.push(UI.Row({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8, horizontalArrangement: "spaceBetween", onClick: function () { return pickDraft(d.id); } }, [
+                            UI.Column({ spacing: 1, weight: 1 }, [
+                                UI.Text({ text: d.title || _t("ui.ask.untitled"), style: "bodyMedium", fontWeight: "bold", maxLines: 1, overflow: "ellipsis" }),
                                 UI.Text({ text: d.id + " · " + d.count + " " + _t("ui.ask.total").replace("%d", String(d.count)), style: "labelSmall", color: onSurfaceVariant }),
                             ]),
                             UI.Icon({ name: "chevron_right", size: 18, tint: onSurfaceVariant }),
@@ -398,8 +427,10 @@ export default async function Screen(ctx) {
         // JSON 格式错误提醒（XML 内嵌 JSON 解析失败时）
         if (jsonErrorState[0]) {
             rows.push(UI.Card({ fillMaxWidth: true, containerColor: "errorContainer" }, [
-                UI.LazyRow({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8, padding: { horizontal: 14, vertical: 6 } }, [
-                    UI.Text({ text: "⚠️ " + jsonErrorState[0], style: "bodySmall", color: "onErrorContainer" }),
+                UI.Row({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8, padding: { horizontal: 14, vertical: 6 }, horizontalArrangement: "spaceBetween" }, [
+                    UI.Column({ weight: 1 }, [
+                        UI.Text({ text: "⚠️ " + jsonErrorState[0], style: "bodySmall", color: "onErrorContainer", maxLines: 3, overflow: "ellipsis" }),
+                    ]),
                     UI.IconButton({ icon: "close", onClick: function () { jsonErrorState[1](""); } }),
                 ]),
             ]));
@@ -408,8 +439,10 @@ export default async function Screen(ctx) {
         // 横幅
         if (banner) {
             rows.push(UI.Card({ fillMaxWidth: true, containerColor: bannerErr ? "errorContainer" : "primaryContainer" }, [
-                UI.LazyRow({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8, padding: { horizontal: 14, vertical: 6 } }, [
-                    UI.Text({ text: banner, style: "bodyMedium", color: bannerErr ? "onErrorContainer" : "onPrimaryContainer" }),
+                UI.Row({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8, padding: { horizontal: 14, vertical: 6 }, horizontalArrangement: "spaceBetween" }, [
+                    UI.Column({ weight: 1 }, [
+                        UI.Text({ text: banner, style: "bodyMedium", color: bannerErr ? "onErrorContainer" : "onPrimaryContainer", maxLines: 3, overflow: "ellipsis" }),
+                    ]),
                     UI.IconButton({ icon: "close", onClick: function () { bannerState[1](""); } }),
                 ]),
             ]));
@@ -447,12 +480,23 @@ export default async function Screen(ctx) {
                     singleLine: true,
                 }));
             }
-            addNodes.push(UI.LazyRow({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8, padding: { top: 6 } }, [
-                UI.FilterChip({
-                    selected: addRequiredState[0],
-                    onClick: function () { addRequiredState[1](!addRequiredState[0]); },
-                    label: UI.Text({ text: _t("ui.ask.required"), style: "labelSmall" }),
-                }),
+            addNodes.push(UI.Row({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8, padding: { top: 6 } }, [
+                // 左区 chips：LazyRow 横向滚动，必答/启用其他多时按钮不被挤压
+                UI.Column({ weight: 1, verticalAlignment: "center" }, [
+                    UI.LazyRow({ spacing: 4, verticalAlignment: "center" }, [
+                        UI.FilterChip({
+                            selected: addRequiredState[0],
+                            onClick: function () { addRequiredState[1](!addRequiredState[0]); },
+                            label: UI.Text({ text: _t("ui.ask.required"), style: "labelSmall" }),
+                        }),
+                        // 仅单选：启用"其他"，允许 AI 发送任意自定义内容（多选不支持"其他"）
+                        (addTypeState[0] === "single") ? UI.FilterChip({
+                            selected: addAllowOtherState[0],
+                            onClick: function () { addAllowOtherState[1](!addAllowOtherState[0]); },
+                            label: UI.Text({ text: _t("ui.ask.allowOther"), style: "labelSmall" }),
+                        }) : null,
+                    ]),
+                ]),
                 UI.Row({ spacing: 8 }, [
                     UI.TextButton({
                         onClick: function () { editQidState[1](""); addingState[1](false); },
@@ -482,9 +526,9 @@ export default async function Screen(ctx) {
                     var menuOpen = menuOpenState[0] === q.id;
                     rows.push(UI.Card({ fillMaxWidth: true }, [
                         UI.Row({ fillMaxWidth: true, verticalAlignment: "center", horizontalArrangement: "spaceBetween", spacing: 6, padding: { horizontal: 14, vertical: 10 } }, [
-                            UI.Column({ spacing: 2, modifier: { weight: 1 } }, [
+                            UI.Column({ spacing: 2, weight: 1 }, [
                                 UI.Text({ text: (idx + 1) + ". " + q.question + (q.required ? " *" : ""), style: "bodyLarge", fontWeight: "bold", maxLines: 2, overflow: "ellipsis" }),
-                                UI.Text({ text: (typeLabels[q.type] || q.type) + (q.options && q.options.length ? " · " + q.options.join(" / ") : ""), style: "labelSmall", color: onSurfaceVariant, maxLines: 2, overflow: "ellipsis" }),
+                                UI.Text({ text: (typeLabels[q.type] || q.type) + (q.options && q.options.length ? " · " + q.options.join(" / ") : "") + (q.allowOther ? " · " + _t("ui.ask.allowOther") : ""), style: "labelSmall", color: onSurfaceVariant, maxLines: 2, overflow: "ellipsis" }),
                             ]),
                             // 折叠菜单：编辑 / 删除
                             UI.Box({}, [
@@ -518,8 +562,8 @@ export default async function Screen(ctx) {
 
         // 头部：标题 + 状态
         rows.push(UI.Card({ fillMaxWidth: true, containerColor: "primaryContainer" }, [
-            UI.LazyRow({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8, padding: { horizontal: 14, vertical: 12 } }, [
-                UI.Column({ spacing: 2 }, [
+            UI.Row({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8, padding: { horizontal: 14, vertical: 12 }, horizontalArrangement: "spaceBetween" }, [
+                UI.Column({ spacing: 2, weight: 1 }, [
                     UI.Text({ text: title || _t("ui.ask.title"), style: "titleLarge", fontWeight: "bold", color: "onPrimaryContainer", maxLines: 2, overflow: "ellipsis" }),
                     UI.Text({ text: askId, style: "labelSmall", color: "onPrimaryContainer" }),
                 ]),
@@ -551,8 +595,10 @@ export default async function Screen(ctx) {
                 var isF = filled(q.answer);
                 rows.push(UI.Card({ fillMaxWidth: true }, [
                     UI.Column({ padding: 12, spacing: 6 }, [
-                        UI.LazyRow({ fillMaxWidth: true, verticalAlignment: "center", spacing: 6 }, [
-                            UI.Text({ text: (idx + 1) + ". " + q.question + (q.required ? " *" : ""), style: "bodyLarge", fontWeight: "bold", maxLines: 2, overflow: "ellipsis" }),
+                        UI.Row({ fillMaxWidth: true, horizontalArrangement: "spaceBetween", verticalAlignment: "center", spacing: 6 }, [
+                            UI.Column({ weight: 1 }, [
+                                UI.Text({ text: (idx + 1) + ". " + q.question + (q.required ? " *" : ""), style: "bodyLarge", fontWeight: "bold", maxLines: 2, overflow: "ellipsis" }),
+                            ]),
                             UI.Text({ text: isF ? _t("ui.ask.filled") : _t("ui.ask.unfilled"), style: "labelSmall", fontWeight: "bold", color: isF ? "primary" : onSurfaceVariant }),
                         ]),
                         UI.Divider({ thickness: 0.5, color: onSurfaceVariant.copy({ alpha: 0.3 }) }),

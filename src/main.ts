@@ -7,6 +7,16 @@ import { onAskXmlRender } from "./ask/askrender.js";
 
 var _userMsgCount = {};
 var _sessionId = Date.now();
+var _mainLang = null; // 模块级：onXmlRender 每次调用重新读取赋值；_m 供模块内所有函数使用
+// 本地翻译：优先语言包，fallback 中文；%s 顺序替换
+function _m(key, fallback) {
+    var t = (_mainLang && _mainLang[key]) ? _mainLang[key] : fallback;
+    if (arguments.length > 2) {
+        var args = Array.prototype.slice.call(arguments, 2);
+        for (var i = 0; i < args.length; i++) t = t.replace("%s", String(args[i]));
+    }
+    return t;
+}
 
 function readThemeFromEnv() {
     if (typeof getEnv !== "function") return "classic";
@@ -80,6 +90,24 @@ function onXmlRender(event) {
     var payload = event.eventPayload || {};
     if (payload.tagName !== "questionnaire") return { handled: false };
 
+    // 读取语言包（提前：校验错误信息也要走翻译）
+    _mainLang = null;
+    try {
+        var _langPath0 = getEnv("QUESTIONNAIRE_LANG_PATH") || "";
+        if (_langPath0) {
+            var _langRaw0 = NativeInterface.callTool("", "read_file", JSON.stringify({ path: _langPath0 }));
+            if (_langRaw0) {
+                var _langObj0 = JSON.parse(_langRaw0);
+                var _lc0 = null;
+                if (_langObj0 && _langObj0.data && _langObj0.data.content) _lc0 = _langObj0.data.content;
+                else if (_langObj0 && _langObj0.content) _lc0 = _langObj0.content;
+                if (typeof _lc0 === 'string') _lc0 = _lc0.replace(/^\s*\d+\|/gm, "");
+                var _lp0 = typeof _lc0 === 'object' ? _lc0 : JSON.parse(_lc0);
+                if (_lp0 && _lp0.lang) _mainLang = _lp0.lang;
+            }
+        }
+    } catch (e) { _mainLang = null; }
+
     // 读取显示模式
     var displayMode = "normal";
     try { var dm = getEnv("QUESTIONNAIRE_DISPLAY_MODE"); if (dm === "hidden" || dm === "blocked" || dm === "normal") displayMode = dm; } catch (e) {}
@@ -89,7 +117,7 @@ function onXmlRender(event) {
         return { handled: true, text: "" };
     }
     if (displayMode === "blocked") {
-        var blockedData = { title: "(问卷已被拦截)", questions: [], _hasInvalid: true, _invalidQuestions: ["问卷已被拦截：当前设置为拦截模式，问卷不会显示。"], _blockedMode: true, _blockedXml: xmlContent };
+        var blockedData = { title: _m("ui.form.err.blockedTitle", "(问卷已被拦截)"), questions: [], _hasInvalid: true, _invalidQuestions: [_m("ui.form.err.blockedMsg", "问卷已被拦截：当前设置为拦截模式，问卷不会显示。")], _blockedMode: true, _blockedXml: xmlContent };
         var blockedFp = "blocked_" + simpleHash(xmlContent);
         return { handled: true, composeDsl: { screen: questionnaire_ui, state: { _data: JSON.stringify(blockedData), _chatId: (typeof getChatId === "function") ? getChatId() : "", _msgAtCreation: 0, _sessionId: String(_sessionId), _answers: "{}", _submitted: false, _expired: false, _collapsed: false, _collapsedForce: false, _otherInputs: "{}", _errorMsg: "", _infoOpen: false, _fingerprint: blockedFp }, memo: { fingerprint: blockedFp }, moduleSpec: { id: "qn_" + blockedFp, runtime: "compose_dsl" } } };
     }
@@ -101,15 +129,15 @@ function onXmlRender(event) {
         if (wrongCloseMatch) {
             var wrongTag = wrongCloseMatch[0];
             var invalidData = {
-                title: "(标签错误)",
+                title: _m("ui.form.err.wrongCloseTitle", "(标签错误)"),
                 questions: [],
                 _hasInvalid: true,
-                _invalidQuestions: ["XML 标签错误：使用了 \"" + wrongTag + "\" 作为闭合标签，正确应为 </questionnaire>"],
+                _invalidQuestions: [_m("ui.form.err.wrongClose", "XML 标签错误：使用了 \"%s\" 作为闭合标签，正确应为 </questionnaire>", wrongTag)],
             };
             var invalidFp = simpleHash(xmlContent + "_wrong_close");
             return { handled: true, composeDsl: { screen: questionnaire_ui, state: { _data: JSON.stringify(invalidData), _chatId: (typeof getChatId === "function") ? getChatId() : "", _msgAtCreation: 0, _sessionId: String(_sessionId), _answers: "{}", _submitted: false, _expired: false, _collapsed: false, _collapsedForce: false, _otherInputs: "{}", _errorMsg: "", _infoOpen: false, _fingerprint: invalidFp }, memo: { fingerprint: invalidFp }, moduleSpec: { id: "questionnaire_" + invalidFp, runtime: "compose_dsl" } } };
         }
-        return { handled: true, text: "📋 表单制作中..." };
+        return { handled: true, text: _m("ui.form.building", "📋 表单制作中...") };
     }
 
     var inner = xmlContent;
@@ -148,12 +176,12 @@ function onXmlRender(event) {
 
     // JSON 解析失败时检测是否用了属性写法
     if ((parseError || !data || !data.questions || !Array.isArray(data.questions) || data.questions.length === 0) && outerAttrs.title) {
-        parseError = "不支持的属性写法：请在 <questionnaire> 标签内使用标准 JSON 格式，不要将 title/questions 等作为标签属性。正确示例：<questionnaire>{\\\"title\\\":\\\"问卷标题\\\",\\\"questions\\\":[...]}</questionnaire>";
+        parseError = _m("ui.form.err.attrSyntax", "不支持的属性写法：请在 <questionnaire> 标签内使用标准 JSON 格式，不要将 title/questions 等作为标签属性。正确示例：<questionnaire>{\"title\":\"问卷标题\",\"questions\":[...]}</questionnaire>");
         data = null;
     }
 
     if (parseError || !data || !data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
-        var invalidData = { title: data && data.title ? data.title : "(解析失败)", questions: [], _hasInvalid: true, _invalidQuestions: parseError ? ["JSON 语法错误: " + parseError] : ["问卷数据为空或格式不正确"] };
+        var invalidData = { title: data && data.title ? data.title : _m("ui.form.err.parseFailTitle", "(解析失败)"), questions: [], _hasInvalid: true, _invalidQuestions: parseError ? [_m("ui.form.err.jsonSyntax", "JSON 语法错误: %s", parseError)] : [_m("ui.form.err.emptyData", "问卷数据为空或格式不正确")] };
         var invalidFp = simpleHash(inner + "_invalid");
         return { handled: true, composeDsl: { screen: questionnaire_ui, state: { _data: JSON.stringify(invalidData), _chatId: (typeof getChatId === "function") ? getChatId() : "", _msgAtCreation: 0, _sessionId: String(_sessionId), _answers: "{}", _submitted: false, _expired: false, _collapsed: false, _collapsedForce: false, _otherInputs: "{}", _errorMsg: "", _infoOpen: false, _fingerprint: invalidFp }, memo: { fingerprint: invalidFp }, moduleSpec: { id: "questionnaire_" + invalidFp, runtime: "compose_dsl" } } };
     }
@@ -162,7 +190,7 @@ function onXmlRender(event) {
     for (var qi = 0; qi < data.questions.length; qi++) {
         var q = data.questions[qi];
         if (q.type === "section") continue;
-        if (!q.id || String(q.id).trim() === "") missingIdArray.push(q.question || ("第" + (qi + 1) + "题"));
+        if (!q.id || String(q.id).trim() === "") missingIdArray.push(q.question || _m("ui.form.err.qNoName", "第%s题", String(qi + 1)));
     }
 
     var validTypes = { section: true, single: true, multiple: true, text: true, textarea: true, rating: true, likert: true, nps: true, time: true };
@@ -179,20 +207,20 @@ function onXmlRender(event) {
             // 检测不认识的字段
             for (var vfk in vq) {
                 if (!allowedFieldNames[vfk]) {
-                    validationErrors.push("第" + vqIdx + "题存在不支持的字段 '" + vfk + "'，正确字段名：type/question/options/required/subtitle/enableOther/id");
+                    validationErrors.push(_m("ui.form.err.unknownField", "第%s题存在不支持的字段 '%s'，正确字段名：type/question/options/required/subtitle/enableOther/id", String(vqIdx), vfk));
                     break;
                 }
             }
-            if (vq.type && !validTypes[vq.type] && !_hasQcData) validationErrors.push("第" + vqIdx + "题 type 不合法: " + vq.type);
-            if (needsOptions[vq.type] && (!vq.options || !Array.isArray(vq.options) || vq.options.length < 2)) validationErrors.push("第" + vqIdx + "题（" + vq.type + "）选项不足");
-            if (vq.enableOther === true && vq.type !== "single") validationErrors.push("第" + vqIdx + "题 enableOther 仅支持 single 题型");
-            if (vq.required === true && vq.type === "section") validationErrors.push("第" + vqIdx + "题 section 类型不能设置 required");
-            if (vq.type === "text" && vq.options) validationErrors.push("第" + vqIdx + "题（text）不应有 options 字段");
-            else if (vq.type === "rating" && vq.options) validationErrors.push("第" + vqIdx + "题（rating）不应有 options 字段");
-            else if (vq.type === "nps" && vq.options) validationErrors.push("第" + vqIdx + "题（nps）不应有 options 字段");
+            if (vq.type && !validTypes[vq.type] && !_hasQcData) validationErrors.push(_m("ui.form.err.badType", "第%s题 type 不合法: %s", String(vqIdx), vq.type));
+            if (needsOptions[vq.type] && (!vq.options || !Array.isArray(vq.options) || vq.options.length < 2)) validationErrors.push(_m("ui.form.err.optionsShort", "第%s题（%s）选项不足", String(vqIdx), vq.type));
+            if (vq.enableOther === true && vq.type !== "single") validationErrors.push(_m("ui.form.err.enableOtherSingle", "第%s题 enableOther 仅支持 single 题型", String(vqIdx)));
+            if (vq.required === true && vq.type === "section") validationErrors.push(_m("ui.form.err.sectionRequired", "第%s题 section 类型不能设置 required", String(vqIdx)));
+            if (vq.type === "text" && vq.options) validationErrors.push(_m("ui.form.err.noOptionsField", "第%s题（%s）不应有 options 字段", String(vqIdx), vq.type));
+            else if (vq.type === "rating" && vq.options) validationErrors.push(_m("ui.form.err.noOptionsField", "第%s题（%s）不应有 options 字段", String(vqIdx), vq.type));
+            else if (vq.type === "nps" && vq.options) validationErrors.push(_m("ui.form.err.noOptionsField", "第%s题（%s）不应有 options 字段", String(vqIdx), vq.type));
         }
         // 两个模式都检查：question 为空、缺少 id
-        if (vq.type && vq.type !== "section" && (!vq.question || String(vq.question).trim() === "")) validationErrors.push("第" + vqIdx + "题 question 为空");
+        if (vq.type && vq.type !== "section" && (!vq.question || String(vq.question).trim() === "")) validationErrors.push(_m("ui.form.err.emptyQuestion", "第%s题 question 为空", String(vqIdx)));
     }
 
     data._hasInvalid = missingIdArray.length > 0 || validationErrors.length > 0;
@@ -217,20 +245,20 @@ function onXmlRender(event) {
     // resultcode 和 result 互斥
     if (data.count === true && data.resultcode !== undefined && data.result !== undefined) {
         data._hasInvalid = true;
-        data._invalidQuestions = data._invalidQuestions.concat(["resultcode 和 result 不能同时存在，请只使用其中一个"]);
+        data._invalidQuestions = data._invalidQuestions.concat([_m("ui.form.err.resultcodeConflict", "resultcode 和 result 不能同时存在，请只使用其中一个")]);
     }
     if (data.count === true && data.result !== undefined && data.result !== null) {
         if (typeof data.result === "string") {
             data._hasInvalid = true;
-            data._invalidQuestions = data._invalidQuestions.concat(["result 格式错误：result 必须是二维数组"]);
+            data._invalidQuestions = data._invalidQuestions.concat([_m("ui.form.err.resultNotArray", "result 格式错误：result 必须是二维数组")]);
         } else if (Array.isArray(data.result)) {
             var resultErrors = [];
             for (var ri = 0; ri < data.result.length; ri++) {
                 var group = data.result[ri];
-                if (!Array.isArray(group)) { resultErrors.push('第' + (ri + 1) + '组不是数组'); continue; }
+                if (!Array.isArray(group)) { resultErrors.push(_m("ui.form.err.groupNotArray", "第%s组不是数组", String(ri + 1))); continue; }
                 for (var ci = 0; ci < group.length; ci++) {
                     var exprStr = String(group[ci]);
-                    if (exprStr.indexOf('?') < 0) resultErrors.push('第' + (ri + 1) + '组第' + (ci + 1) + '个缺少?');
+                    if (exprStr.indexOf('?') < 0) resultErrors.push(_m("ui.form.err.exprNoQuestion", "第%s组第%s个缺少?", String(ri + 1), String(ci + 1)));
                 }
             }
             // 检测表达式引用了不存在的变量
@@ -261,49 +289,16 @@ function onXmlRender(event) {
                     if (!qIdSet[vr]) missingVars.push(vr);
                 }
                 if (missingVars.length > 0) {
-                    resultErrors.push('引用了不存在的变量: ' + missingVars.join(', '));
+                    resultErrors.push(_m("ui.form.err.refUnknownVar", "引用了不存在的变量: %s", missingVars.join(', ')));
                 }
             }
-            if (resultErrors.length > 0) { data._hasInvalid = true; data._invalidQuestions = data._invalidQuestions.concat(["结果表达式语法错误: " + resultErrors.join("; ")]); }
-        } else { data._hasInvalid = true; data._invalidQuestions = data._invalidQuestions.concat(["result 格式错误"]); }
+            if (resultErrors.length > 0) { data._hasInvalid = true; data._invalidQuestions = data._invalidQuestions.concat([_m("ui.form.err.resultSyntax", "结果表达式语法错误: %s", resultErrors.join("; "))]); }
+        } else { data._hasInvalid = true; data._invalidQuestions = data._invalidQuestions.concat([_m("ui.form.err.resultFormat", "result 格式错误")]); }
     }
 
-    // 读取语言包
-    data._lang = null;
-    try {
-        var _langPath = getEnv("QUESTIONNAIRE_LANG_PATH");
-        data._langDebug = "langPath=" + _langPath;
-        if (_langPath) {
-            var _langRaw = NativeInterface.callTool("", "read_file", JSON.stringify({ path: _langPath }));
-            if (_langRaw) {
-                var _langObj = JSON.parse(_langRaw);
-                if (_langObj && _langObj.data && _langObj.data.content) {
-                    var _langContent = _langObj.data.content;
-                    if (typeof _langContent === 'string') {
-                        _langContent = _langContent.replace(/^\s*\d+\|/gm, "");
-                    }
-                    var _langParsed = typeof _langContent === 'object' ? _langContent : JSON.parse(_langContent);
-                    if (_langParsed && _langParsed.lang) {
-                        data._lang = _langParsed.lang;
-                        data._langDebug += " | OK keys=" + Object.keys(data._lang).sort().join(",");
-                    } else {
-                        data._langDebug += " | parsed_no_lang";
-                    }
-                } else if (_langObj && _langObj.lang) {
-                    data._lang = _langObj.lang;
-                    data._langDebug += " | direct_lang keys=" + Object.keys(data._lang).sort().join(",");
-                } else {
-                    data._langDebug += " | raw_no_data obj_keys=" + Object.keys(_langObj || {}).join(",");
-                }
-            } else {
-                data._langDebug += " | raw_null";
-            }
-        } else {
-            data._langDebug += " | EMPTY";
-        }
-    } catch(e) {
-        data._langDebug += " | ERR=" + (e && e.message ? e.message : String(e));
-    }
+    // 语言包已在函数开头预加载（_mainLang），直接透传 UI
+    data._lang = _mainLang;
+    data._langDebug = "langPath=" + (getEnv("QUESTIONNAIRE_LANG_PATH") || "") + " | " + (_mainLang ? ("OK keys=" + Object.keys(_mainLang).sort().join(",")) : "EMPTY");
 
     var _fpInput = JSON.stringify({ title: data.title, questions: data.questions });
     var fingerprint = simpleHash(_fpInput);
@@ -349,7 +344,7 @@ function onXmlRender(event) {
 }
 
 function tryParseAttributes(attrs, innerXml, fullXml) {
-    var data = { title: attrs.title || "问卷", questions: [] };
+    var data = { title: attrs.title || _m("ui.form.defaultTitle", "问卷"), questions: [] };
     if (attrs.count === "true" || attrs.count === true) data.count = true;
     if (attrs.output_raw !== undefined) data.output_raw = attrs.output_raw === "true";
     if (attrs.result) {

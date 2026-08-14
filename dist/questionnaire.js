@@ -6,8 +6,8 @@
         "en":"Questionnaire"
     },
     "description":{
-        "zh":"问卷提问：在你需要向用户提问或收集用户信息时可使用，此工具可向用户发送一份表单，支持多题型。需要注意的是，你需要在先使用该工具包编译可运行的表单，随后把 xml 发出来，这将会自动渲染为可填表单。",
-        "en":"Survey tool: You can use this when you need to ask users questions or collect information from them. It allows you to send users a form with multiple question types. Note that you'll first need to compile the form into a runnable version using this toolkit, and then send out the XML file - it will automatically render into a fillable form."
+        "zh": "问卷提问【方向：AI出题→用户填写】。你要【向用户提问/收集用户信息】时用它：先用本包的 compile 工具编译问卷 XML，输出 <questionnaire>...</questionnaire> 渲染给用户填写，用户提交后把答案整理出来。\n\n【明确职责边界】本包是『让用户填』的问卷发起方向。切勿与独立的「ask 子包」混淆：\n- 本包 questionnaire：你出题、用户作答（用户填表格）\n- ask 子包：反过来——用户出题、你（AI）作答（用 built/read/answer/finish 回答用户出的题）\n如果用户是让你【回答/做一份他出的问卷】，请用 ask 子包，不是本包。不要在用户让你作答时调用本包，反之亦然。在你需要向用户提问或收集用户信息时可使用，此工具可向用户发送一份表单，支持多题型。需要注意的是，你需要在先使用该工具包编译可运行的表单，随后把 xml 发出来，这将会自动渲染为可填表单。",
+        "en": "Questionnaire 【Direction: AI asks → USER answers】. Use this when YOU need to ask the user questions / collect info. First use this package's compile tool to compile the questionnaire XML, output <questionnaire>...</questionnaire> rendered for the user to fill in; after the user submits, organize the answers.\n\n【CLEAR RESPONSIBILITY BOUNDARY】This package is the 'let the user fill in' direction. Do NOT confuse it with the separate 'ask' subpackage:\n- This package (questionnaire): you (AI) set the questions, the user answers (fills the form)\n- ask subpackage: the reverse - the user sets questions, you (AI) answer them via built/read/answer/finish\nIf the user asks YOU to answer/fill a questionnaire they created, use the ask subpackage, NOT this one. And vice versa. You can use this when you need to ask users questions or collect information from them. It allows you to send users a form with multiple question types. Note that you'll first need to compile the form into a runnable version using this toolkit, and then send out the XML file - it will automatically render into a fillable form."
     },
     "category":"Utility",
     "env":[
@@ -86,10 +86,10 @@
     ],
     "tools":[
         {
-            "name":"ask",
+            "name":"compile",
             "description":{
-                "zh":"编译一份结构化问卷的 XML 标签。重要：必须先调用本工具（questionnaire:ask）生成 XML，不要在你不了解语法的情况下手写 questionnaire 标签。本包还提供 questionnaire:importqlg 工具用于导入外部 .qlg 库文件。调用工具后，AI 需在回复中输出返回的 xml 内容（<questionnaire>...</questionnaire>），会自动渲染为可填表单（注意 xml 起始于闭合的 questionnaire 别打错了）。支持题型：single单选(含\"其他\"输入)、multiple多选、text单行文本、textarea多行文本、rating评分(1-5星)、likert李克特量表(1-5程度)、nps净推荐值(0-10)、time时间选择(HH:MM)。支持功能：分区(section)含subtitle子标题、required必答题标识。id 由工具自动生成，无需手动填写。注意：<questionnaire> 必须是最顶层的 XML 标签，不要嵌套在 <html>、<div> 或其他标签内部。注意：所有题型（section/text/textarea/single/rating/likert/nps/multiple/time）都支持 subtitle 字段，建议为每道题添加 subtitle 作为填写提示或说明文字。新增 check_level 参数：将AI调用ask生成问卷视为编译过程，支持'0'（严格）/ 正整数N（允许N个警告）/ 'inf'（不检查）。关于渲染检查：如果编译的问卷xml 存在问题，渲染给用户的将会是错误页面，用户点击“提醒”按钮后，你将会收到格式如下的错误信息：⚠️ [错误类型]：[错误信息]。关于“一次问卷”：问卷在用户提交后会被整理成一份格式化的消息文本发送给你。脚本式使用外部库：先调用 questionnaire:importqlg 导入 .qlg 库文件，然后在 resultcode 中用 #include <库名> 展开库内容。详情见 resultcode 参数说明。",
-                "en":"Generate questionnaire XML. AI outputs <questionnaire>...</questionnaire> tag. This package also provides questionnaire:importqlg for importing .qlg library files. Types: single(with other input), multiple, text, textarea, rating(1-5 star), likert(Likert scale 1-5), nps(0-10), time(HH:MM). Features: section with subtitle, required flag. ID is auto-generated. NOTE: <questionnaire> must be the top-level XML tag, do NOT nest it inside <html>, <div> or any other tag. New param check_level: treat generation as compilation. '0' (strict) / positive N (allow N warnings) / 'inf' (skip checks). v1.6.0-Alpha: Use questionnaire:importqlg to import .qlg library, then use #include <libname> in resultcode. See resultcode param for details."
+                "zh":"编译一份结构化问卷的 XML 标签。重要：必须先调用本工具（questionnaire:compile）生成 XML，不要在你不了解语法的情况下手写 questionnaire 标签。本包还提供 questionnaire:importqlg 工具用于导入外部 .qlg 库文件。调用工具后，AI 需在回复中输出返回的 xml 内容（<questionnaire>...</questionnaire>），会自动渲染为可填表单（注意 xml 起始于闭合的 questionnaire 别打错了）。支持题型：single单选(含\"其他\"输入)、multiple多选、text单行文本、textarea多行文本、rating评分(1-5星)、likert李克特量表(1-5程度)、nps净推荐值(0-10)、time时间选择(HH:MM)。支持功能：分区(section)含subtitle子标题、required必答题标识。id 由工具自动生成，无需手动填写。注意：<questionnaire> 必须是最顶层的 XML 标签，不要嵌套在 <html>、<div> 或其他标签内部。注意：所有题型（section/text/textarea/single/rating/likert/nps/multiple/time）都支持 subtitle 字段，建议为每道题添加 subtitle 作为填写提示或说明文字。新增 check_level 参数：将AI调用ask生成问卷视为编译过程，支持'0'（严格）/ 正整数N（允许N个警告）/ 'inf'（不检查）。在你完成编译后，**必须**将编译成果输出到对话中。关于渲染检查：如果编译的问卷xml 存在问题，渲染给用户的将会是错误页面，用户点击“提醒”按钮后，你将会收到格式如下的错误信息：⚠️ [错误类型]：[错误信息]。关于“一次问卷”：问卷在用户提交后会被整理成一份格式化的消息文本发送给你，注意，在发送问卷后，除非重新加载，否则不支持对问卷进行修改或追加操作。脚本式使用外部库：先调用 questionnaire:importqlg 导入 .qlg 库文件，然后在 resultcode 中用 #include <库名> 展开库内容。详情见 resultcode 参数说明。",
+                "en":"Compile structured questionnaire XML. Important: You MUST call this tool (questionnaire:compile) first to generate XML DONOT manually write questionnaire tags without understanding the syntax. This package also provides questionnaire:importqlg for importing external .qlg library files. After calling the tool, the AI must output the returned XML content (<questionnaire>...</questionnaire>) in the reply, which will be automatically rendered as a fillable form (note: the XML must start with a properly closed questionnaire tag—don't mistype it). Supported question types: single (with \"other\" input), multiple, text (single-line), textarea (multi-line), rating (1-5 stars), likert (Likert scale 1-5), nps (Net Promoter Score 0-10), time (HH:MM picker). Supported features: section (with subtitle), required flag. IDs are auto-generated by the tool—no manual entry needed. Note: <questionnaire> MUST be the top-level XML tag; do NOT nest it inside <html>, <div>, or any other tag. Note: All question types (section/text/textarea/single/rating/likert/nps/multiple/time) support the subtitle field—it is recommended to add a subtitle to each question as a prompt or description. New check_level parameter: treat AI-invoked ask generation as a compilation process. Supports '0' (strict) / positive integer N (allow up to N warnings) / 'inf' (skip checks). After you complete compilation, YOU MUST output the compiled result in the conversation. Regarding rendering checks: if the compiled questionnaire XML has issues, the user will see an error page. When the user clicks the \"alert\" button, you will receive error messages in the format: ⚠️ [error type]: [error message]. Regarding \"one-time questionnaire\": after submission, the questionnaire will be consolidated into a formatted message text and sent to you. Note that once the questionnaire is sent, modifications or additions are not supported unless the page is reloaded. Script-style external library usage: first call questionnaire:importqlg to import the .qlg library file, then use #include <library_name> in resultcode to expand the library content. See the resultcode parameter description for details."
             },
             "parameters":[
                 {
@@ -346,7 +346,7 @@ var askPackage = (function () {
         if (!checkInf) {
         // 常见参数错误检测：AI 用了错误的字段名
         if (params.questionnaire) {
-            addError("参数错误：你使用了 'questionnaire' 字段，正确字段名是 'questions'（JSON 数组字符串）。请重新调用 questionnaire:ask，参数名是 title 和 questions，不要用其他名字。");
+            addError("参数错误：你使用了 'questionnaire' 字段，正确字段名是 'questions'（JSON 数组字符串）。请重新调用 questionnaire:compile，参数名是 title 和 questions，不要用其他名字。");
         }
         if (questions.length === 0) {
             addError("问题列表不能为空");
@@ -512,7 +512,7 @@ var askPackage = (function () {
             return { success: false, error: "导入失败: " + e.message, path: path };
         }
     }
-    return { ask: ask, importqlg: importqlg };
+    return { compile: ask, importqlg: importqlg };
 })();
-exports.ask = askPackage.ask;
+exports.compile = askPackage.compile;
 exports.importqlg = askPackage.importqlg;

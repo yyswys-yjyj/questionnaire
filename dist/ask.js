@@ -6,8 +6,8 @@
         "en": "Answer Questionnaire"
     },
     "description": {
-        "zh": "回答问卷 - questionnaire 系的第二个工具：用户向 AI 出题，AI 通过工具作答。流程：1) AI 输出 <ask_questionnaire>（无 id 时为构建模式），用户构建问卷并点击「开始答题」，系统会把问卷 ID 通过聊天消息发送给 AI；2) AI 使用本子包工具作答：query（按标题搜索问卷，也可不搜，直接用消息中的问卷ID）、read（读取问卷与题目详情）、answer（提交答案，可重复修改）、finish（完成问卷，必答题未填会拒绝）；3) AI 完成后再输出 <ask_questionnaire>{\"id\":\"<问卷ID>\"}</ask_questionnaire> 呈现作答结果给用户。\n\n━━━━━━ AI 使用手册：问卷询问 ━━━━━━\n1. 用户想要向你出题时，输出 <ask_questionnaire>{\"title\":\"<标题>\"}</ask_questionnaire> 或直接 <ask_questionnaire></ask_questionnaire>，渲染后用户会看到题目构建器。\n2. 用户构建完问卷点击「开始答题」后，你会在聊天中收到一条消息，包含问卷ID。\n3. 用 read 传入问卷ID 读取问卷全部题目（含题型/选项/必答标记），逐题用 answer 提交答案。\n4. 所有题目作答完毕后调用 finish 完成问卷（有必答题未填会报错，补答后再 finish）。\n5. 完成后输出 <ask_questionnaire>{\"id\":\"<问卷ID>\"}</ask_questionnaire> 呈现你的作答结果。\n\n━━━━━━ 状态机 ━━━━━━\n- 问卷状态：draft（未完成，用户构建中，AI 不可作答）→ ready（已就绪，AI 可作答）→ done（已完成）\n- 题目状态：unfilled（未填）→ filled（已填）；filled 的题可随时用 answer 重新填写。\n\n━━━━━━ 数据存储 ━━━━━━\n- 问卷 JSON 保存在 /storage/emulated/0/Download/Operit/questionnaire/userask/<问卷ID>.json（目录不存在会自动创建）\n\n注意：answer 的 value 格式按题型：single=选项文本(string)；multiple=选项文本数组(array)；text/textarea=字符串；rating/likert/nps=数字；time=HH:MM:SS 字符串。",
-        "en": "Answer Questionnaire : the USER sets questions, the AI answers them via tools. Flow: 1) AI outputs <ask_questionnaire> (no id = build mode), user builds questions and taps Start; the system sends the questionnaire ID to AI via chat. 2) AI answers with tools: query (search by title; optional, the ID is in the chat message), read (fetch questions), answer (submit, re-submittable), finish (complete; required questions must be answered). 3) AI outputs <ask_questionnaire>{\"id\":\"<ID>\"}</ask_questionnaire> to present results.\n\n━━━━━ AI MANUAL: ASK QUESTIONNAIRE ━━━━━\n1. When the user wants to quiz you, output <ask_questionnaire>{\"title\":\"<title>\"}</ask_questionnaire> or just <ask_questionnaire></ask_questionnaire>; the user sees a question builder.\n2. After the user taps Start, you receive a chat message containing the questionnaire ID.\n3. Use read with the ID to fetch all questions; answer each with the answer tool.\n4. Call finish when done (fails if required questions are missing).\n5. Output <ask_questionnaire>{\"id\":\"<ID>\"}</ask_questionnaire> to present your answers.\n\n━━━━━ STATE MACHINE ━━━━━\n- Questionnaire: draft (building, AI cannot answer) → ready (AI can answer) → done (finished)\n- Question: unfilled → filled; filled questions can be re-answered with answer.\n\n━━━━━ STORAGE ━━━━━\n- JSON at /storage/emulated/0/Download/Operit/questionnaire/userask/<ID>.json (auto-created).\n\nanswer value format by type: single=option text(string); multiple=array of option texts; text/textarea=string; rating/likert/nps=number; time=HH:MM:SS string."
+        "zh": "回答问卷【反向问卷：用户出题→AI（你）作答】。当用户让你【回答一份来自用户的问卷/做一份他出的题】时用你可以本包（常见情景：用户需要向AI询问问题、用户需要出一份问卷给AI）。\n\n【明确职责边界】本包与「questionnaire」主包方向相反，勿混淆：\n- 本包 ask：用户出题、你（AI）作答（用 built/read/answer/finish）\n- questionnaire 主包：你（AI）出题、用户作答（用户填表单）\n你要向用户提问（让用户填）时用 questionnaire 主包；用户让你作答其出的题时用本包。\n\n【发起问卷（新增时必做）】用户要求你出题/发起问卷时，第一步必须调用 built 工具创建草稿并获取问卷ID——绝不直接输出 XML 或先跳过 built。拿到 ID 后，输出 <ask_questionnaire>{\"id\":\"<问卷ID>\",\"state\":\"built\"}</ask_questionnaire> 让用户构建题目。\n\n【作答】用户开始答题后：1) 用 read 读取题目详情；2) 逐题用 answer 提交答案（已填可重填）；3) 全部答完调用 finish 完成。\n\n【呈现】完成后输出 <ask_questionnaire>{\"id\":\"<问卷ID>\",\"state\":\"complete\"}</ask_questionnaire>（或只带 id）呈现作答结果。\n\n━━━━━━ AI 使用手册：问卷询问 ━━━━━━\n1. 用户想要向你出题时：先调用 built 工具获取问卷ID（这是第一步，绝不能省），再输出 <ask_questionnaire>{\"id\":\"<ID>\",\"state\":\"built\"}</ask_questionnaire>。\n2. 用户构建完问卷点击「开始答题」后，你会在聊天中收到一条消息，包含问卷ID。\n3. 用 read 传入问卷ID 读取全部题目（含题型/选项/必答标记），逐题用 answer 提交答案。\n4. 所有题目作答完毕后调用 finish 完成问卷（有必答题未填会报错，补答后再 finish）。\n5. 完成后输出 <ask_questionnaire>{\"id\":\"<问卷ID>\"}</ask_questionnaire> 呈现你的作答结果。\n\n━━━━━━ 状态机 ━━━━━━\n- 问卷状态：draft（未完成，用户构建中，AI 不可作答）→ ready（已就绪，AI 可作答）→ done（已完成）\n- 题目状态：unfilled（未填）→ filled（已填）；filled 的题可随时用 answer 重新填写。\n\n━━━━━━ 数据存储 ━━━━━━\n- 问卷 JSON 保存在 /storage/emulated/0/Download/Operit/questionnaire/userask/<问卷ID>.json（目录不存在会自动创建）\n\n注意：answer 的 value 格式按题型：single=选项文本(string)；multiple=选项文本数组(array)；text/textarea=字符串；rating/likert/nps=数字；time=HH:MM:SS 字符串。",
+        "en": "Answer Questionnaire【REVERSE survey: the USER sets questions → AI (you) answers】. Use this package when the user asks YOU to answer/fill a questionnaire they created.\n\n【RESPONSIBILITY BOUNDARY】This package is the reverse direction of the questionnaire package, do not confuse:\n- This package (ask): the user sets questions, you (AI) answer (via built/read/answer/finish)\n- questionnaire package: you (AI) set questions, the user answers (fills a form)\nWhen you want to survey the user (let them fill), use the questionnaire package; when the user asks you to answer their questions, use this package.\n\n【TO CREATE/INITIATE a questionnaire】When the user asks you to make/send a questionnaire, ALWAYS call the built tool FIRST to create a draft and get the questionnaire ID - never output XML directly or skip built. After getting the ID, output <ask_questionnaire>{\"id\":\"<ID>\",\"state\":\"built\"}</ask_questionnaire> to let the user build questions.\n\n【TO ANSWER】After the user starts: 1) use read to fetch questions; 2) answer each with the answer tool (re-submittable); 3) call finish when done.\n\n【TO PRESENT】After finishing, output <ask_questionnaire>{\"id\":\"<ID>\",\"state\":\"complete\"}</ask_questionnaire> (or just id).\n\n━━━━━ AI MANUAL: ASK QUESTIONNAIRE ━━━━━\n1. When the user wants to quiz you: FIRST call the built tool to get the questionnaire ID (mandatory, never skip), then output <ask_questionnaire>{\"id\":\"<ID>\",\"state\":\"built\"}</ask_questionnaire>.\n2. After the user taps Start, you receive a chat message containing the questionnaire ID.\n3. Use read with the ID to fetch all questions; answer each with the answer tool.\n4. Call finish when done (fails if required questions are missing).\n5. Output <ask_questionnaire>{\"id\":\"<ID>\"}</ask_questionnaire> to present your answers.\n\n━━━━━ STATE MACHINE ━━━━━\n- Questionnaire: draft (building, AI cannot answer) → ready (AI can answer) → done (finished)\n- Question: unfilled → filled; filled questions can be re-answered with answer.\n\n━━━━━ STORAGE ━━━━━\n- JSON at /storage/emulated/0/Download/Operit/questionnaire/userask/<ID>.json (auto-created).\n\nanswer value format by type: single=option text(string); multiple=array of option texts; text/textarea=string; rating/likert/nps=number; time=HH:MM:SS string."
     },
     "category": "Utility",
     "enabledByDefault": true,
@@ -15,8 +15,8 @@
         {
             "name": "built",
             "description": {
-                "zh": "创建一个新的问卷草稿（status=draft）并返回问卷 ID。可传 questions 预注册题目（用户打开构建器后可见并继续编辑）。AI 拿到 ID 后发送 <ask_questionnaire>{\"id\":\"<问卷ID>\",\"state\":\"built\"}</ask_questionnaire> 让用户构建；用户出题后 AI 用 read/answer/finish 作答；完成后发送 <ask_questionnaire>{\"id\":\"<问卷ID>\",\"state\":\"complete\"}</ask_questionnaire>（或只带 id）呈现结果。空 XML/空 JSON 渲染时同样进入 built 构建模式。",
-                "en": "Create a new questionnaire draft (status=draft) and return its ID. Optional questions param pre-registers questions (visible/editable in the builder). Then send <ask_questionnaire>{\"id\":\"<ID>\",\"state\":\"built\"}</ask_questionnaire>; answer with read/answer/finish; finally send <ask_questionnaire>{\"id\":\"<ID>\",\"state\":\"complete\"}</ask_questionnaire> (or just id). Empty XML/JSON also enters built mode."
+                "zh": "【第一步·必调】用户要求你发起问卷/出题时，必须首先调用本工具创建一个问卷草稿并获取问卷ID（ID 是后续一切操作的前提）。可选传 questions 预注册题目。拿到 ID 后发送 <ask_questionnaire>{\"id\":\"<问卷ID>\",\"state\":\"built\"}</ask_questionnaire> 让用户构建；用户出题后你再用 read/answer/finish 作答；完成后发送 <ask_questionnaire>{\"id\":\"<问卷ID>\",\"state\":\"complete\"}</ask_questionnaire> 呈现结果。记住：必须先调 built 拿到 ID，否则问卷无法建立。",
+                "en": "【MUST CALL FIRST】When the user asks you to create/send a questionnaire, always call this tool FIRST to create a draft and obtain the questionnaire ID (the ID is prerequisite for everything). Optional questions param pre-registers questions. Then send <ask_questionnaire>{\"id\":\"<ID>\",\"state\":\"built\"}</ask_questionnaire> to let the user build; answer with read/answer/finish; finally send <ask_questionnaire>{\"id\":\"<ID>\",\"state\":\"complete\"}</ask_questionnaire> to present results. You MUST call built to get an ID before anything else."
             },
             "parameters": [
                 {
@@ -60,8 +60,8 @@
         {
             "name": "read",
             "description": {
-                "zh": "读取问卷详情：标题、状态、全部题目（题型/选项/必答标记/当前答案/作答状态）。用于 AI 了解题目后逐题作答。",
-                "en": "Read questionnaire details: title, status, all questions (type/options/required/current answer/status). Use to understand questions before answering."
+                "zh": "读取问卷详情：标题、状态、全部题目（题型/选项/必答标记/当前答案/作答状态）。用于 AI 了解题目后逐题作答。注意每题含 allowOther 标记：true 表示该单选/多选允许\"其他\"自定义答案。",
+                "en": "Read questionnaire details: title, status, all questions (type/options/required/current answer/status). Use to understand questions before answering. Each question includes allowOther flag: true means the single/multiple allows a free-form \"Other\" answer."
             },
             "parameters": [
                 {
@@ -78,8 +78,8 @@
         {
             "name": "answer",
             "description": {
-                "zh": "提交一道题的答案。value 格式按题型：single=选项文本(string)；multiple=选项文本数组(array)；text/textarea=字符串；rating=数字(1-5)；time=HH:MM:SS 字符串。已填的题可以重复调用以重新作答。问卷处于 draft（未就绪）状态时不可作答。",
-                "en": "Submit an answer for one question. value format by type: single=option text(string); multiple=array of option texts; text/textarea=string; rating=number(1-5); time=HH:MM:SS string. Filled questions can be re-answered. Cannot answer while the questionnaire is draft."
+                "zh": "提交一道题的答案。value 格式按题型：single=选项文本(string，必须是选项之一，若题目 allowOther=true 可传\"其他:任意内容\")；multiple=选项文本数组(array，每项必须是选项之一)；text=单行字符串(不可含换行)；textarea=多行字符串；rating=1~5整数；time=HH:MM:SS 字符串。已填的题可以重复调用以重新作答。问卷处于 draft（未就绪）状态时不可作答。不合规的值会被校验拒绝。",
+                "en": "Submit an answer for one question. value format by type: single=option text(string, must be one of options; if allowOther=true, \"Other:any text\" allowed); multiple=array of option texts (each must be an option); text=single-line string (no newline); textarea=multi-line string; rating=integer 1-5; time=HH:MM:SS string. Filled questions can be re-answered. Cannot answer while draft. Non-conforming values are rejected by validation."
             },
             "parameters": [
                 {
@@ -103,8 +103,8 @@
                 {
                     "name": "value",
                     "description": {
-                        "zh": "答案。按题型：single=选项文本(string)；multiple=选项文本数组(array)；text/textarea=字符串；rating=数字(1-5)；time=HH:MM:SS 字符串",
-                        "en": "Answer value. By type: single=option text(string); multiple=array; text/textarea=string; rating=number(1-5); time=HH:MM:SS string"
+                        "zh": "答案。按题型：single=选项文本(string)，必须是选项之一（若题目 allowOther=true 允许传\"其他:任意内容\"）；multiple=字符串，传 JSON 数组串如 [\"1\",\"2\"] 或逗号分隔如 \"1,2\"（每项必须是选项之一）；text=单行字符串(不可含换行)；textarea=多行字符串；rating=字符串数字如 \"3\"(1~5)。读题意外的值会被拒绝。",
+                        "en": "Answer value. By type: single=option text(string, must be one of options; if the question allowOther=true, \"Other:any text\" is allowed); multiple=STRING - either a JSON array string like [\"1\",\"2\"] or comma-separated like \"1,2\" (each must be an option); text=single-line string (no newline); textarea=multi-line string; rating=string number like \"3\" (1-5). Values not matching will be rejected."
                     },
                     "type": "string",
                     "required": true
@@ -132,6 +132,7 @@
     ]
 }
 */
+
 // ask 子包入口（dist/ask.js）— 问卷询问工具
 // 依赖编译产物：./ask/askcore.js（状态机）、./ask/askstore.js（存储）
 var core = require("./ask/askcore.js");
@@ -235,8 +236,53 @@ async function answer(params) {
         if (!qid) return { success: false, error: "缺少 questionId" };
         var ask = await store.loadAsk(id);
         if (!ask) return { success: false, error: "问卷不存在: " + id };
-        var r = core.setAnswer(ask, qid, params.value);
-        if (!r.ok) return { success: false, error: r.message };
+        // value 参数固定以 string 传入（框架 schema 仅支持 string）。
+        // 这里按题型把字符串"还原"成正确结构再交给 core 校验：
+        //   - multiple：接受 JSON 数组字符串 或 逗号分隔串 → 数组
+        //   - rating：接受字符串数字 → number
+        //   - 其余：直接字符串
+        var value = params.value;
+        var qTarget = null;
+        for (var qi = 0; qi < (ask.questions || []).length; qi++) {
+            if (ask.questions[qi].id === qid) { qTarget = ask.questions[qi]; break; }
+        }
+        if (qTarget && qTarget.type === "multiple") {
+            if (Array.isArray(value)) {
+                // 已是数组则原样保留
+            } else if (value !== null && value !== undefined) {
+                var vs = String(value);
+                var parsedArr = null;
+                try {
+                    var j = JSON.parse(vs);
+                    if (Array.isArray(j)) parsedArr = j;
+                } catch (e) {}
+                if (parsedArr) value = parsedArr;
+                else value = vs.split(/[,，、]/).map(function (s) { return s.trim(); }).filter(function (s) { return s; });
+            }
+        } else if (qTarget && qTarget.type === "rating") {
+            if (typeof value !== "number" && value !== null && value !== undefined && value !== "") {
+                var n = Number(value);
+                if (!isNaN(n)) value = n;   // 字符串数字 → number
+            }
+        }
+        var r = core.setAnswer(ask, qid, value);
+        if (!r.ok) {
+            // 组装可修正的错误指引：原因 + 该题上下文，让 AI 能据此重试
+            var reason = r.message || "答案不符合该题要求";
+            var q = r.q;
+            var fix = "";
+            if (q) {
+                var t = q.type;
+                if (t === "single") fix = "单选：value 须为 options 之一（" + (q.options || []).join("/") + "）" + (q.allowOther ? "，或 \"其他:任意内容\"" : "");
+                else if (t === "multiple") fix = "多选：value 须为字符串数组，每项均在 options（" + (q.options || []).join("/") + "）内" + (q.allowOther ? "，或每项为 \"其他:内容\"" : "");
+                else if (t === "text") fix = "单行：value 为不含换行的字符串";
+                else if (t === "textarea") fix = "多行：value 为任意字符串";
+                else if (t === "rating") fix = "评分：value 为 1~5 的整数";
+                else if (t === "time") fix = "时间：value 为 HH:MM:SS 字符串";
+                if (q.question) fix += "。题目：" + q.question;
+            }
+            return { success: false, error: reason + "。" + (fix ? "请按以下修正重试：" + fix : ""), question: q || null, questionId: r.questionId };
+        }
         var ok = await store.saveAsk(ask);
         if (!ok) return { success: false, error: "答案保存失败（写入文件失败）" };
         return { success: true, message: r.message, questionId: r.questionId, status: r.status, questionnaireStatus: ask.status };

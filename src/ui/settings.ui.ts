@@ -77,6 +77,7 @@ function _t(key) {
         "ui.setting.strictDesc": "检查全部语法",
         "ui.setting.strictDescRelaxed": "放行非致命错误",
         "ui.setting.lang.loadFail": "语言包加载失败：",
+                "ui.setting.langParseFail": "解析语言包失败: ",
         "ui.setting.scanFail": "扫描失败：",
         "ui.setting.switchFail": "切换失败：",
         "ui.setting.foundPacks": "找到 %d 个语言包，请关闭设置页后重新打开",
@@ -230,8 +231,24 @@ var _questionLayoutLabel = function(l) { return l === "continuous" ? _t("ui.sett
 var _timeModeLabel = function(m) { return m === "picker" ? _t("ui.setting.timePicker") : _t("ui.setting.timeInput"); };
 var _displayModeLabel = function(d) { return d === "normal" ? _t("ui.setting.displayNormal") : (d === "hidden" ? _t("ui.setting.displayHidden") : _t("ui.setting.displayBlocked")); };
 
+// 版本号规则：展示用十进制（1.7.10），比较用十六进制（1.7.10 → "17A"，每段转 hex 拼接，大小写均可）
+// hexVerToStr：hex 比较版本号 → 十进制展示串。前两段各 1 位 hex，其余为末段。
+function hexVerToStr(h) {
+    if (h === null || h === undefined || h === "") return "";
+    h = String(h).trim().toUpperCase();
+    var s1 = parseInt(h.charAt(0), 16) || 0;
+    var s2 = h.length > 1 ? (parseInt(h.charAt(1), 16) || 0) : 0;
+    var s3 = h.length > 2 ? (parseInt(h.substring(2), 16) || 0) : 0;
+    return s1 + "." + s2 + "." + s3;
+}
+// hexVerNum：hex 比较版本号 → 数值（用于比较；兼容旧格式 3 位十进制数字，如 176=1.7.6）
+function hexVerNum(h) {
+    if (h === null || h === undefined || h === "") return 0;
+    return parseInt(String(h).trim().toUpperCase(), 16) || 0;
+}
+
 export default async function Screen(ctx) {
-    var _PLUGIN_VER = 176;
+    var _PLUGIN_VER = "17A"; // 比较版本号：十六进制（1.7.10 → 17A），展示统一十进制
     var primary = ctx.MaterialTheme.colorScheme.primary;
     var onSurface = ctx.MaterialTheme.colorScheme.onSurface;
     var onSurfaceVariant = ctx.MaterialTheme.colorScheme.onSurfaceVariant;
@@ -280,6 +297,11 @@ export default async function Screen(ctx) {
     var langScanning = langScanningState[0];
     var settingsLangState = ctx.useState("_settingsLang", _settingsLang);
     var settingsLang = settingsLangState[0];
+    // 公告（最顶层横幅）：远程 JSON {status, connect}，status=true 才显示，connect 为显示内容
+    var noticeState = ctx.useState("_notice", "");
+    var noticeHiddenState = ctx.useState("_noticeHidden", false);
+    var noticeLoadedState = ctx.useState("_noticeLoaded", false);
+    var notice = noticeState[0];
     // 草稿管理 state
     var ASK_DIR_SET = "/sdcard/Download/Operit/questionnaire/userask";
     var draftsState = ctx.useState("_drafts", null);
@@ -381,6 +403,7 @@ export default async function Screen(ctx) {
             "ui.setting.strictDesc": "检查全部语法",
             "ui.setting.strictDescRelaxed": "放行非致命错误",
             "ui.setting.lang.loadFail": "语言包加载失败：",
+                        "ui.setting.langParseFail": "解析语言包失败: ",
             "ui.setting.scanFail": "扫描失败：",
             "ui.setting.switchFail": "切换失败：",
             "ui.setting.foundPacks": "找到 %d 个语言包，请关闭设置页后重新打开",
@@ -889,7 +912,7 @@ export default async function Screen(ctx) {
                                 packs.push({ id: parsed.id, path: fp, displayName: displayName, author: parsed.author || "" });
                             }
                         } catch(e) {
-                            ctx.showToast("解析语言包失败: " + (e && e.message ? e.message : String(e)));
+                            ctx.showToast(_t("ui.setting.langParseFail") + (e && e.message ? e.message : String(e)));
                         }
                     }
             }
@@ -1011,6 +1034,7 @@ export default async function Screen(ctx) {
 "ui.ask.options": "选项",
 "ui.ask.optionsPlaceholder": "选项用逗号分隔，例如：是,否",
 "ui.ask.required": "必答",
+        "ui.ask.allowOther": "启用其他",
 "ui.ask.confirm": "确认添加",
 "ui.ask.cancel": "取消",
 "ui.ask.saved": "✓ 已保存",
@@ -1146,6 +1170,7 @@ export default async function Screen(ctx) {
                         "ui.setting.strictDesc": "检查全部语法",
                         "ui.setting.strictDescRelaxed": "放行非致命错误",
                         "ui.setting.lang.loadFail": "语言包加载失败：",
+                                                "ui.setting.langParseFail": "解析语言包失败: ",
                         "ui.setting.scanFail": "扫描失败：",
                         "ui.setting.switchFail": "切换失败：",
                         "ui.setting.foundPacks": "找到 %d 个语言包，请关闭设置页后重新打开",
@@ -1261,6 +1286,67 @@ export default async function Screen(ctx) {
                         "ui.market.langpack.manageRefresh": "请刷新",
                         "ui.market.langpack.manageEmpty": "当前无语言包",
                         "ui.market.langpack.manageDelete": "删除",
+                        "ui.ask.idLabel": "问卷ID: ",
+                        "ui.ask.noAskId": "问卷 ID 未分配",
+                        "ui.ask.untitled": "(无标题)",
+                        "ui.form.building": "📋 表单制作中...",
+                        "ui.form.defaultTitle": "问卷",
+                        "ui.form.err.attrSyntax": "不支持的属性写法：请在 <questionnaire> 标签内使用标准 JSON 格式，不要将 title/questions 等作为标签属性。正确示例：<questionnaire>{\"title\":\"问卷标题\",\"questions\":[...]}</questionnaire>",
+                        "ui.form.err.badType": "第%s题 type 不合法: %s",
+                        "ui.form.err.blockedMsg": "问卷已被拦截：当前设置为拦截模式，问卷不会显示。",
+                        "ui.form.err.blockedTitle": "(问卷已被拦截)",
+                        "ui.form.err.emptyData": "问卷数据为空或格式不正确",
+                        "ui.form.err.emptyQuestion": "第%s题 question 为空",
+                        "ui.form.err.enableOtherSingle": "第%s题 enableOther 仅支持 single 题型",
+                        "ui.form.err.exprNoQuestion": "第%s组第%s个缺少?",
+                        "ui.form.err.groupNotArray": "第%s组不是数组",
+                        "ui.form.err.jsonSyntax": "JSON 语法错误: %s",
+                        "ui.form.err.noOptionsField": "第%s题（%s）不应有 options 字段",
+                        "ui.form.err.optionsShort": "第%s题（%s）选项不足",
+                        "ui.form.err.parseFailTitle": "(解析失败)",
+                        "ui.form.err.qNoName": "第%s题",
+                        "ui.form.err.refUnknownVar": "引用了不存在的变量: %s",
+                        "ui.form.err.resultFormat": "result 格式错误",
+                        "ui.form.err.resultNotArray": "result 格式错误：result 必须是二维数组",
+                        "ui.form.err.resultSyntax": "结果表达式语法错误: %s",
+                        "ui.form.err.resultcodeConflict": "resultcode 和 result 不能同时存在，请只使用其中一个",
+                        "ui.form.err.sectionRequired": "第%s题 section 类型不能设置 required",
+                        "ui.form.err.unknownField": "第%s题存在不支持的字段 '%s'，正确字段名：type/question/options/required/subtitle/enableOther/id",
+                        "ui.form.err.wrongClose": "XML 标签错误：使用了 \"%s\" 作为闭合标签，正确应为 </questionnaire>",
+                        "ui.form.err.wrongCloseTitle": "(标签错误)",
+                        "ui.market.langpack.count": " 个",
+                        "ui.market.source.add": "＋ 添加市场源",
+                        "ui.market.source.addUrl": "添加",
+                        "ui.market.source.added": "已添加源: ",
+                        "ui.market.source.basePlaceholder": "输入基源 URL，用于获取源信息...",
+                        "ui.market.source.choose": "选择默认源（加载市场包时使用）",
+                        "ui.market.source.confirm": "✓ 确认无误",
+                        "ui.market.source.current": "当前源",
+                        "ui.market.source.delete": "删除",
+                        "ui.market.source.deleted": "已删除源: ",
+                        "ui.market.source.done": "✓ 完成添加",
+                        "ui.market.source.empty": "暂无自定义源",
+                        "ui.market.source.extraPlaceholder": "添加代理 URL...",
+                        "ui.market.source.fetch": "获取源信息",
+                        "ui.market.source.fetchFail": "获取失败: ",
+                        "ui.market.source.fetching": "获取中...",
+                        "ui.market.source.invalid": "源信息格式不正确（需要 title / organization / url / list）",
+                        "ui.market.source.isDefault": "✓ 默认",
+                        "ui.market.source.loadFail": "读取源配置失败: ",
+                        "ui.market.source.loadFrom": "从当前源加载中...",
+                        "ui.market.source.noList": "源返回的列表为空",
+                        "ui.market.source.official": "官方",
+                        "ui.market.source.org": "提供者",
+                        "ui.market.source.packCount": "语言包",
+                        "ui.market.source.retry": "重新输入",
+                        "ui.market.source.setDefault": "设为默认",
+                        "ui.market.source.stepBase": "第一步：添加基源",
+                        "ui.market.source.stepConfirm": "第二步：确认源信息",
+                        "ui.market.source.stepUrls": "第三步：备用 URL（无 https:// 前缀自动补全）",
+                        "ui.market.source.title": "市场源",
+                        "ui.market.source.urlCount": "URL",
+                        "ui.de.allowOther": "启用其他",
+
                     }},
                     { id: "en_us", lang: {
                         "ui.form.submit": "Submit",
@@ -1375,6 +1461,7 @@ export default async function Screen(ctx) {
 "ui.ask.options": "Options",
 "ui.ask.optionsPlaceholder": "Options separated by commas, e.g. Yes,No",
 "ui.ask.required": "Required",
+        "ui.ask.allowOther": "Enable Other",
 "ui.ask.confirm": "Add",
 "ui.ask.cancel": "Cancel",
 "ui.ask.saved": "✓ Saved",
@@ -1510,6 +1597,7 @@ export default async function Screen(ctx) {
                         "ui.setting.strictDesc": "Check all syntax",
                         "ui.setting.strictDescRelaxed": "Allow non-fatal errors",
                         "ui.setting.lang.loadFail": "Language pack load failed: ",
+                                                "ui.setting.langParseFail": "解析语言包失败: ",
                         "ui.setting.scanFail": "Scan failed: ",
                         "ui.setting.switchFail": "Switch failed: ",
                         "ui.setting.foundPacks": "Found %d pack(s), please close and reopen settings",
@@ -1628,6 +1716,67 @@ export default async function Screen(ctx) {
                         "ui.setting.type.time": "Time Selection",
                         "ui.setting.lparen": "(",
                         "ui.setting.rparen": ")",
+                        "ui.ask.idLabel": "Questionnaire ID: ",
+                        "ui.ask.noAskId": "Questionnaire ID not assigned",
+                        "ui.ask.untitled": "(Untitled)",
+                        "ui.form.building": "📋 Building form...",
+                        "ui.form.defaultTitle": "Questionnaire",
+                        "ui.form.err.attrSyntax": "Unsupported attribute syntax: use standard JSON inside <questionnaire> tag, do not put title/questions as tag attributes. Example: <questionnaire>{\"title\":\"Survey title\",\"questions\":[...]}</questionnaire>",
+                        "ui.form.err.badType": "Q%s invalid type: %s",
+                        "ui.form.err.blockedMsg": "Questionnaire blocked: display mode is set to block, form will not show.",
+                        "ui.form.err.blockedTitle": "(Questionnaire blocked)",
+                        "ui.form.err.emptyData": "Questionnaire data is empty or invalid",
+                        "ui.form.err.emptyQuestion": "Q%s question is empty",
+                        "ui.form.err.enableOtherSingle": "Q%s enableOther only supported for single type",
+                        "ui.form.err.exprNoQuestion": "Group %s item %s missing '?'",
+                        "ui.form.err.groupNotArray": "Group %s is not an array",
+                        "ui.form.err.jsonSyntax": "JSON syntax error: %s",
+                        "ui.form.err.noOptionsField": "Q%s (%s) should not have options field",
+                        "ui.form.err.optionsShort": "Q%s (%s) needs at least 2 options",
+                        "ui.form.err.parseFailTitle": "(Parse failed)",
+                        "ui.form.err.qNoName": "Question %s",
+                        "ui.form.err.refUnknownVar": "References unknown variable: %s",
+                        "ui.form.err.resultFormat": "result format error",
+                        "ui.form.err.resultNotArray": "result format error: result must be a 2D array",
+                        "ui.form.err.resultSyntax": "Result expression syntax error: %s",
+                        "ui.form.err.resultcodeConflict": "resultcode and result cannot coexist, use only one",
+                        "ui.form.err.sectionRequired": "Q%s section cannot have required",
+                        "ui.form.err.unknownField": "Q%s has unsupported field '%s'. Valid fields: type/question/options/required/subtitle/enableOther/id",
+                        "ui.form.err.wrongClose": "XML tag error: used \"%s\" as closing tag, expected </questionnaire>",
+                        "ui.form.err.wrongCloseTitle": "(Tag error)",
+                        "ui.market.langpack.count": " installed",
+                        "ui.market.source.add": "＋ Add Source",
+                        "ui.market.source.addUrl": "Add",
+                        "ui.market.source.added": "Source added: ",
+                        "ui.market.source.basePlaceholder": "Enter base source URL to fetch info...",
+                        "ui.market.source.choose": "Choose default source (used to load market)",
+                        "ui.market.source.confirm": "✓ Confirm",
+                        "ui.market.source.current": "Current Source",
+                        "ui.market.source.delete": "Delete",
+                        "ui.market.source.deleted": "Source deleted: ",
+                        "ui.market.source.done": "✓ Finish",
+                        "ui.market.source.empty": "No custom sources",
+                        "ui.market.source.extraPlaceholder": "Add proxy URL...",
+                        "ui.market.source.fetch": "Fetch Info",
+                        "ui.market.source.fetchFail": "Fetch failed: ",
+                        "ui.market.source.fetching": "Fetching...",
+                        "ui.market.source.invalid": "Invalid source format (need title / organization / url / list)",
+                        "ui.market.source.isDefault": "✓ Default",
+                        "ui.market.source.loadFail": "Load source config failed: ",
+                        "ui.market.source.loadFrom": "Loading from current source...",
+                        "ui.market.source.noList": "Source returned empty list",
+                        "ui.market.source.official": "Official",
+                        "ui.market.source.org": "Organization",
+                        "ui.market.source.packCount": "Packs",
+                        "ui.market.source.retry": "Re-enter",
+                        "ui.market.source.setDefault": "Set Default",
+                        "ui.market.source.stepBase": "Step 1: Add Base Source",
+                        "ui.market.source.stepConfirm": "Step 2: Confirm Source Info",
+                        "ui.market.source.stepUrls": "Step 3: Backup URLs (https:// auto-added)",
+                        "ui.market.source.title": "Market Sources",
+                        "ui.market.source.urlCount": "URLs",
+                        "ui.de.allowOther": "Enable Other",
+
                     }}
                 ];
                 for (var dpi = 0; dpi < defaultPacks.length; dpi++) {
@@ -1643,7 +1792,7 @@ export default async function Screen(ctx) {
                 }
             }
             langPacksState[1](packs);
-            ctx.showToast("找到 " + packs.length + " 个语言包，请关闭设置页后重新打开");
+            ctx.showToast(_t("ui.setting.foundPacks").replace("%d", String(packs.length)));
         } catch(e) {
             ctx.showToast(_t("ui.setting.scanFail") + String(e));
         }
@@ -1842,7 +1991,7 @@ export default async function Screen(ctx) {
             ctx.UI.Text({ text: _t("ui.setting.about.square"), style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Spacer({ height: 8 }),
             ctx.UI.Text({ text: _t("ui.setting.aboutPlugin"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.pluginInfo") + "v1.7.6", style: "bodySmall", color: onSurfaceVariant }),
+            ctx.UI.Text({ text: _t("ui.setting.pluginInfo") + "v1.7.10", style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Text({ text: _t("ui.setting.supportedTypes"), style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Text({ text: _t("ui.setting.supportedFeatures"), style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Spacer({ height: 8 }),
@@ -1852,6 +2001,38 @@ export default async function Screen(ctx) {
             ctx.UI.Text({ text: _t("ui.setting.based"), style: "bodySmall", color: onSurfaceVariant }),
         ]),
     ]);
+
+    // ===== 公告区（最顶层横幅）=====
+    // 远程 JSON 格式：{"status": true, "connect": "公告内容"}；status=true 才显示，connect 为显示内容
+    var _noticeUrls = [
+        "https://raw.githubusercontent.com/yyswys-yjyj/questionnaire/refs/heads/main/api/notice.json",
+        "https://cdn.jsdelivr.net/gh/yyswys-yjyj/questionnaire@main/api/notice.json",
+        "https://cdn.serveryyswys.top/cdn/github/yyswys-yjyj/toolpkg-uno/refs/heads/main/api/notice.json"
+    ];
+    async function loadNotice() {
+        if (noticeLoadedState[0]) return Promise.resolve();
+        for (var ni = 0; ni < _noticeUrls.length; ni++) {
+            try {
+                var res = await ctx.callTool("http_request", { url: _noticeUrls[ni], method: "GET" });
+                // 兼容多种返回格式（同 market 页处理）：裸字符串 / {content} / {data} / {data:{content}}
+                var txt = "";
+                if (res && typeof res === "string") txt = res;
+                else if (res && res.content) txt = String(res.content);
+                else if (res && res.data && typeof res.data === "string") txt = res.data;
+                else if (res && res.data && res.data.content) txt = String(res.data.content);
+                txt = String(txt || "").trim();
+                if (!txt) continue;
+                var obj = JSON.parse(txt);
+                if (obj && (obj.status === true || obj.status === "true") && obj.connect) {
+                    noticeState[1](String(obj.connect));
+                    noticeLoadedState[1](true);
+                    return;
+                }
+            } catch (e) {}
+        }
+        noticeLoadedState[1](true); // 全部失败/未启用：标记已加载，避免重复请求
+        return;
+    }
 
     // ===== 版本检查区 =====
     var _versionUrls = [
@@ -1864,31 +2045,31 @@ export default async function Screen(ctx) {
         if (versionCheckState[0] === "checking") return;
         versionCheckState[1]("checking");
         versionInfoState[1](_t("ui.setting.checking"));
-        var currentVer = String(_PLUGIN_VER);
-        var fmtCur = currentVer.charAt(0) + "." + currentVer.substring(1, 2) + "." + currentVer.substring(2);
+        var currentVer = String(_PLUGIN_VER); // hex 比较版本号（如 17A）
+        var fmtCur = hexVerToStr(currentVer); // 展示统一十进制（1.7.10）
         var si = versionSourceState[0];
         if (si < 0 || si >= _versionUrls.length) { si = 2; }
         try {
             var res = await ctx.callTool("http_request", { url: _versionUrls[si], method: "GET" });
-            var content = res && res.content ? String(res.content).trim() : "";
-            if (content === currentVer) {
+            var content = res && res.content ? String(res.content).trim().toUpperCase() : "";
+            if (content === String(currentVer).toUpperCase()) {
                 versionCheckState[1]("done");
                 versionInfoState[1](_t("ui.setting.latestVerText") + fmtCur + _t("ui.setting.lparen") + _versionSourceLabels[si] + _t("ui.setting.rparen"));
                 return;
             } else if (content) {
                 versionCheckState[1]("done");
-                versionInfoState[1](_t("ui.setting.newVerText") + content.charAt(0) + "." + content.substring(1, 2) + "." + content.substring(2) + _t("ui.setting.lparen") + _t("ui.setting.currentVerText") + fmtCur + _t("ui.setting.sourceText") + _versionSourceLabels[si] + _t("ui.setting.rparen"));
+                versionInfoState[1](_t("ui.setting.newVerText") + hexVerToStr(content) + _t("ui.setting.lparen") + _t("ui.setting.currentVerText") + fmtCur + _t("ui.setting.sourceText") + _versionSourceLabels[si] + _t("ui.setting.rparen"));
                 return;
             }
         } catch(e) {}
         versionCheckState[1]("done");
-        versionInfoState[1]("检查失败：" + _versionSourceLabels[si] + "不可用");
+        versionInfoState[1](_t("ui.setting.checkFail") + _versionSourceLabels[si] + _t("ui.setting.unavailable"));
     }
 
     var versionCheckCard = ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
         ctx.UI.Column({ padding: 16, spacing: 8 }, [
             ctx.UI.Text({ text: _t("ui.setting.versionCheck"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.currentVerText") + "1.7.6", style: "bodyMedium", color: onSurfaceVariant }),
+            ctx.UI.Text({ text: _t("ui.setting.currentVerText") + "1.7.10", style: "bodyMedium", color: onSurfaceVariant }),
             ctx.UI.Text({ text: _t("ui.setting.selectSource"), style: "labelSmall", color: onSurfaceVariant }),
             ctx.UI.LazyRow({ spacing: 6 }, _versionUrls.map(function(url, idx) {
                 return ctx.UI.FilterChip({
@@ -1932,15 +2113,15 @@ export default async function Screen(ctx) {
                 if (parsed && parsed.list && Array.isArray(parsed.list)) {
                     var lines = [];
                     var newLines = [];
-                    var currentVerNum = _PLUGIN_VER;
+                    var currentVerNum = _PLUGIN_VER; // hex 比较版本号
                     for (var ei = 0; ei < parsed.list.length; ei++) {
                         var entry = parsed.list[ei];
                         if (ei > 0) lines.push("---");
-                        lines.push("# " + (entry.version || _t("ui.setting.unknownVer")) + " (" + (entry.currentVer || "?") + ")");
+                        lines.push("# " + (entry.version || _t("ui.setting.unknownVer")) + " (" + (entry.currentVer ? hexVerToStr(entry.currentVer) : "?") + ")");
                         if (entry.details) lines.push(entry.details);
-                        if (entry.currentVer && entry.currentVer > currentVerNum) {
+                        if (entry.currentVer && hexVerNum(entry.currentVer) > hexVerNum(currentVerNum)) {
                             if (newLines.length > 0) newLines.push("---");
-                            newLines.push("# " + (entry.version || _t("ui.setting.unknownVer")) + " (" + entry.currentVer + ")");
+                            newLines.push("# " + (entry.version || _t("ui.setting.unknownVer")) + " (" + hexVerToStr(entry.currentVer) + ")");
                             if (entry.details) newLines.push(entry.details);
                         }
                     }
@@ -1958,7 +2139,7 @@ export default async function Screen(ctx) {
             }
         } catch(e) {}
         changelogState[1]("done");
-        changelogContentState[1]("获取失败：" + _changelogLabels[si] + "不可用");
+        changelogContentState[1](_t("ui.setting.fetchFail") + _changelogLabels[si] + _t("ui.setting.unavailable"));
     }
     function renderChangelogText(md) {
         if (!md) return null;
@@ -2026,7 +2207,19 @@ export default async function Screen(ctx) {
     ]);
 
     // ===== 整体布局 =====
-    return ctx.UI.LazyColumn({ fillMaxSize: true, spacing: 12, padding: { horizontal: 16, top: 16, bottom: 24 } }, [
+    var _noticeCard = (notice && !noticeHiddenState[0]) ? ctx.UI.Card({ fillMaxWidth: true, containerColor: "primaryContainer" }, [
+        ctx.UI.Row({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8, padding: { horizontal: 14, vertical: 8 }, horizontalArrangement: "spaceBetween" }, [
+            ctx.UI.Column({ weight: 1 }, [
+                ctx.UI.Row({ verticalAlignment: "center", spacing: 6 }, [
+                    ctx.UI.Icon({ name: "campaign", size: 18, tint: "onPrimaryContainer" }),
+                    ctx.UI.Text({ text: notice, style: "bodyMedium", color: "onPrimaryContainer", maxLines: 4, overflow: "ellipsis" }),
+                ]),
+            ]),
+            ctx.UI.IconButton({ icon: "close", tint: "onPrimaryContainer", onClick: function () { noticeHiddenState[1](true); } }),
+        ]),
+    ]) : null;
+    return ctx.UI.LazyColumn({ fillMaxSize: true, spacing: 12, padding: { horizontal: 16, top: 16, bottom: 24 }, onLoad: function () { return loadNotice(); } }, [
+        _noticeCard,
         ctx.UI.Text({ text: _t("ui.setting.title"), style: "titleLarge", color: primary }),
         settingsSection,
         typePicker,

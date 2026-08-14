@@ -48,6 +48,7 @@ export default async function Screen(ctx: any) {
         "ui.de.options": "选项（逗号分隔）",
         "ui.de.optionsPlaceholder": "例如：是,否",
         "ui.de.required": "必答",
+        "ui.de.allowOther": "启用其他",
         "ui.de.cancel": "取消",
         "ui.de.confirm": "确定",
         "ui.de.count": "题",
@@ -79,6 +80,7 @@ export default async function Screen(ctx: any) {
     var addQuestionState = ctx.useState("_de_addQuestion", "");
     var addOptionsState = ctx.useState("_de_addOptions", "");
     var addRequiredState = ctx.useState("_de_addRequired", false);
+    var addAllowOtherState = ctx.useState("_de_addAllowOther", false); // 单选启用"其他"（参照 ask 构建器：仅 single 支持）
 
     // ---- 加载该实例（onLoad 触发，不阻塞首次渲染）----
     function loadDraft() {
@@ -165,7 +167,7 @@ export default async function Screen(ctx: any) {
                     newQs[i] = {
                         id: newQs[i].id, type: type, question: qText,
                         subtitle: newQs[i].subtitle || "", options: opts,
-                        required: addRequiredState[0], answer: newQs[i].answer || null,
+                        required: addRequiredState[0], allowOther: type === "single" ? addAllowOtherState[0] : false, answer: newQs[i].answer || null,
                     };
                     break;
                 }
@@ -173,7 +175,7 @@ export default async function Screen(ctx: any) {
         } else {
             newQs.push({
                 id: "q" + (newQs.length + 1), type: type, question: qText,
-                subtitle: "", options: opts, required: addRequiredState[0], answer: null,
+                subtitle: "", options: opts, required: addRequiredState[0], allowOther: type === "single" ? addAllowOtherState[0] : false, answer: null,
             });
         }
         questionsState[1](JSON.stringify(newQs));
@@ -183,6 +185,7 @@ export default async function Screen(ctx: any) {
         addQuestionState[1]("");
         addOptionsState[1]("");
         addRequiredState[1](false);
+        addAllowOtherState[1](false);
     }
 
     function openEdit(q) {
@@ -190,6 +193,7 @@ export default async function Screen(ctx: any) {
         addQuestionState[1](q.question || "");
         addOptionsState[1](Array.isArray(q.options) ? q.options.join(",") : "");
         addRequiredState[1](!!q.required);
+        addAllowOtherState[1](!!q.allowOther);
         editingState[1](q.id || "new");
     }
 
@@ -247,7 +251,7 @@ export default async function Screen(ctx: any) {
         fillMaxWidth: true,
         onClick: function () {
             addTypeState[1]("text"); addQuestionState[1](""); addOptionsState[1]("");
-            addRequiredState[1](false); editingState[1](null);
+            addRequiredState[1](false); addAllowOtherState[1](false); editingState[1](null);
         },
         content: UI.Text({ text: _t("ui.de.add"), style: "labelLarge", color: "onPrimaryContainer" }),
     }));
@@ -265,7 +269,7 @@ export default async function Screen(ctx: any) {
                 rows.push(UI.Card({ fillMaxWidth: true }, [
                     UI.Row({ fillMaxWidth: true, verticalAlignment: "center", horizontalArrangement: "spaceBetween", spacing: 6, padding: { horizontal: 14, vertical: 10 } },
                         [
-                            UI.Column({ spacing: 2, modifier: { weight: 1 } }, [
+                            UI.Column({ spacing: 2, weight: 1 }, [
                                 UI.Text({ text: (idx + 1) + ". " + q.question + (q.required ? " *" : ""), style: "bodyLarge", fontWeight: "bold", maxLines: 2, overflow: "ellipsis" }),
                                 UI.Text({ text: (typeLabels[q.type] || q.type) + (q.options && q.options.length ? " · " + q.options.join(" / ") : ""), style: "labelSmall", color: onSurfaceVariant, maxLines: 2, overflow: "ellipsis" }),
                             ]),
@@ -311,12 +315,21 @@ export default async function Screen(ctx: any) {
                 }),
             );
         }
-        editNodes.push(UI.Row({ fillMaxWidth: true, verticalAlignment: "center", horizontalArrangement: "spaceBetween", padding: { top: 6 } }, [
-            UI.FilterChip({
-                selected: addRequiredState[0],
-                onClick: function () { addRequiredState[1](!addRequiredState[0]); },
-                label: UI.Text({ text: _t("ui.de.required"), style: "labelSmall" }),
-            }),
+        editNodes.push(UI.Row({ fillMaxWidth: true, verticalAlignment: "center", horizontalArrangement: "spaceBetween", spacing: 6, padding: { top: 6 } }, [
+            // 必答/启用其他两个 chip 包 LazyRow（weight 左区可横滚），避免与右侧按钮互相挤压（坑 4.4）
+            UI.LazyRow({ weight: 1, spacing: 6 }, [
+                UI.FilterChip({
+                    selected: addRequiredState[0],
+                    onClick: function () { addRequiredState[1](!addRequiredState[0]); },
+                    label: UI.Text({ text: _t("ui.de.required"), style: "labelSmall" }),
+                }),
+                // 仅单选：启用"其他"，允许自定义内容（多选不支持"其他"）
+                (addTypeState[0] === "single") ? UI.FilterChip({
+                    selected: addAllowOtherState[0],
+                    onClick: function () { addAllowOtherState[1](!addAllowOtherState[0]); },
+                    label: UI.Text({ text: _t("ui.de.allowOther"), style: "labelSmall" }),
+                }) : null,
+            ]),
             UI.Row({ spacing: 8 }, [
                 UI.TextButton({
                     onClick: function () { editingState[1](false); },

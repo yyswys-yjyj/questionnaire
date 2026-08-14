@@ -37,6 +37,7 @@ export function addQuestion(ask, q) {
         subtitle: q.subtitle || "",
         options: Array.isArray(q.options) ? q.options.slice() : [],
         required: q.required === true,
+        allowOther: q.allowOther === true,   // 单选/多选启用"其他"
         answer: null,
     };
     ask.questions.push(nq);
@@ -74,6 +75,12 @@ export function countStatus(ask) {
 }
 
 // 设置答案（可反复重填）。返回 { ok, message, question? }
+// 按题型校验 value 合法性：
+//  - single：字符串，必须命中 options；若 allowOther 开启，允许 "其他xxx" 自定义项
+//  - multiple：字符串数组，每项必须命中 options
+//  - text（单行）：字符串，不得含换行
+//  - textarea（多行）：任意字符串
+//  - rating：1~5 的数字
 export function setAnswer(ask, qid, value) {
     if (ask.status === "draft") {
         return { ok: false, message: "问卷尚未就绪（status=draft），请等待用户开始答题后再作答" };
@@ -83,9 +90,56 @@ export function setAnswer(ask, qid, value) {
         if (ask.questions[i].id === qid) { q = ask.questions[i]; break; }
     }
     if (!q) return { ok: false, message: "题目不存在: " + qid };
+
+    var err = validateAnswer(q, value);
+    if (err) return { ok: false, message: err, questionId: qid, status: questionStatus(q), q: describeQuestion(q) };
+
     q.answer = value;
     ask.updatedAt = Date.now();
     return { ok: true, message: "已填写", questionId: qid, status: questionStatus(q) };
+}
+
+// 校验某题型的 value。返回错误信息字符串，null 表示通过。
+export function validateAnswer(q, value) {
+    var type = q.type;
+    if (type === "single") {
+        if (typeof value !== "string") return "单选题答案必须是字符串";
+        var opts = Array.isArray(q.options) ? q.options : [];
+        if (opts.indexOf(value) >= 0) return null;
+        // allowOther 开启：允许 "其他" 前缀的自定义项
+        if (q.allowOther && /^其他[:：]?/.test(value) && value.replace(/^其他[:：]?/, "").trim() !== "") return null;
+        return "单选题答案必须是选项之一: " + (opts.join(" / ") || "（无选项）") + (q.allowOther ? "，或“其他自定义内容”" : "");
+    }
+    if (type === "multiple") {
+        if (!Array.isArray(value)) return "多选题答案必须是字符串数组";
+        var mopts = Array.isArray(q.options) ? q.options : [];
+        for (var i = 0; i < value.length; i++) {
+            var it = value[i];
+            if (typeof it !== "string") return "多选题答案每项必须是字符串";
+            if (mopts.indexOf(it) < 0 && !(q.allowOther && /^其他[:：]?/.test(it) && it.replace(/^其他[:：]?/, "").trim() !== "")) {
+                return "多选题存在非选项项: " + it;
+            }
+        }
+        return null;
+    }
+    if (type === "text") {
+        if (typeof value !== "string") return "单行文本答案必须是字符串";
+        if (/\r?\n/.test(value)) return "单行文本答案不能包含换行";
+        return null;
+    }
+    if (type === "textarea") {
+        if (typeof value !== "string") return "多行文本答案必须是字符串";
+        return null;
+    }
+    if (type === "rating") {
+        var n = Number(value);
+        if (typeof value !== "number" || isNaN(n) || n < 1 || n > 5 || n !== Math.floor(n)) {
+            return "评分题答案必须是 1~5 的整数";
+        }
+        return null;
+    }
+    // 未知题型：放行
+    return null;
 }
 
 // 完成问卷（status → done）。必答题未填时拒绝完成。
@@ -110,17 +164,23 @@ export function finishAsk(ask) {
 // 序列化输出给工具（read）：返回题目列表（含答案）
 export function describeQuestions(ask) {
     return ask.questions.map(function (q) {
-        return {
-            id: q.id,
-            type: q.type,
-            question: q.question,
-            subtitle: q.subtitle,
-            options: q.options,
-            required: q.required,
-            answer: q.answer,
-            status: questionStatus(q),
-        };
+        return describeQuestion(q);
     });
+}
+
+// 序列化单题（供 read 与校验失败回传给 AI 修正）
+function describeQuestion(q) {
+    return {
+        id: q.id,
+        type: q.type,
+        question: q.question,
+        subtitle: q.subtitle,
+        options: q.options,
+        required: q.required,
+        allowOther: !!q.allowOther,
+        answer: q.answer,
+        status: questionStatus(q),
+        };
 }
 
 // 校验问卷 id 合法性
