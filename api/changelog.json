@@ -1,7 +1,12 @@
 {
     "list": [
         {
-            "version": "v1.7.10 (Repush)",
+            "version": "v1.7.11",
+            "currentVer": "17B",
+            "details": "## 1.7.11 (2026-08-16)\n### English\n#### Info\n- This version has no updates at all, it was just modified to be listed on the market, but the version number still shows as 1.7.10\n\n### 简体中文\n#### 说明\n- 该版本没有任何更新，纯为了上架市场而改的版本，但显示版本号仍为1.7.10"
+        },
+        {
+            "version": "v1.7.10 (Abandon)",
             "currentVer": "17A",
             "details": "## 1.7.10 (2026-08-14 | Includes v1.7.6)\n### English\n#### Added\n- Added 'Questionnaire Inquiry', now users can send questionnaires to AI for questions. Also added a Questionnaire Draft Manager.\n- Added 'Questionnaire Edit', now you can modify and resubmit a questionnaire after submitting it.\n- Added custom market source feature\n\n#### Changes\n- Rewrote the Language Pack Market (though in version 176, language packs can still only be submitted via GitHub, more options coming later)\n- Fixed a bug where sec question types were counted as a single question in paginated layouts\n- Fixed a bug where 'One-Click Complete' gave no feedback ...\n\n### 简体中文\n#### 新增\n- 新增“问卷询问”，现在用户可以向AI发送问卷来提问了，同步新增的还有问卷草稿管理器\n- 新增“问卷修改”，现在，当你提交了问卷以后你可以修改问卷重新提交\n- 新增自定义语言包市场源的功能\n\n#### 修改\n- 重写了语言包市场（虽然语言包提交在176版本中还是只能传GitHub，后续会做）\n- 修复了分页布局中sec题型被计入为一个题目的bug\n- 修复了“一键补全”没有反馈的bug\n\n## Repush Reason\n- 被审核机单杀了，v1.7.10和1.7.10被判为写法不一致"
         },
