@@ -17,6 +17,16 @@ We note the change of our project.
 
 ---
 
+## 1.8.0 (2026-08-19)
+#### Added
+- Added features for plan management, question type configuration, and banned words list management
+
+#### Changed
+- A complete upgrade of the language pack settings
+
+
+---
+
 ## 1.7.10 (2026-08-14)
 #### Added
 - Added custom market source feature
