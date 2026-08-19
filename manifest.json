@@ -1,8 +1,11 @@
 {
   "schema_version": 1,
   "toolpkg_id": "com.operit.questionnaire.fix",
-  "version": "1.7.10",
-  "author": ["liu-baia","yyswys-yjyj"],
+  "version": "1.8.0",
+  "author": [
+    "liu-baia",
+    "yyswys-yjyj"
+  ],
   "main": "dist/main.js",
   "display_name": {
     "zh": "问卷提问",

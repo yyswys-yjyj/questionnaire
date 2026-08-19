@@ -82,6 +82,22 @@
                 "en":"Current language pack file path. Empty means use built-in English. When set, questionnaire UI text loads translations from this file. Default empty."
             },
             "required":false
+        },
+        {
+            "name":"QUESTIONNAIRE_QUESTION_FILTER",
+            "description":{
+                "zh":"题型过滤器：JSON 串 {useGlobal,types,allowRequired,allowOther}。useGlobal=true 使用全局全部题型；false 时仅允许 types 列出题型，allowRequired=false 禁用必选，allowOther=false 禁用单选'其他'。",
+                "en":"Question type filter: JSON {useGlobal,types,allowRequired,allowOther}. useGlobal=true uses all types; false only allows types list; allowRequired=false disables required; allowOther=false disables single 'other'."
+            },
+            "required":false
+        },
+        {
+            "name":"QUESTIONNAIRE_COMPILE_BLOCKLIST",
+            "description":{
+                "zh":"问卷编译屏蔽词：JSON 字符串数组。非空时 questionnaire:compile 会扫描每题题干/副标题/选项，命中任一屏蔽词即编译失败。空数组=不使用屏蔽检查器。",
+                "en":"Compile blocklist: JSON string array. When non-empty, questionnaire:compile scans each question text/subtitle/options and fails if any blocked word is found. Empty=no blocking."
+            },
+            "required":false
         }
     ],
     "tools":[
@@ -234,6 +250,45 @@ var askPackage = (function () {
             return String(o || "");
         }catch(e){return "";}
     }
+    function syncReadEnv(key){
+        try{
+            var r = NativeInterface.callTool("","read_environment_variable",JSON.stringify({key:key}));
+            var o = JSON.parse(r);
+            if(o && o.data && o.data.value) return o.data.value;
+            if(o && o.value) return o.value;
+            return "";
+        }catch(e){ return ""; }
+    }
+    function parseQuestionFilter(){
+        // 默认：干净空集 + 启用全局配置
+        var def = { useGlobal: true, types: [], allowRequired: true, allowOther: true };
+        try {
+            var raw = syncReadEnv("QUESTIONNAIRE_QUESTION_FILTER");
+            if (raw) {
+                var p = JSON.parse(raw);
+                var out = JSON.parse(JSON.stringify(def));
+                if (p && typeof p === "object") {
+                    if (typeof p.useGlobal === "boolean") out.useGlobal = p.useGlobal;
+                    if (Array.isArray(p.types)) out.types = p.types.filter(function(x){ return typeof x === "string"; });
+                    if (typeof p.allowRequired === "boolean") out.allowRequired = p.allowRequired;
+                    if (typeof p.allowOther === "boolean") out.allowOther = p.allowOther;
+                }
+                return out;
+            }
+        } catch(e){}
+        return def;
+    }
+    function parseBlocklist(){
+        // 默认空 = 不使用屏蔽检查器
+        try {
+            var raw = syncReadEnv("QUESTIONNAIRE_COMPILE_BLOCKLIST");
+            if (raw) {
+                var p = JSON.parse(raw);
+                if (Array.isArray(p)) return p.filter(function(x){ return typeof x === "string" && x.trim() !== ""; });
+            }
+        } catch(e){}
+        return [];
+    }
     function syncWriteFile(p,content){
         NativeInterface.callTool("","write_file",JSON.stringify({path:p,content:content}));
     }
@@ -344,6 +399,17 @@ var askPackage = (function () {
         }
         
         if (!checkInf) {
+        // 读取题型过滤器配置（编译期强制）：被禁题型/必选/其他 为致命错误，不参与宽松警告放行
+        var _qf = parseQuestionFilter();
+        var _qfUseGlobal = _qf.useGlobal !== false;
+        var _qfTypes = _qf.types || [];
+        var _qfAllowRequired = _qf.allowRequired !== false;
+        var _qfAllowOther = _qf.allowOther !== false;
+        var fatalErrors = [];
+        function addFatal(msg) { fatalErrors.push(msg); }
+        // 读取编译屏蔽词列表（只影响 compile）：非空时扫描所有题文本，命中即致命错误
+        var _blockList = parseBlocklist();
+        var _blockCheckOn = _blockList.length > 0;
         // 常见参数错误检测：AI 用了错误的字段名
         if (params.questionnaire) {
             addError("参数错误：你使用了 'questionnaire' 字段，正确字段名是 'questions'（JSON 数组字符串）。请重新调用 questionnaire:compile，参数名是 title 和 questions，不要用其他名字。");
@@ -388,12 +454,61 @@ var askPackage = (function () {
                     addError("第" + (vi + 1) + "题存在不支持的字段 '" + fk + "'，正确字段名：type/question/options/required/subtitle/enableOther/id");
                 }
             }
+            // ===== 题型过滤器强制校验（致命错误，不参与宽松警告放行）=====
+            // 被禁题型 => 直接报错（AI 需要先看过滤配置改题型）
+            if (!_qfUseGlobal && vq.type && vq.type !== "section" && _qfTypes.indexOf(vq.type) < 0) {
+                addFatal("第" + (vi + 1) + "题题型 " + vq.type + " 已被禁用（当前题型过滤器允许: " + (_qfTypes.length ? _qfTypes.join("/") : "无") + "），请改用允许的题型或联系管理员调整题型过滤器");
+            }
+            // 禁用必选 => 用了 required 直接报错
+            if (!_qfUseGlobal && !_qfAllowRequired && vq.required === true) {
+                addFatal("第" + (vi + 1) + "题使用了必选(required)，但当前题型过滤器已禁用必选");
+            }
+            // 禁用单选"其他" => 用了 enableOther 直接报错
+            if (!_qfUseGlobal && !_qfAllowOther && vq.enableOther === true) {
+                addFatal("第" + (vi + 1) + "题（" + vq.type + "）使用了\"其他\"输入(enableOther)，但当前题型过滤器已禁用单选\"其他\"");
+            }
+            // ===== 编译屏蔽词检查（命中即致命错误）=====
+            if (_blockCheckOn) {
+                var _hitW = "";
+                // 扫描 question / subtitle / options 文本
+                var _txt = "";
+                if (vq.question && typeof vq.question === "string") _txt += vq.question + " ";
+                if (vq.subtitle && typeof vq.subtitle === "string") _txt += vq.subtitle + " ";
+                if (Array.isArray(vq.options)) {
+                    for (var _oi = 0; _oi < vq.options.length; _oi++) _txt += String(vq.options[_oi]) + " ";
+                }
+                for (var _bi = 0; _bi < _blockList.length; _bi++) {
+                    var _bw = _blockList[_bi];
+                    if (_bw && _txt.indexOf(_bw) >= 0) { _hitW = _bw; break; }
+                }
+                if (_hitW) {
+                    addFatal("第" + (vi + 1) + "题包含屏蔽词「" + _hitW + "」，请修改题干/副标题/选项后再重新编译");
+                }
+            }
+        }
+        // ===== 问卷级文本屏蔽词检查（标题/描述等一切向用户展示的内容）=====
+        if (_blockCheckOn) {
+            var _gTxt = "";
+            if (title && typeof title === "string") _gTxt += title + " ";
+            if (params.description && typeof params.description === "string") _gTxt += params.description + " ";
+            if (params.desc && typeof params.desc === "string") _gTxt += params.desc + " ";
+            for (var _gbi = 0; _gbi < _blockList.length; _gbi++) {
+                var _gbw = _blockList[_gbi];
+                if (_gbw && _gTxt.indexOf(_gbw) >= 0) {
+                    addFatal("问卷标题/描述包含屏蔽词「" + _gbw + "」，请修改后再重新编译");
+                    break;
+                }
+            }
         }
         // 参数冲突检测
         var isCountMode = params.is_count_mode === true;
         var useExpr = params.use_expression === true;
         if (isCountMode === true && useExpr === false) {
             addError("参数冲突：is_count_mode=true 要求 use_expression=true，但 use_expression=false");
+        }
+        // 致命错误（题型过滤器强制）：直接失败，不参与宽松警告放行
+        if (fatalErrors.length > 0) {
+            return { success: false, error: "题型过滤器限制（共" + fatalErrors.length + "个）：" + fatalErrors.join("；"), message: "题型过滤器限制（共" + fatalErrors.length + "个）：\n" + fatalErrors.join("\n") + "\n提示：如需使用被禁内容，请在设置中调整「题型过滤器」。", warnings: undefined };
         }
         // 检查错误数量是否超标
         if (errors.length > 0) {

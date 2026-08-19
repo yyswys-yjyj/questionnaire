@@ -198,6 +198,21 @@ function onXmlRender(event) {
     // 这里仅将有 qinitcode 的问卷中不认识的 type 标记为跳过检查
     var _hasQcData = !!(data.qinitcode && typeof data.qinitcode === 'string' && data.qinitcode.trim().length > 0);
     var needsOptions = { single: true, multiple: true, likert: true };
+    // 题型过滤器（渲染端二次校验）：读 env，被禁题型/必选/其他 记入 invalidQuestions（hook 无法拦截时兜底提示）
+    var _qfUseGlobal = true, _qfTypes = [], _qfAllowRequired = true, _qfAllowOther = true;
+    try {
+        var _qfRaw = getEnv("QUESTIONNAIRE_QUESTION_FILTER");
+        if (_qfRaw) {
+            var _qfp = JSON.parse(_qfRaw);
+            if (_qfp && typeof _qfp === "object") {
+                if (typeof _qfp.useGlobal === "boolean") _qfUseGlobal = _qfp.useGlobal;
+                if (Array.isArray(_qfp.types)) _qfTypes = _qfp.types;
+                if (typeof _qfp.allowRequired === "boolean") _qfAllowRequired = _qfp.allowRequired;
+                if (typeof _qfp.allowOther === "boolean") _qfAllowOther = _qfp.allowOther;
+            }
+        }
+    } catch (e) {}
+    var _qfEnabled = !_qfUseGlobal;
     var allowedFieldNames = { type: true, question: true, options: true, required: true, subtitle: true, enableOther: true, id: true };
     var validationErrors = [];
     for (var vi = 0; vi < data.questions.length; vi++) {
@@ -221,12 +236,17 @@ function onXmlRender(event) {
         }
         // 两个模式都检查：question 为空、缺少 id
         if (vq.type && vq.type !== "section" && (!vq.question || String(vq.question).trim() === "")) validationErrors.push(_m("ui.form.err.emptyQuestion", "第%s题 question 为空", String(vqIdx)));
+        // 题型过滤器兜底校验（被禁题型/必选/其他）
+        if (_qfEnabled && vq.type && vq.type !== "section" && _qfTypes.indexOf(vq.type) < 0) validationErrors.push(_m("ui.form.err.badType", "第%s题题型 %s 已被题型过滤器禁用", String(vqIdx), vq.type));
+        if (_qfEnabled && !_qfAllowRequired && vq.required === true) validationErrors.push(_m("ui.form.err.qfRequired", "第%s题使用了必选(required)，但题型过滤器已禁用必选", String(vqIdx)));
+        if (_qfEnabled && !_qfAllowOther && vq.enableOther === true) validationErrors.push(_m("ui.form.err.qfOther", "第%s题（%s）使用了\"其他\"输入(enableOther)，但题型过滤器已禁用单选\"其他\"", String(vqIdx), vq.type));
     }
 
     data._hasInvalid = missingIdArray.length > 0 || validationErrors.length > 0;
     data._hasMissingIds = missingIdArray.length > 0;
     data._invalidQuestions = validationErrors.concat(missingIdArray);
     data._theme = _theme;
+    try { var _envT = getEnv("QUESTIONNAIRE_THEME"); if (_envT === "classic" || _envT === "compact") data._theme = _envT; } catch (e) {}
     var btnLayout = "scroll";
     try { var bl = getEnv("QUESTIONNAIRE_BUTTON_LAYOUT"); if (bl === "row" || bl === "scroll") btnLayout = bl; } catch (e) {}
     data._buttonLayout = btnLayout;

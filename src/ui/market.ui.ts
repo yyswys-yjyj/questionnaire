@@ -7,9 +7,9 @@ var srcCache = { list: [], def: "" };
 export default async function Screen(ctx) {
     const { UI } = ctx;
     var langNames = { zh_cn: "简体中文", zh_tw: "繁体中文", en_us: "English (US)", ja_jp: "日本語", ko_kr: "한국어" };
-    var currentVer = "17A"; // 比较版本号：十六进制（1.7.10 → 17A），展示统一十进制
+    var currentVer = "180"; // 比较版本号：十六进制（1.8.0 → 180），展示统一十进制
 
-    // 版本号规则：比较用十六进制（每段转 hex 拼接，如 1.7.10 → "17A"，大小写均可），展示用十进制
+    // 版本号规则：比较用十六进制（每段转 hex 拼接，如 1.8.0 → "180"，大小写均可），展示用十进制
     // normHexVer：数字（旧格式十进制拼接，如 176=1.7.6）或字符串（hex 或十进制串）→ 统一 hex 大写字符串
     function normHexVer(v) {
         if (v === null || v === undefined || v === "") return "";
@@ -24,7 +24,7 @@ export default async function Screen(ctx) {
     }
     // hex 版本号 → 数值（用于比较；拼接的 hex 高位段权重天然更大）
     function hexVerNum(v) { return parseInt(normHexVer(v), 16) || 0; }
-    // hex 版本号 → 十进制展示串（1.7.10）。前两段各 1 位 hex，其余为末段
+    // hex 版本号 → 十进制展示串（1.8.0）。前两段各 1 位 hex，其余为末段
     function vs(v) {
         var h = normHexVer(v);
         if (!h) return "";
@@ -353,7 +353,7 @@ export default async function Screen(ctx) {
                                 try {
                                     var fc = String((fr && fr.content) || "").replace(/^\s*\d+\|/gm, "");
                                     var fo = JSON.parse(fc);
-                                    // 语言包 version：旧格式数字（176）或新格式 hex 字符串（"17A"）→ 统一归一化
+                                    // 语言包 version：旧格式数字（176）或新格式 hex 字符串（"180"）→ 统一归一化
                                     if (fo && fo.version !== undefined && fo.version !== null) pv = normHexVer(fo.version);
                                     else if (fo) pv = legacyDefaultVer;
                                 } catch (e) {}
@@ -656,11 +656,9 @@ export default async function Screen(ctx) {
             var dn = langNames[g.id] || g.id;
             var open = !!expanded[g.id];
             var vers = g.vers.slice().sort(function (a, b) { return hexVerNum(b.v) - hexVerNum(a.v); });
-            var verTxt = "";
-            var mn = vers[vers.length - 1].v, mx = vers[0].v, gap = false;
-            for (var k2 = 1; k2 < vers.length; k2++) { if (hexVerNum(vers[k2 - 1].v) - hexVerNum(vers[k2].v) > 1) { gap = true; break; } }
-            if (gap) verTxt = vers.map(function (x) { return "v" + vs(x.v); }).join(" ");
-            else verTxt = (normHexVer(mn) === normHexVer(mx)) ? "v" + vs(mn) : "v" + vs(mx) + "~" + vs(mn);
+            // 兼容性判定：该语言包存在适配当前插件版本的版本（版本号 >= 当前插件版本）→ success 绿勾；否则 warning
+            var compatOk = false;
+            for (var kv = 0; kv < vers.length; kv++) { if (hexVerNum(vers[kv].v) >= hexVerNum(currentVer)) { compatOk = true; break; } }
             var authorTxt = (g.author && String(g.author).trim()) ? g.author : TX.noAuthor;
 
             var inner = [
@@ -670,7 +668,9 @@ export default async function Screen(ctx) {
                         UI.Text({ text: g.id + " · " + vers.length + " " + TX.version, style: "labelSmall", color: "onSurfaceVariant" }),
                     ]),
                     UI.Row({ verticalAlignment: "center", spacing: 6 }, [
-                        UI.Text({ text: TX.version + " " + verTxt, style: "labelMedium", color: "onSurfaceVariant" }),
+                        compatOk
+                            ? UI.Icon({ name: "check_circle", size: 20, tint: "#4CAF50" })
+                            : UI.Icon({ name: "warning", size: 20, tint: "#F9A825" }),
                         UI.FilterChip({
                             selected: open,
                             onClick: function () { toggleExp(gid); },
