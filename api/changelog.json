@@ -1,6 +1,11 @@
 {
     "list": [
         {
+            "version": "v1.8.0(Under-review)",
+            "currentVer": 180,
+            "details": "## 1.8.0 (2026-08-19)\n### English\n#### Preface\n- This major update will continue to follow the direction of 'more colorful, more open, more modern.' It will continuously work on the UI part and add new features.\n#### Added\n- Added features for plan management, question type configuration, and banned words list management\n\n#### Changed\n- A complete upgrade of the language pack settings\n\n### 简体中文\n#### 前言\n- 本次大版本将围绕“更加多彩，更加开放，更现代化”的方向持续更新，这将会持续对UI部分进行打造和追加新功能\n#### 新增\n- 新增了主题方案管理、题型配置和违禁词列表管理的功能\n#### 修改\n- 推翻了整个“问卷主题设置”的UI，采用更加现代化的UI风格重写"
+        },
+        {
             "version": "v1.7.11",
             "currentVer": "17A",
             "details": "## 1.7.11 (2026-08-16)\n### English\n#### Info\n- This version has no updates at all, it was just modified to be listed on the market, but the version number still shows as 1.7.10\n\n### 简体中文\n#### 说明\n- 该版本没有任何更新，纯为了上架市场而改的版本，但显示版本号仍为1.7.10"
