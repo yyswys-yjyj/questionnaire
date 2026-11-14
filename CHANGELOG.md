@@ -17,6 +17,20 @@ We note the change of our project.
 
 ---
 
+## 1.8.1 (2026-11-14)
+
+This is the source code and build package for version 1.8.1
+
+### Added
+- UI/UX: The UI on the settings page got a complete overhaul, and a "modern" theme was added
+- Two new question types have been added: "Confirmation Questions" and "Number Questions"
+
+### Changed
+- Strengthen grammar checking
+
+
+---
+
 ## 1.8.0 (2026-08-19)
 #### Added
 - Added features for plan management, question type configuration, and banned words list management
