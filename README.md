@@ -5,7 +5,7 @@
 
 该项目是源自Operit AI平台上我的一个小项目，包是基于liu-baia的原作[com.com.operit.questionnaire](https://github.com/liu-baia/OperitForge/releases/tag/package-com-operit-questionnaire-v0.1.0-396c8ead)进行二次开发    
 该仓库的包在Operit AI中的包名是com.operit.questionnaire.fix（项目簇：com-operit-questionnaire-fix），代码由AI完成，项目方向就不是AI了用的是person（      
-开源仓库中的包的版本：v1.8.0
+开源仓库中的包的版本：v1.8.1
 
 ## 介绍
 基于原作，不断更新完善，随之加入些新的功能   
@@ -15,15 +15,16 @@
 [https://doc.xclcs.top/9278433m0](https://doc.xclcs.top/9278433m0)
 
 ## 更新日志
-### 1.8.0 (2026-08-19)
+### 1.8.1 (2026-11-14)
 #### Preface | 前言
-- 本次大版本将围绕“更加多彩，更加开放，更现代化”的方向持续更新，这将会持续对UI部分进行打造和追加新功能
+- 本次大版本（v1.8.x）将围绕“更加多彩，更加开放，更现代化”的方向持续更新，这将会持续对UI部分进行打造和追加新功能
 
 #### Added | 新增
-- 新增了主题方案管理、题型配置和违禁词列表管理的功能
+- 新增现代化主题，并对设置页进行了一次大的翻新
+- 新增确认题和数字题两种新题型
 
 #### 修改 | Changed
-- 推翻了整个“问卷主题设置”的UI，采用更加现代化的UI风格重写
+- 加强语法检查
 
 ## 外部库上传
 你可以提个issue，上传你的外部库
