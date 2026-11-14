@@ -3,7 +3,7 @@
         {
             "version": "v1.8.1(in-test)",
             "currentVer": "181",
-            "details": "## 1.8.1 (2026-11-14)\n### English\n#### Added\n- UI/UX: The UI on the settings page got a complete overhaul, and a "modern" theme was added\n- Two new question types have been added: \"Confirmation Questions\" and \"Number Questions\"\n\n#### Changed\n- Strengthen grammar checking\n\n## 简体中文\n#### 新增\n- 新增现代化主题，并对设置页进行了一次大的翻新\n- 新增确认题和数字题两种新题型\n\n#### 修改\n- 加强语法检查"
+            "details": "## 1.8.1 (2026-11-14)\n### English\n#### Added\n- UI/UX: The UI on the settings page got a complete overhaul, and a \"modern\" theme was added\n- Two new question types have been added: \"Confirmation Questions\" and \"Number Questions\"\n\n#### Changed\n- Strengthen grammar checking\n\n## 简体中文\n#### 新增\n- 新增现代化主题，并对设置页进行了一次大的翻新\n- 新增确认题和数字题两种新题型\n\n#### 修改\n- 加强语法检查"
         },
         {
             "version": "v1.8.0",
