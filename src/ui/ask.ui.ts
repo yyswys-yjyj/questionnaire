@@ -1,3 +1,19 @@
+/*
+ * SPDX-FileCopyrightText: 2025-2026 liu-baia, yyswys-yjyj
+ * SPDX-License-Identifier: GPL-3.0-only
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3 of the License only.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 // @ts-nocheck
 // ask.ui.ts — 问卷询问 UI（Compose DSL）
 // 构建模式：用户出题（标题 + 添加题目 + 随时保存 + 开始答题）
@@ -353,9 +369,9 @@ export default async function Screen(ctx) {
                     ]),
                     // 右按钮区：固定靠右，永不被文字挤压
                     UI.Row({ verticalAlignment: "center", spacing: 4 }, [
-                        UI.IconButton({ icon: "folder_open", tint: "onPrimaryContainer", onClick: function () { openPickerState[1](true); return loadDrafts(); } }),
-                        UI.IconButton({ icon: "save", tint: "onPrimaryContainer", onClick: function () { return saveDraft("draft"); } }),
-                        UI.IconButton({ icon: "send", tint: "onPrimaryContainer", onClick: function () { return startAsk(); } }),
+                        UI.IconButton({ icon: "FolderOpen", tint: "onPrimaryContainer", onClick: function () { openPickerState[1](true); return loadDrafts(); } }),
+                        UI.IconButton({ icon: "Save", tint: "onPrimaryContainer", onClick: function () { return saveDraft("draft"); } }),
+                        UI.IconButton({ icon: "Send", tint: "onPrimaryContainer", onClick: function () { return startAsk(); } }),
                     ]),
                 ]),
                 UI.TextField({
@@ -382,7 +398,7 @@ export default async function Screen(ctx) {
                     UI.Column({ weight: 1 }, [
                         UI.Text({ text: _t("ui.ask.draftPickerTitle"), style: "titleSmall", fontWeight: "bold", color: onSurface }),
                     ]),
-                    UI.IconButton({ icon: "close", onClick: function () { openPickerState[1](false); } }),
+                    UI.IconButton({ icon: "Close", onClick: function () { openPickerState[1](false); } }),
                 ]),
             ];
             if (drafts === null) {
@@ -407,15 +423,15 @@ export default async function Screen(ctx) {
                                 UI.Text({ text: d.title || _t("ui.ask.untitled"), style: "bodyMedium", fontWeight: "bold", maxLines: 1, overflow: "ellipsis" }),
                                 UI.Text({ text: d.id + " · " + d.count + " " + _t("ui.ask.total").replace("%d", String(d.count)), style: "labelSmall", color: onSurfaceVariant }),
                             ]),
-                            UI.Icon({ name: "chevron_right", size: 18, tint: onSurfaceVariant }),
+                            UI.Icon({ name: "ChevronRight", size: 18, tint: onSurfaceVariant }),
                         ]));
                     })(pageDrafts[pdi]);
                 }
                 if (pickerTotalPages > 1) {
                     pickerNodes.push(UI.Row({ fillMaxWidth: true, horizontalArrangement: "spaceEvenly", verticalAlignment: "center", padding: { top: 4 } }, [
-                        UI.IconButton({ icon: "chevron_left", enabled: pickPage > 0, onClick: function () { pickerPageState[1](Math.max(0, pickerPageState[0] - 1)); } }),
+                        UI.IconButton({ icon: "ChevronLeft", enabled: pickPage > 0, onClick: function () { pickerPageState[1](Math.max(0, pickerPageState[0] - 1)); } }),
                         UI.Text({ text: (pickPage + 1) + " / " + pickerTotalPages, style: "bodyMedium", color: onSurfaceVariant }),
-                        UI.IconButton({ icon: "chevron_right", enabled: pickPage < pickerTotalPages - 1, onClick: function () { pickerPageState[1](Math.min(pickerTotalPages - 1, pickerPageState[0] + 1)); } }),
+                        UI.IconButton({ icon: "ChevronRight", enabled: pickPage < pickerTotalPages - 1, onClick: function () { pickerPageState[1](Math.min(pickerTotalPages - 1, pickerPageState[0] + 1)); } }),
                     ]));
                 }
             }
@@ -431,7 +447,7 @@ export default async function Screen(ctx) {
                     UI.Column({ weight: 1 }, [
                         UI.Text({ text: "⚠️ " + jsonErrorState[0], style: "bodySmall", color: "onErrorContainer", maxLines: 3, overflow: "ellipsis" }),
                     ]),
-                    UI.IconButton({ icon: "close", onClick: function () { jsonErrorState[1](""); } }),
+                    UI.IconButton({ icon: "Close", onClick: function () { jsonErrorState[1](""); } }),
                 ]),
             ]));
         }
@@ -443,7 +459,7 @@ export default async function Screen(ctx) {
                     UI.Column({ weight: 1 }, [
                         UI.Text({ text: banner, style: "bodyMedium", color: bannerErr ? "onErrorContainer" : "onPrimaryContainer", maxLines: 3, overflow: "ellipsis" }),
                     ]),
-                    UI.IconButton({ icon: "close", onClick: function () { bannerState[1](""); } }),
+                    UI.IconButton({ icon: "Close", onClick: function () { bannerState[1](""); } }),
                 ]),
             ]));
         }
@@ -532,17 +548,17 @@ export default async function Screen(ctx) {
                             ]),
                             // 折叠菜单：编辑 / 删除
                             UI.Box({}, [
-                                UI.IconButton({ icon: "more_vert", onClick: function () { menuOpenState[1](menuOpen ? "" : q.id); } }),
+                                UI.IconButton({ icon: "MoreVert", onClick: function () { menuOpenState[1](menuOpen ? "" : q.id); } }),
                                 UI.DropdownMenu({
                                     expanded: menuOpen,
                                     onDismissRequest: function () { menuOpenState[1](""); },
                                     content: [
                                         UI.Row({ onClick: function () { menuOpenState[1](""); openEditQuestion(q); } }, [
-                                            UI.Icon({ name: "edit", size: 18, tint: onSurfaceVariant }),
+                                            UI.Icon({ name: "Edit", size: 18, tint: onSurfaceVariant }),
                                             UI.Text({ text: _t("ui.ask.edit"), style: "bodyMedium", padding: { horizontal: 8 } }),
                                         ]),
                                         UI.Row({ onClick: function () { menuOpenState[1](""); removeQuestion(q.id); } }, [
-                                            UI.Icon({ name: "delete", size: 18, tint: onSurfaceVariant }),
+                                            UI.Icon({ name: "Delete", size: 18, tint: onSurfaceVariant }),
                                             UI.Text({ text: _t("ui.ask.delete"), style: "bodyMedium", padding: { horizontal: 8 } }),
                                         ]),
                                     ],

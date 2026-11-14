@@ -1,8 +1,33 @@
+/*
+ * SPDX-FileCopyrightText: 2025-2026 liu-baia, yyswys-yjyj
+ * SPDX-License-Identifier: GPL-3.0-only
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3 of the License only.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 // @ts-nocheck
 
 import { executeResultCode } from "./runtime/runtime.js";
 import { executeQLang } from "../qlgruntime/index.js";
 import { compileAndRun as _qcCompileAndRun, execBlock as _qcExecBlock } from "../qinitcode/index.js";
+// ── v1.8.1 UI 翻新：组件层（组件内部按 theme 保留 compact 旧观感） ──
+import { OptionRow, OptionList } from "./components/OptionRow.js";
+import { RatingStars } from "./components/RatingStars.js";
+import { LikertScale } from "./components/LikertScale.js";
+import { NpsScale } from "./components/NpsScale.js";
+import { ConfirmField } from "./components/ConfirmField.js";
+import { NumberField } from "./components/NumberField.js";
+import { QuestionHeader, SectionHeader } from "./components/QuestionHeader.js";
+import { SPACE as _SPACE, FONT as _FONT, fade as _fade } from "./shared/design.js";
 function _t(key, lang) {
     var _result = null;
     if (lang && lang[key]) _result = lang[key];
@@ -13,26 +38,28 @@ function _t(key, lang) {
         "ui.form.fill": "一键补全",
         "ui.form.fillOk": "已自动补全上次的答案",
         "ui.form.submitted": "已提交",
-        "ui.form.expired": "已过期",
         "ui.form.infoTitle": "问卷信息",
         "ui.form.version": "版本",
-        "ui.form.type": "类型",
-        "ui.form.questions": "题目数",
-        "ui.form.fingerprint": "指纹",
         "ui.form.required": "必答",
+        "ui.form.err.numField": "第%s题 %s 必须是数字",
+        "ui.form.err.numRange": "第%s题 min 不能大于 max",
+        "ui.form.err.numUnit": "第%s题 unit 必须是字符串",
+        "ui.form.errRequired": "此题为必答题，请填写",
+        "ui.form.requiredHint": "必答",
+        "ui.form.charUnit": "字",
+        "ui.form.pickedCount": "已选 %s / %d 项",
+        "ui.form.selectAll": "全选",
+        "ui.form.deselectAll": "取消全选",
+        "ui.form.scrollHint": "共 %s 项，可上下滑动 ↑↓",
+        "ui.form.err.qfRequired": "第%s题使用了必选(required)，但题型过滤器已禁用必选",
+        "ui.form.err.qfOther": "第%s题（%s）使用了\"其他\"输入(enableOther)，但题型过滤器已禁用单选\"其他\"",
         "ui.form.other": "其他…",
         "ui.form.missing": "还有必答题未填",
         "ui.form.submitting": "提交中...",
         "ui.form.parseError": "解析失败",
-        "ui.form.invalidFormat": "格式错误",
-        "ui.form.historyFill": "一键补全",
         "ui.form.noAnswer": "(未填)",
         "ui.form.emptySubmit": "(用户未填写任何内容)",
         "ui.form.remind": "提醒",
-        "ui.form.expiredHint": "该问卷已过期",
-        "ui.form.collapsedHint": "点击展开",
-        "ui.form.sectionResult": "结果",
-        "ui.form.rollSpec": "卷谱",
         "ui.form.asking": "📋 询问 %d 个问题",
         "ui.form.cancelled": "用户取消了本次问卷提问",
         "ui.form.cancelledTitle": "提问被终止",
@@ -50,7 +77,6 @@ function _t(key, lang) {
         "ui.form.otherPrefix": "其他: ",
         "ui.form.star": " 星",
         "ui.form.starHint": "点击评分",
-        "ui.form.starLabel": " 星 - ",
         "ui.form.ratingVeryBad": "很差",
         "ui.form.ratingBad": "较差",
         "ui.form.ratingNormal": "一般",
@@ -58,7 +84,6 @@ function _t(key, lang) {
         "ui.form.ratingVeryGood": "非常满意",
         "ui.form.likertStronglyDisagree": "非常不同意",
         "ui.form.likertDisagree": "不同意",
-        "ui.form.likertNeutral": "一般",
         "ui.form.likertAgree": "同意",
         "ui.form.likertStronglyAgree": "非常同意",
         "ui.form.likertSelected": "已选: ",
@@ -75,7 +100,6 @@ function _t(key, lang) {
         "ui.form.timeHour": "时",
         "ui.form.timeMin": "分",
         "ui.form.timeSec": "秒",
-        "ui.form.timeSelected": "已选: ",
         "ui.form.infoTitleLabel": "标题：",
         "ui.form.infoIdLabel": "ID：",
         "ui.form.infoTypeLabel": "类型：",
@@ -91,7 +115,6 @@ function _t(key, lang) {
         "ui.form.authorModder": "二次开发：",
         "ui.form.versionLabel": "version: ",
         "ui.form.resultSection": "── 结果 ──",
-        "ui.form.rollSpecLabel": "卷谱: ",
         "ui.form.errorTitle": "表单错误",
         "ui.form.errorJson": "JSON 格式错误",
         "ui.form.errorEmpty": "问卷数据为空",
@@ -105,7 +128,6 @@ function _t(key, lang) {
         "ui.form.unknown": "未知",
         "ui.form.totalQuestions": "共 %d 题",
         "ui.form.answeredCount": "已回答 %d / %d 题",
-        "ui.form.remindMsg": "⚠️ ",
         "ui.form.defaultTitle": "问卷",
         "ui.form.building": "📋 表单制作中...",
         "ui.form.err.blockedTitle": "(问卷已被拦截)",
@@ -154,6 +176,8 @@ export default function Screen(ctx) {
     var sessionIdState = ctx.useState("_sessionId", "");
     var otherInputsState = ctx.useState("_otherInputs", "{}");
     var errorMsgState = ctx.useState("_errorMsg", "");
+    // v1.8.3：是否尝试过提交。第一次点提交后才给必填项标红，避免一进页面满屏红
+    var triedSubmitState = ctx.useState("_triedSubmit", false);
     var fillHintState = ctx.useState("_fillHint", "");
     var infoOpenState = ctx.useState("_infoOpen", false);
     var pageIndexState = ctx.useState("_pageIndex", 0);
@@ -165,6 +189,8 @@ export default function Screen(ctx) {
     var answers = JSON.parse(answersState[0] || "{}");
     var otherInputs = JSON.parse(otherInputsState[0] || "{}");
     var errorMsg = errorMsgState[0];
+    // v1.8.3：是否已尝试过提交（决定必填项是否显示校验红框）
+    var triedSubmit = triedSubmitState[0] === true;
     var infoOpen = infoOpenState[0];
     var fingerprint = fingerprintState[0] || "";
     var cancelled = cancelledState[0];
@@ -189,8 +215,12 @@ var theme = data._theme || "classic";
     if (!questionLayout) {
         try { var envLayout = ctx.getEnv("QUESTIONNAIRE_LAYOUT"); if (envLayout) questionLayout = envLayout; } catch(e){}
     }
-    var isPaging = questionLayout === "compact";
-    var PAGE_SIZE = 5;
+    // v1.8.1 分页规则：
+    //   modern 主题 → 强制分页，且每页 3 题（modern 的选项行更高，5 题一页会太长）
+    //   classic / compact → 仍由「问卷布局」设置决定，每页 5 题
+    var isModern = theme === "modern";
+    var isPaging = isModern ? true : (questionLayout === "compact");
+    var PAGE_SIZE = isModern ? 3 : 5;
     var questions = data.questions || [];
     
     // 提前注册内置题型（函数声明提升，可在此处调用）
@@ -202,6 +232,8 @@ var theme = data._theme || "classic";
     registerType('rating', _renderRating, _submitRating); _qcAnserToType['rating'] = 'rating';
     registerType('likert', _renderLikert, _submitLikert);
     registerType('nps', _renderNps, _submitNps);
+    registerType('confirm', _renderConfirm, _submitConfirm);
+    registerType('number', _renderNumber, _submitNumber);
     registerType('time', _renderTime, _submitTime); _qcAnserToType['timePicker'] = 'time';
     _qcRendererReady = true;
     
@@ -385,6 +417,8 @@ var answerColor = primary;
             }
         }
         if (missingRequired.length > 0) {
+            // 标记「已尝试提交」：所有空必填项开始显示红色错误态
+            triedSubmitState[1](true);
             errorMsgState[1](_t("ui.form.missing",data._lang).replace("%d", String(missingRequired.length)));
             return;
         }
@@ -634,14 +668,26 @@ if (hasCount && data.resultcode) {
     }
     function _submitTextarea(q, ans) { return "```\n" + String(ans) + "\n```"; }
     function _submitTime(q, ans) { return String(ans); }
+    // confirm：传给 AI 的文字是「已确认 / 未确认」，而不是裸的 true
+    function _submitConfirm(q, ans) {
+        return (ans === true || ans === "true") ? _t("ui.form.confirmed", data._lang) : _t("ui.form.notConfirmed", data._lang);
+    }
+    // number：带单位输出，如「15 个」
+    function _submitNumber(q, ans) {
+        if (ans === undefined || ans === null || ans === "") return "";
+        return String(ans) + (q.unit ? " " + q.unit : "");
+    }
     
     // ── 渲染器函数 ──
     // 所有内置渲染器保持原始代码不变
     function _renderSection(q, idx, nodes) {
-        return ctx.UI.Column({ key: "sec_" + q.id, spacing: 2, padding: { vertical: 6, horizontal: 4 } }, [
-            ctx.UI.Text({ text: q.question, style: "titleSmall", color: primary }),
-            q.subtitle ? ctx.UI.Text({ text: q.subtitle, style: "bodySmall", color: onSurfaceVariant }) : null,
-        ]);
+        // v1.8.1：分组标题改成色块底 + 左侧主色竖条（compact 主题自动退回旧的纯文字）
+        return SectionHeader(ctx, {
+            keyName: "sec_" + q.id,
+            text: q.question,
+            subtitle: q.subtitle,
+            theme: theme,
+        });
     }
     
     function _renderSingle(q, idx, nodes, qText, answer, isSubmitted) {
@@ -672,53 +718,50 @@ if (hasCount && data.resultcode) {
         for (var oi = 0; oi < opts.length; oi++) {
             var opt = opts[oi];
             var isSelected = answer === opt;
-            (function (optVal) {
-                if (isCompact) {
-                    btnNodes.push(ctx.UI.FilterChip({
-                        key: q.id + "_" + oi,
-                        selected: isSelected,
+            (function (optVal, optIdx, sel) {
+                if (theme === "modern") {
+                    btnNodes.push(OptionRow(ctx, {
+                        keyName: q.id + "_" + optIdx,
+                        label: optVal,
+                        selected: sel,
+                        radio: true,
                         onClick: function () { setAnswer(q.id, optVal); },
-                        label: ctx.UI.Text({ text: optVal, style: "labelSmall", color: isSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                        leadingIcon: isSelected ? ctx.UI.Icon({ name: "check", size: 16, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
                     }));
-                }
-                else {
+                } else {
                     btnNodes.push(ctx.UI.OutlinedButton({
-                        key: q.id + "_" + oi,
-                        containerColor: isSelected ? primary : null,
-                        contentColor: isSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
+                        key: q.id + "_" + optIdx,
+                        containerColor: sel ? primary : null,
+                        contentColor: sel ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
                         onClick: function () { setAnswer(q.id, optVal); },
                         border: { width: 1.5, color: onSurfaceVariant },
-                        content: ctx.UI.Text({ text: optVal, style: "labelSmall", color: isSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+                        content: ctx.UI.Text({ text: optVal, style: "labelSmall", color: sel ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
                     }));
                 }
-            })(opt);
+            })(opt, oi, isSelected);
         }
         if (q.enableOther) {
             var isOtherSelected = answer === "__other__";
-            (function () {
-                if (isCompact) {
-                    btnNodes.push(ctx.UI.FilterChip({
-                        key: q.id + "_other_btn",
-                        selected: isOtherSelected,
-                        onClick: function () { setAnswer(q.id, "__other__"); },
-                        label: ctx.UI.Text({ text: _t("ui.form.other",data._lang), style: "labelSmall", color: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                        leadingIcon: isOtherSelected ? ctx.UI.Icon({ name: "check", size: 16, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
-                    }));
-                }
-                else {
-                    btnNodes.push(ctx.UI.OutlinedButton({
-                        key: q.id + "_other_btn",
-                        containerColor: isOtherSelected ? primary : null,
-                        contentColor: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                        onClick: function () { setAnswer(q.id, "__other__"); },
-                        border: { width: 1.5, color: onSurfaceVariant },
-                        content: ctx.UI.Text({ text: _t("ui.form.other",data._lang), style: "labelSmall", color: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                    }));
-                }
-            })();
+            if (theme === "modern") {
+                btnNodes.push(OptionRow(ctx, {
+                    keyName: q.id + "_other_btn",
+                    label: _t("ui.form.other", data._lang),
+                    selected: isOtherSelected,
+                    radio: true,
+                    last: true,
+                    onClick: function () { setAnswer(q.id, "__other__"); },
+                }));
+            } else {
+                btnNodes.push(ctx.UI.OutlinedButton({
+                    key: q.id + "_other_btn",
+                    containerColor: isOtherSelected ? primary : null,
+                    contentColor: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
+                    onClick: function () { setAnswer(q.id, "__other__"); },
+                    border: { width: 1.5, color: onSurfaceVariant },
+                    content: ctx.UI.Text({ text: _t("ui.form.other", data._lang), style: "labelSmall", color: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+                }));
+            }
         }
-        nodes.push(buttonLayout === "row" ? ctx.UI.Column({ key: q.id + "_row", spacing: 4, fillMaxWidth: true, padding: { vertical: 2 } }, btnNodes.map(function(b){return ctx.UI.Column({spacing:0,fillMaxWidth:true},[b]);})) : ctx.UI.LazyRow({ key: q.id + "_row", spacing: 4 }, btnNodes));
+        nodes.push(OptionList(ctx, theme, q.id + "_row", btnNodes));
         if (q.enableOther && answer === "__other__") {
             var otherVal = otherInputs[q.id] || "";
             nodes.push(ctx.UI.TextField({
@@ -752,29 +795,58 @@ if (hasCount && data.resultcode) {
         for (var ci = 0; ci < opts2.length; ci++) {
             var opt2 = opts2[ci];
             var isChecked = currentArr.indexOf(opt2) >= 0;
-            (function (optVal) {
-                if (isCompact) {
-                    btnNodes2.push(ctx.UI.FilterChip({
-                        key: q.id + "_" + ci,
-                        selected: isChecked,
+            (function (optVal, optIdx, checked) {
+                if (theme === "modern") {
+                    btnNodes2.push(OptionRow(ctx, {
+                        keyName: q.id + "_" + optIdx,
+                        label: optVal,
+                        selected: checked,
+                        radio: false,
+                        last: optIdx === opts2.length - 1,
                         onClick: function () { toggleOption(q.id, optVal); },
-                        label: ctx.UI.Text({ text: optVal, style: "labelSmall", color: isChecked ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                        leadingIcon: isChecked ? ctx.UI.Icon({ name: "check", size: 16, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
                     }));
-                }
-                else {
+                } else {
                     btnNodes2.push(ctx.UI.OutlinedButton({
-                        key: q.id + "_" + ci,
-                        containerColor: isChecked ? primary : null,
-                        contentColor: isChecked ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
+                        key: q.id + "_" + optIdx,
+                        containerColor: checked ? primary : null,
+                        contentColor: checked ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
                         onClick: function () { toggleOption(q.id, optVal); },
                         border: { width: 1.5, color: onSurfaceVariant },
-                        content: ctx.UI.Text({ text: optVal, style: "labelSmall", color: isChecked ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+                        content: ctx.UI.Text({ text: optVal, style: "labelSmall", color: checked ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
                     }));
                 }
-            })(opt2);
+            })(opt2, ci, isChecked);
         }
-        nodes.push(buttonLayout === "row" ? ctx.UI.Column({ key: q.id + "_row", spacing: 4, fillMaxWidth: true, padding: { vertical: 2 } }, btnNodes2.map(function(b){return ctx.UI.Column({spacing:0,fillMaxWidth:true},[b]);})) : ctx.UI.LazyRow({ key: q.id + "_row", spacing: 4 }, btnNodes2));
+        // v1.8.4：全选（与主渲染链一致）
+        if (opts2.length >= 5 && !isSubmitted) {
+            var _allPicked = currentArr.length >= opts2.length;
+            nodes.push(ctx.UI.Row({
+                key: q.id + "_selall_row",
+                fillMaxWidth: true,
+                verticalAlignment: "center",
+                spacing: _SPACE.xs,
+                padding: { bottom: _SPACE.xs },
+            }, [
+                ctx.UI.Text({
+                    key: q.id + "_selall_cnt",
+                    text: _t("ui.form.pickedCount", data._lang)
+                        .replace("%s", String(currentArr.length)).replace("%d", String(opts2.length)),
+                    fontSize: _FONT.hint,
+                    color: ctx.MaterialTheme.colorScheme.onSurfaceVariant,
+                    weight: 1,
+                }),
+                ctx.UI.TextButton({
+                    key: q.id + "_selall_btn",
+                    onClick: function () { setAnswer(q.id, _allPicked ? [] : opts2.slice()); },
+                    content: ctx.UI.Text({
+                        text: _allPicked ? _t("ui.form.deselectAll", data._lang) : _t("ui.form.selectAll", data._lang),
+                        style: "labelSmall",
+                        color: primary,
+                    }),
+                }),
+            ]));
+        }
+        nodes.push(OptionList(ctx, theme, q.id + "_row", btnNodes2, undefined, _t("ui.form.scrollHint", data._lang)));
         return null;
     }
     
@@ -841,43 +913,25 @@ if (hasCount && data.resultcode) {
         }
         if (isExpired) return null;
         var ratingVal = parseInt(answer) || 0;
+        // v1.8.1：一排真星级图标（compact 主题组件内部自动退回数字按钮）
         var ratingLabels = ["", _t("ui.form.ratingVeryBad",data._lang), _t("ui.form.ratingBad",data._lang), _t("ui.form.ratingNormal",data._lang), _t("ui.form.ratingGood",data._lang), _t("ui.form.ratingVeryGood",data._lang)];
-        var ratingRow1 = [], ratingRow2 = [];
-        for (var si = 1; si <= 5; si++) {
-            (function (starIdx) {
-                var filled = starIdx <= ratingVal;
-                var btn = ctx.UI.OutlinedButton({
-                    key: q.id + "_star_" + starIdx,
-                    containerColor: filled ? starActiveColor : null,
-                    contentColor: filled ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                    onClick: function () { setAnswer(q.id, String(starIdx)); },
-                    content: ctx.UI.Text({
-                        text: String(starIdx),
-                        style: "labelSmall",
-                        color: filled ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                    }),
-                });
-                if (starIdx <= 3)
-                    ratingRow1.push(btn);
-                else
-                    ratingRow2.push(btn);
-            })(si);
-        }
-        nodes.push(ctx.UI.Column({ key: q.id + "_stars_col", spacing: 4, padding: { vertical: 4 } }, [
-            ctx.UI.Row({ key: q.id + "_stars_1", spacing: 6, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, ratingRow1),
-            ctx.UI.Row({ key: q.id + "_stars_2", spacing: 6, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, ratingRow2),
-        ]));
-        var label = ratingVal > 0 ? (ratingVal + _t("ui.form.starLabel",data._lang) + ratingLabels[ratingVal]) : _t("ui.form.starHint",data._lang);
-        nodes.push(ctx.UI.Text({ text: label, style: "bodySmall", color: onSurfaceVariant }));
+        nodes.push(RatingStars(ctx, {
+            keyName: q.id + "_stars",
+            value: ratingVal,
+            labels: ratingLabels,
+            hint: _t("ui.form.starHint", data._lang),
+            theme: theme,
+            onChange: function (score) { setAnswer(q.id, String(score)); },
+        }));
         return null;
     }
-    
+
     function _renderLikert(q, idx, nodes, qText, answer, isSubmitted) {
         if (isSubmitted) {
             var hasAnswer = answer !== undefined && answer !== null && answer !== "";
-            var likertOpts = q.options || [];
-            var li = Math.min(Math.max(parseInt(answer) - 1, 0), likertOpts.length - 1);
-            var displayAnswer = hasAnswer ? likertOpts[li] : "";
+            var likertOpts0 = q.options || [];
+            var li0 = Math.min(Math.max(parseInt(answer) - 1, 0), likertOpts0.length - 1);
+            var displayAnswer = hasAnswer ? likertOpts0[li0] : "";
             return ctx.UI.Column({ key: "qa_" + q.id, spacing: 2 }, [
                 ctx.UI.Text({ text: qText, style: "labelMedium", color: onSurface }),
                 hasAnswer
@@ -888,46 +942,81 @@ if (hasCount && data.resultcode) {
         if (isExpired) return null;
         var likertOpts = q.options || [_t("ui.form.likertStronglyDisagree",data._lang), _t("ui.form.likertDisagree",data._lang), _t("ui.form.ratingNormal",data._lang), _t("ui.form.likertAgree",data._lang), _t("ui.form.likertStronglyAgree",data._lang)];
         var likertVal = parseInt(answer) || 0;
-        var halfLen = Math.ceil(likertOpts.length / 2);
-        var likertRow1Btns = [], likertRow2Btns = [];
-        for (var li = 1; li <= likertOpts.length; li++) {
-            (function (likertIdx) {
-                var isSelected2 = likertIdx === likertVal;
-                var btn = ctx.UI.OutlinedButton({
-                    key: q.id + "_likert_" + likertIdx,
-                    containerColor: isSelected2 ? primary : null,
-                    contentColor: isSelected2 ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                    onClick: function () { setAnswer(q.id, String(likertIdx)); },
-                    content: ctx.UI.Text({
-                        text: String(likertIdx),
-                        style: "labelSmall",
-                        color: isSelected2 ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                    }),
-                });
-                if (likertIdx <= halfLen)
-                    likertRow1Btns.push(btn);
-                else
-                    likertRow2Btns.push(btn);
-            })(li);
-        }
-        nodes.push(ctx.UI.Column({ key: q.id + "_likert_col", spacing: 2, padding: { vertical: 4 } }, [
-            ctx.UI.Row({ key: q.id + "_likert_btns_1", spacing: 4, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, likertRow1Btns),
-            ctx.UI.Row({ key: q.id + "_likert_btns_2", spacing: 4, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, likertRow2Btns),
-            ctx.UI.Row({ key: q.id + "_likert_labels", spacing: 4, horizontalArrangement: "spaceEvenly", fillMaxWidth: true, padding: { top: 2 } }, likertOpts.map(function (lbl, li2) {
-                return ctx.UI.Text({ key: q.id + "_lbl_" + li2, text: lbl, style: "labelSmall", color: onSurfaceVariant, maxLines: 2 });
-            })),
-        ]));
-        if (likertVal > 0) {
-            var likertIdx2 = Math.min(Math.max(likertVal - 1, 0), likertOpts.length - 1);
-            nodes.push(ctx.UI.Text({ text: _t("ui.form.likertSelected",data._lang) + likertOpts[likertIdx2], style: "bodySmall", color: answerColor }));
-        }
+        // v1.8.1：横向刻度条（compact 主题组件内部自动退回两行按钮）
+        nodes.push(LikertScale(ctx, {
+            keyName: q.id + "_likert",
+            options: likertOpts,
+            value: likertVal,
+            theme: theme,
+            onChange: function (i) { setAnswer(q.id, String(i)); },
+        }));
         return null;
     }
-    
+
+    // ── 长按确认（confirm）──
+    // 交互：未确认时长按→确认；已确认时点击→取消。
+    // 答案存 "true" / ""（空字符串表示未确认），与其它题型保持同一套 answers 结构。
+    function _renderConfirm(q, idx, nodes, qText, answer, isSubmitted) {
+        var confirmed = answer === true || answer === "true";
+        if (isSubmitted) {
+            return ctx.UI.Column({ key: "qa_" + q.id, spacing: 2 }, [
+                ctx.UI.Text({ text: qText, style: "labelMedium", color: onSurface }),
+                ctx.UI.Text({
+                    text: "    └ " + (confirmed ? _t("ui.form.confirmed",data._lang) : _t("ui.form.notConfirmed",data._lang)),
+                    style: "bodyMedium",
+                    color: confirmed ? answerColor : onSurfaceVariant.copy({ alpha: 0.5 }),
+                }),
+            ]);
+        }
+        if (isExpired) return null;
+        nodes.push(ConfirmField(ctx, {
+            keyName: q.id + "_confirm",
+            text: q.question || "",
+            checked: confirmed,
+            theme: theme,
+            required: q.required === true,
+            tried: triedSubmit,
+            errText: _t("ui.form.errRequired",data._lang),
+            longPressHint: _t("ui.form.longPressToConfirm",data._lang),
+            confirmedHint: _t("ui.form.confirmedHint",data._lang),
+            onChange: function (next) { setAnswer(q.id, next ? "true" : ""); },
+        }));
+    }
+
+    // ── 数字步进（number）──
+    // 题目可用 min / max / step / unit 四个字段约束；不给就用 0~100 步进 1。
+    function _renderNumber(q, idx, nodes, qText, answer, isSubmitted) {
+        var numVal = (answer === undefined || answer === null || answer === "") ? null : Number(answer);
+        if (numVal !== null && isNaN(numVal)) numVal = null;
+        var unit = q.unit || "";
+        if (isSubmitted) {
+            return ctx.UI.Column({ key: "qa_" + q.id, spacing: 2 }, [
+                ctx.UI.Text({ text: qText, style: "labelMedium", color: onSurface }),
+                numVal === null
+                    ? ctx.UI.Text({ text: _t("ui.form.noAnswer",data._lang), style: "bodyMedium", color: onSurfaceVariant.copy({ alpha: 0.5 }) })
+                    : ctx.UI.Text({ text: "    └ " + numVal + (unit ? " " + unit : ""), style: "bodyMedium", color: answerColor }),
+            ]);
+        }
+        if (isExpired) return null;
+        nodes.push(NumberField(ctx, {
+            keyName: q.id + "_number",
+            value: numVal,
+            min: typeof q.min === "number" ? q.min : undefined,
+            max: typeof q.max === "number" ? q.max : undefined,
+            step: typeof q.step === "number" ? q.step : undefined,
+            unit: unit,
+            theme: theme,
+            required: q.required === true,
+            tried: triedSubmit,
+            errText: _t("ui.form.errRequired",data._lang),
+            onChange: function (next) { setAnswer(q.id, next === null ? "" : String(next)); },
+        }));
+    }
+
     function _renderNps(q, idx, nodes, qText, answer, isSubmitted) {
         if (isSubmitted) {
             var hasAnswer = answer !== undefined && answer !== null && answer !== "";
-            var npsLabel2 = parseInt(answer) >= 9 ? _t("ui.form.npsPromoter",data._lang) : (parseInt(answer) >= 7 ? _t("ui.form.npsDetractor",data._lang) : _t("ui.form.npsDetractor",data._lang));
+            var npsLabel2 = parseInt(answer) >= 9 ? _t("ui.form.npsPromoter",data._lang) : (parseInt(answer) >= 7 ? _t("ui.form.npsPassive",data._lang) : _t("ui.form.npsDetractor",data._lang));
             var displayAnswer = hasAnswer ? (answer + " (" + npsLabel2 + ")") : "";
             return ctx.UI.Column({ key: "qa_" + q.id, spacing: 2 }, [
                 ctx.UI.Text({ text: qText, style: "labelMedium", color: onSurface }),
@@ -938,34 +1027,16 @@ if (hasCount && data.resultcode) {
         }
         if (isExpired) return null;
         var npsVal = parseInt(answer);
-        if (isNaN(npsVal))
-            npsVal = -1;
-        var npsGroups = [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10]];
-        var npsRows = [];
-        for (var gi = 0; gi < npsGroups.length; gi++) {
-            var group = npsGroups[gi];
-            var rowBtns = [];
-            for (var gj = 0; gj < group.length; gj++) {
-                (function (npsIdx) {
-                    var isSelected3 = npsIdx === npsVal;
-                    rowBtns.push(ctx.UI.OutlinedButton({
-                        key: q.id + "_nps_" + npsIdx,
-                        containerColor: isSelected3 ? primary : null,
-                        contentColor: isSelected3 ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                        onClick: function () { setAnswer(q.id, String(npsIdx)); },
-                        content: ctx.UI.Text({
-                            text: String(npsIdx),
-                            style: "labelSmall",
-                            color: isSelected3 ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                        }),
-                    }));
-                })(group[gj]);
-            }
-            npsRows.push(ctx.UI.Row({ key: q.id + "_nps_row" + gi, spacing: 6, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, rowBtns));
-        }
-        nodes.push(ctx.UI.Column({ key: q.id + "_nps_col", spacing: 4, padding: { vertical: 4 } }, npsRows));
+        if (isNaN(npsVal)) npsVal = -1;
+        // v1.8.1：0~10 单行胶囊刻度（compact 主题组件内部自动退回三行按钮）
+        nodes.push(NpsScale(ctx, {
+            keyName: q.id + "_nps",
+            value: npsVal,
+            theme: theme,
+            onChange: function (i) { setAnswer(q.id, String(i)); },
+        }));
         if (npsVal >= 0) {
-            var npsLabel = npsVal >= 9 ? _t("ui.form.npsPromoter",data._lang) : (npsVal >= 7 ? _t("ui.form.npsDetractor",data._lang) : _t("ui.form.npsDetractor",data._lang));
+            var npsLabel = npsVal >= 9 ? _t("ui.form.npsPromoter",data._lang) : (npsVal >= 7 ? _t("ui.form.npsPassive",data._lang) : _t("ui.form.npsDetractor",data._lang));
             nodes.push(ctx.UI.Text({ text: _t("ui.form.npsScore",data._lang) + npsVal + " (" + npsLabel + ")", style: "bodySmall", color: answerColor }));
         }
         else {
@@ -976,6 +1047,7 @@ if (hasCount && data.resultcode) {
         }
         return null;
     }
+
     
     function _renderTime(q, idx, nodes, qText, answer, isSubmitted) {
         if (isSubmitted) {
@@ -1037,7 +1109,7 @@ if (hasCount && data.resultcode) {
                             selected: hourVal === h,
                             onClick: function () { setAnswer(q.id, buildTime(h, minVal, secVal)); },
                             label: ctx.UI.Text({ text: h, style: "labelSmall", color: hourVal === h ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                            leadingIcon: hourVal === h ? ctx.UI.Icon({ name: "check", size: 14, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
+                            leadingIcon: hourVal === h ? ctx.UI.Icon({ name: "Check", size: 14, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
                         }));
                     } else {
                         hourBtnNodes.push(ctx.UI.OutlinedButton({
@@ -1079,10 +1151,13 @@ if (hasCount && data.resultcode) {
             return _typeEntry.render(q, idx, []);
         }
         if (q.type === "section") {
-            return ctx.UI.Column({ key: "sec_" + q.id, spacing: 2, padding: { vertical: 6, horizontal: 4 } }, [
-                ctx.UI.Text({ text: q.question, style: "titleSmall", color: primary }),
-                q.subtitle ? ctx.UI.Text({ text: q.subtitle, style: "bodySmall", color: onSurfaceVariant }) : null,
-            ]);
+            // v1.8.1：分组标题改为色块底（compact 主题自动退回纯文字）
+            return SectionHeader(ctx, {
+                keyName: "sec_" + q.id,
+                text: q.question,
+                subtitle: q.subtitle,
+                theme: theme,
+            });
         }
         var qNum = idx + 1;
         var requiredMark = q.required ? " *" : "";
@@ -1115,6 +1190,13 @@ if (hasCount && data.resultcode) {
                 else if (q.type === "time") {
                     displayAnswer = String(answer);
                 }
+                // v1.8.3：新题型的回显格式
+                else if (q.type === "confirm") {
+                    displayAnswer = (answer === true || answer === "true") ? _t("ui.form.confirmed", data._lang) : _t("ui.form.notConfirmed", data._lang);
+                }
+                else if (q.type === "number") {
+                    displayAnswer = String(answer) + (q.unit ? " " + q.unit : "");
+                }
                 else {
                     displayAnswer = Array.isArray(answer) ? answer.join(", ") : String(answer);
                 }
@@ -1128,21 +1210,17 @@ if (hasCount && data.resultcode) {
         }
         if (isExpired)
             return null;
+        // v1.8.1：题干改用序号徽章 + 独立题干块（compact 主题自动退回单行拼接）
         var nodes = [
-            ctx.UI.Text({
-                text: qText,
-                style: "labelMedium",
-                color: q.required ? errorColor : onSurface,
+            QuestionHeader(ctx, {
+                keyName: "qhead_" + q.id,
+                index: qNum,
+                text: q.question,
+                subtitle: q.subtitle,
+                required: q.required === true,
+                theme: theme,
             }),
         ];
-        if (q.subtitle) {
-            nodes.push(ctx.UI.Text({
-                text: q.subtitle,
-                style: "bodySmall",
-                color: onSurfaceVariant,
-                padding: { top: 2, bottom: 2 },
-            }));
-        }
         if (q.type === "single") {
             var opts = q.options || [];
             var btnNodes = [];
@@ -1150,53 +1228,60 @@ if (hasCount && data.resultcode) {
             for (var oi = 0; oi < opts.length; oi++) {
                 var opt = opts[oi];
                 var isSelected = answer === opt;
-                (function (optVal) {
-                    if (isCompact) {
-                        btnNodes.push(ctx.UI.FilterChip({
-                            key: q.id + "_" + oi,
-                            selected: isSelected,
+                (function (optVal, optIdx, sel) {
+                    if (theme === "modern") {
+                        btnNodes.push(OptionRow(ctx, {
+                            keyName: q.id + "_" + optIdx,
+                            label: optVal,
+                            selected: sel,
+                            radio: true,
+                            last: optIdx === opts.length - 1 && !q.enableOther,
                             onClick: function () { setAnswer(q.id, optVal); },
-                            label: ctx.UI.Text({ text: optVal, style: "labelSmall", color: isSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                            leadingIcon: isSelected ? ctx.UI.Icon({ name: "check", size: 16, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
                         }));
-                    }
-                    else {
+                    } else {
                         btnNodes.push(ctx.UI.OutlinedButton({
-                            key: q.id + "_" + oi,
-                            containerColor: isSelected ? primary : null,
-                            contentColor: isSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
+                            key: q.id + "_" + optIdx,
+                            containerColor: sel ? primary : null,
+                            contentColor: sel ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
                             onClick: function () { setAnswer(q.id, optVal); },
                             border: { width: 1.5, color: onSurfaceVariant },
-                            content: ctx.UI.Text({ text: optVal, style: "labelSmall", color: isSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+                            content: ctx.UI.Text({ text: optVal, style: "labelSmall", color: sel ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
                         }));
                     }
-                })(opt);
+                })(opt, oi, isSelected);
             }
             if (q.enableOther) {
                 var isOtherSelected = answer === "__other__";
-                (function () {
-                    if (isCompact) {
-                        btnNodes.push(ctx.UI.FilterChip({
-                            key: q.id + "_other_btn",
-                            selected: isOtherSelected,
+                (function (sel) {
+                    if (theme === "modern") {
+                        btnNodes.push(OptionRow(ctx, {
+                            keyName: q.id + "_other_btn",
+                            label: _t("ui.form.other", data._lang),
+                            selected: sel,
+                            radio: true,
+                            last: true,
                             onClick: function () { setAnswer(q.id, "__other__"); },
-                            label: ctx.UI.Text({ text: _t("ui.form.other",data._lang), style: "labelSmall", color: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                            leadingIcon: isOtherSelected ? ctx.UI.Icon({ name: "check", size: 16, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
                         }));
-                    }
-                    else {
+                    } else {
                         btnNodes.push(ctx.UI.OutlinedButton({
                             key: q.id + "_other_btn",
-                            containerColor: isOtherSelected ? primary : null,
-                            contentColor: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
+                            containerColor: sel ? primary : null,
+                            contentColor: sel ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
                             onClick: function () { setAnswer(q.id, "__other__"); },
                             border: { width: 1.5, color: onSurfaceVariant },
-                            content: ctx.UI.Text({ text: _t("ui.form.other",data._lang), style: "labelSmall", color: isOtherSelected ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+                            content: ctx.UI.Text({ text: _t("ui.form.other", data._lang), style: "labelSmall", color: sel ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
                         }));
                     }
-                })();
+                })(isOtherSelected);
             }
-            nodes.push(buttonLayout === "row" ? ctx.UI.Column({ key: q.id + "_row", spacing: 4, fillMaxWidth: true, padding: { vertical: 2 } }, btnNodes.map(function(b){return ctx.UI.Column({spacing:0,fillMaxWidth:true},[b]);})) : ctx.UI.LazyRow({ key: q.id + "_row", spacing: 4 }, btnNodes));
+            // classic 保持原有的 row/scroll 按钮布局；modern 走竖排整行；compact 走 chip 行
+            if (theme === "modern") {
+                nodes.push(OptionList(ctx, theme, q.id + "_row", btnNodes));
+            } else {
+                nodes.push(buttonLayout === "row"
+                    ? ctx.UI.Column({ key: q.id + "_row", spacing: 4, fillMaxWidth: true, padding: { vertical: 2 } }, btnNodes.map(function(b){return ctx.UI.Column({spacing:0,fillMaxWidth:true},[b]);}))
+                    : ctx.UI.LazyRow({ key: q.id + "_row", spacing: 4 }, btnNodes));
+            }
             if (q.enableOther && answer === "__other__") {
                 var otherVal = otherInputs[q.id] || "";
                 nodes.push(ctx.UI.TextField({
@@ -1213,48 +1298,91 @@ if (hasCount && data.resultcode) {
             var opts2 = q.options || [];
             var currentArr = Array.isArray(answer) ? answer : [];
             var btnNodes2 = [];
-            var isCompact = theme === "compact";
+            // v1.8.4：全选/取消全选，5 个选项以上才显示（少选项时全选没有意义，还多占一行）
+            var showSelectAll = opts2.length >= 5;
+            var allPicked = opts2.length > 0 && currentArr.length >= opts2.length;
             for (var ci = 0; ci < opts2.length; ci++) {
                 var opt2 = opts2[ci];
                 var isChecked = currentArr.indexOf(opt2) >= 0;
-                (function (optVal) {
-                    if (isCompact) {
-                        btnNodes2.push(ctx.UI.FilterChip({
-                            key: q.id + "_" + ci,
-                            selected: isChecked,
+                (function (optVal, optIdx, checked) {
+                    if (theme === "modern") {
+                        btnNodes2.push(OptionRow(ctx, {
+                            keyName: q.id + "_" + optIdx,
+                            label: optVal,
+                            selected: checked,
+                            radio: false,
+                            last: optIdx === opts2.length - 1,
                             onClick: function () { toggleOption(q.id, optVal); },
-                            label: ctx.UI.Text({ text: optVal, style: "labelSmall", color: isChecked ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                            leadingIcon: isChecked ? ctx.UI.Icon({ name: "check", size: 16, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
                         }));
-                    }
-                    else {
+                    } else {
                         btnNodes2.push(ctx.UI.OutlinedButton({
-                            key: q.id + "_" + ci,
-                            containerColor: isChecked ? primary : null,
-                            contentColor: isChecked ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
+                            key: q.id + "_" + optIdx,
+                            containerColor: checked ? primary : null,
+                            contentColor: checked ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
                             onClick: function () { toggleOption(q.id, optVal); },
                             border: { width: 1.5, color: onSurfaceVariant },
-                            content: ctx.UI.Text({ text: optVal, style: "labelSmall", color: isChecked ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+                            content: ctx.UI.Text({ text: optVal, style: "labelSmall", color: checked ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
                         }));
                     }
-                })(opt2);
+                })(opt2, ci, isChecked);
             }
-            nodes.push(buttonLayout === "row" ? ctx.UI.Column({ key: q.id + "_row", spacing: 4, fillMaxWidth: true, padding: { vertical: 2 } }, btnNodes2.map(function(b){return ctx.UI.Column({spacing:0,fillMaxWidth:true},[b]);})) : ctx.UI.LazyRow({ key: q.id + "_row", spacing: 4 }, btnNodes2));
+            // 全选行：放在选项列表上方，点了整体切换
+            if (showSelectAll && isActive) {
+                nodes.push(ctx.UI.Row({
+                    key: q.id + "_selall_row",
+                    fillMaxWidth: true,
+                    verticalAlignment: "center",
+                    spacing: _SPACE.xs,
+                    padding: { bottom: _SPACE.xs },
+                }, [
+                    ctx.UI.Text({
+                        key: q.id + "_selall_cnt",
+                        text: _t("ui.form.pickedCount", data._lang)
+                            .replace("%s", String(currentArr.length)).replace("%d", String(opts2.length)),
+                        fontSize: _FONT.hint,
+                        color: ctx.MaterialTheme.colorScheme.onSurfaceVariant,
+                        weight: 1,
+                    }),
+                    ctx.UI.TextButton({
+                        key: q.id + "_selall_btn",
+                        onClick: function () { setAnswer(q.id, allPicked ? [] : opts2.slice()); },
+                        content: ctx.UI.Text({
+                            text: allPicked ? _t("ui.form.deselectAll", data._lang) : _t("ui.form.selectAll", data._lang),
+                            style: "labelSmall",
+                            color: primary,
+                        }),
+                    }),
+                ]));
+            }
+            nodes.push(OptionList(ctx, theme, q.id + "_row", btnNodes2, undefined, _t("ui.form.scrollHint", data._lang)));
         }
         else if (q.type === "text") {
             var textVal = answer || "";
-            nodes.push(ctx.UI.TextField({
+            // v1.8.3：必填项的校验态（参考素材库 input-error）
+            //   只有「已尝试提交 + 必填 + 空」三者同时成立才标红，避免一进页面就满屏红框。
+            var textBad = triedSubmit && q.required === true && !String(textVal).trim();
+            var textProps = {
                 value: textVal,
                 onValueChange: function (newVal) { setAnswer(q.id, newVal); },
                 placeholder: _t("ui.form.textPlaceholder",data._lang),
                 singleLine: true,
                 enabled: true,
                 style: "compact",
-            }));
+            };
+            if (q.required === true) {
+                textProps.isError = textBad;
+                textProps.supportingText = [ctx.UI.Text({
+                    text: textBad ? _t("ui.form.errRequired",data._lang) : _t("ui.form.requiredHint",data._lang),
+                    style: "bodySmall",
+                    color: textBad ? ctx.MaterialTheme.colorScheme.error : ctx.MaterialTheme.colorScheme.onSurfaceVariant,
+                })];
+            }
+            nodes.push(ctx.UI.TextField(textProps));
         }
         else if (q.type === "textarea") {
             var areaVal = answer || "";
-            nodes.push(ctx.UI.TextField({
+            var areaBad = triedSubmit && q.required === true && !String(areaVal).trim();
+            var areaProps = {
                 value: areaVal,
                 onValueChange: function (newVal) { setAnswer(q.id, newVal); },
                 placeholder: _t("ui.form.textareaPlaceholder",data._lang),
@@ -1263,6 +1391,61 @@ if (hasCount && data.resultcode) {
                 maxLines: 8,
                 enabled: true,
                 style: "compact",
+            };
+            // supportingText 一行里放：错误/必填提示 + 右侧字数
+            if (q.required === true) {
+                areaProps.isError = areaBad;
+                areaProps.supportingText = [
+                    ctx.UI.Row({ fillMaxWidth: true, verticalAlignment: "center", spacing: 0 }, [
+                        ctx.UI.Text({
+                            text: areaBad ? _t("ui.form.errRequired",data._lang) : _t("ui.form.requiredHint",data._lang),
+                            style: "bodySmall",
+                            weight: 1,
+                            color: areaBad ? ctx.MaterialTheme.colorScheme.error : ctx.MaterialTheme.colorScheme.onSurfaceVariant,
+                        }),
+                        ctx.UI.Text({
+                            text: String(String(areaVal).length) + " " + _t("ui.form.charUnit",data._lang),
+                            style: "bodySmall",
+                            color: ctx.MaterialTheme.colorScheme.onSurfaceVariant,
+                        }),
+                    ]),
+                ];
+            }
+            nodes.push(ctx.UI.TextField(areaProps));
+        }
+        // ── v1.8.3 新增：长按确认 / 数字步进 ──
+        // 注意：渲染走的是下面的 if-else 硬编码链，_typeRegistry 只在自定义题型（QinitCode）时用。
+        // 只调 registerType 不往这条链加分支，新题型就会「注册了但不渲染」。
+        else if (q.type === "confirm") {
+            var _cfConfirmed = answer === true || answer === "true";
+            nodes.push(ConfirmField(ctx, {
+                keyName: q.id + "_confirm",
+                text: q.question || "",
+                checked: _cfConfirmed,
+                theme: theme,
+                required: q.required === true,
+                tried: triedSubmit,
+                errText: _t("ui.form.errRequired", data._lang),
+                longPressHint: _t("ui.form.longPressToConfirm", data._lang),
+                confirmedHint: _t("ui.form.confirmedHint", data._lang),
+                onChange: function (next) { setAnswer(q.id, next ? "true" : ""); },
+            }));
+        }
+        else if (q.type === "number") {
+            var _nfVal = (answer === undefined || answer === null || answer === "") ? null : Number(answer);
+            if (_nfVal !== null && isNaN(_nfVal)) _nfVal = null;
+            nodes.push(NumberField(ctx, {
+                keyName: q.id + "_number",
+                value: _nfVal,
+                min: typeof q.min === "number" ? q.min : undefined,
+                max: typeof q.max === "number" ? q.max : undefined,
+                step: typeof q.step === "number" ? q.step : undefined,
+                unit: q.unit || "",
+                theme: theme,
+                required: q.required === true,
+                tried: triedSubmit,
+                errText: _t("ui.form.errRequired", data._lang),
+                onChange: function (next) { setAnswer(q.id, next === null ? "" : String(next)); },
             }));
         }
         else if (q.type === "time") {
@@ -1317,7 +1500,7 @@ if (hasCount && data.resultcode) {
                                 selected: hourVal === h,
                                 onClick: function () { setAnswer(q.id, buildTime(h, minVal, secVal)); },
                                 label: ctx.UI.Text({ text: h, style: "labelSmall", color: hourVal === h ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                                leadingIcon: hourVal === h ? ctx.UI.Icon({ name: "check", size: 14, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
+                                leadingIcon: hourVal === h ? ctx.UI.Icon({ name: "Check", size: 14, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
                             }));
                         } else {
                             hourBtnNodes.push(ctx.UI.OutlinedButton({
@@ -1340,7 +1523,7 @@ if (hasCount && data.resultcode) {
                                 selected: minVal === m,
                                 onClick: function () { setAnswer(q.id, buildTime(hourVal, m, secVal)); },
                                 label: ctx.UI.Text({ text: m, style: "labelSmall", color: minVal === m ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                                leadingIcon: minVal === m ? ctx.UI.Icon({ name: "check", size: 14, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
+                                leadingIcon: minVal === m ? ctx.UI.Icon({ name: "Check", size: 14, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
                             }));
                         } else {
                             minBtnNodes.push(ctx.UI.OutlinedButton({
@@ -1363,7 +1546,7 @@ if (hasCount && data.resultcode) {
                                 selected: secVal === s,
                                 onClick: function () { setAnswer(q.id, buildTime(hourVal, minVal, s)); },
                                 label: ctx.UI.Text({ text: s, style: "labelSmall", color: secVal === s ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                                leadingIcon: secVal === s ? ctx.UI.Icon({ name: "check", size: 14, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
+                                leadingIcon: secVal === s ? ctx.UI.Icon({ name: "Check", size: 14, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
                             }));
                         } else {
                             secBtnNodes.push(ctx.UI.OutlinedButton({
@@ -1400,66 +1583,27 @@ if (hasCount && data.resultcode) {
         else if (q.type === "rating") {
             var ratingVal = parseInt(answer) || 0;
             var ratingLabels = ["", _t("ui.form.ratingVeryBad",data._lang), _t("ui.form.ratingBad",data._lang), _t("ui.form.ratingNormal",data._lang), _t("ui.form.ratingGood",data._lang), _t("ui.form.ratingVeryGood",data._lang)];
-            var ratingRow1 = [], ratingRow2 = [];
-            for (var si = 1; si <= 5; si++) {
-                (function (starIdx) {
-                    var filled = starIdx <= ratingVal;
-                    var btn = ctx.UI.OutlinedButton({
-                        key: q.id + "_star_" + starIdx,
-                        containerColor: filled ? starActiveColor : null,
-                        contentColor: filled ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                        onClick: function () { setAnswer(q.id, String(starIdx)); },
-                        content: ctx.UI.Text({
-                            text: String(starIdx),
-                            style: "labelSmall",
-                            color: filled ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                        }),
-                    });
-                    if (starIdx <= 3)
-                        ratingRow1.push(btn);
-                    else
-                        ratingRow2.push(btn);
-                })(si);
-            }
-            nodes.push(ctx.UI.Column({ key: q.id + "_stars_col", spacing: 4, padding: { vertical: 4 } }, [
-                ctx.UI.Row({ key: q.id + "_stars_1", spacing: 6, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, ratingRow1),
-                ctx.UI.Row({ key: q.id + "_stars_2", spacing: 6, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, ratingRow2),
-            ]));
-            var label = ratingVal > 0 ? (ratingVal + _t("ui.form.starLabel",data._lang) + ratingLabels[ratingVal]) : _t("ui.form.starHint",data._lang);
-            nodes.push(ctx.UI.Text({ text: label, style: "bodySmall", color: onSurfaceVariant }));
+            // v1.8.1：一排真星级图标
+            nodes.push(RatingStars(ctx, {
+                keyName: q.id + "_stars",
+                value: ratingVal,
+                labels: ratingLabels,
+                hint: _t("ui.form.starHint", data._lang),
+                theme: theme,
+                onChange: function (score) { setAnswer(q.id, String(score)); },
+            }));
         }
         else if (q.type === "likert") {
             var likertOpts = q.options || [_t("ui.form.likertStronglyDisagree",data._lang), _t("ui.form.likertDisagree",data._lang), _t("ui.form.ratingNormal",data._lang), _t("ui.form.likertAgree",data._lang), _t("ui.form.likertStronglyAgree",data._lang)];
             var likertVal = parseInt(answer) || 0;
-            var halfLen = Math.ceil(likertOpts.length / 2);
-            var likertRow1Btns = [], likertRow2Btns = [];
-            for (var li = 1; li <= likertOpts.length; li++) {
-                (function (likertIdx) {
-                    var isSelected2 = likertIdx === likertVal;
-                    var btn = ctx.UI.OutlinedButton({
-                        key: q.id + "_likert_" + likertIdx,
-                        containerColor: isSelected2 ? primary : null,
-                        contentColor: isSelected2 ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                        onClick: function () { setAnswer(q.id, String(likertIdx)); },
-                        content: ctx.UI.Text({
-                            text: String(likertIdx),
-                            style: "labelSmall",
-                            color: isSelected2 ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                        }),
-                    });
-                    if (likertIdx <= halfLen)
-                        likertRow1Btns.push(btn);
-                    else
-                        likertRow2Btns.push(btn);
-                })(li);
-            }
-            nodes.push(ctx.UI.Column({ key: q.id + "_likert_col", spacing: 2, padding: { vertical: 4 } }, [
-                ctx.UI.Row({ key: q.id + "_likert_btns_1", spacing: 4, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, likertRow1Btns),
-                ctx.UI.Row({ key: q.id + "_likert_btns_2", spacing: 4, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, likertRow2Btns),
-                ctx.UI.Row({ key: q.id + "_likert_labels", spacing: 4, horizontalArrangement: "spaceEvenly", fillMaxWidth: true, padding: { top: 2 } }, likertOpts.map(function (lbl, li2) {
-                    return ctx.UI.Text({ key: q.id + "_lbl_" + li2, text: lbl, style: "labelSmall", color: onSurfaceVariant, maxLines: 2 });
-                })),
-            ]));
+            // v1.8.1：横向刻度条
+            nodes.push(LikertScale(ctx, {
+                keyName: q.id + "_likert",
+                options: likertOpts,
+                value: likertVal,
+                theme: theme,
+                onChange: function (i) { setAnswer(q.id, String(i)); },
+            }));
             if (likertVal > 0) {
                 var likertIdx2 = Math.min(Math.max(likertVal - 1, 0), likertOpts.length - 1);
                 nodes.push(ctx.UI.Text({ text: _t("ui.form.likertSelected",data._lang) + likertOpts[likertIdx2], style: "bodySmall", color: answerColor }));
@@ -1467,34 +1611,16 @@ if (hasCount && data.resultcode) {
         }
         else if (q.type === "nps") {
             var npsVal = parseInt(answer);
-            if (isNaN(npsVal))
-                npsVal = -1;
-            var npsGroups = [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10]];
-            var npsRows = [];
-            for (var gi = 0; gi < npsGroups.length; gi++) {
-                var group = npsGroups[gi];
-                var rowBtns = [];
-                for (var gj = 0; gj < group.length; gj++) {
-                    (function (npsIdx) {
-                        var isSelected3 = npsIdx === npsVal;
-                        rowBtns.push(ctx.UI.OutlinedButton({
-                            key: q.id + "_nps_" + npsIdx,
-                            containerColor: isSelected3 ? primary : null,
-                            contentColor: isSelected3 ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                            onClick: function () { setAnswer(q.id, String(npsIdx)); },
-                            content: ctx.UI.Text({
-                                text: String(npsIdx),
-                                style: "labelSmall",
-                                color: isSelected3 ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                            }),
-                        }));
-                    })(group[gj]);
-                }
-                npsRows.push(ctx.UI.Row({ key: q.id + "_nps_row" + gi, spacing: 6, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, rowBtns));
-            }
-            nodes.push(ctx.UI.Column({ key: q.id + "_nps_col", spacing: 4, padding: { vertical: 4 } }, npsRows));
+            if (isNaN(npsVal)) npsVal = -1;
+            // v1.8.1：0~10 单行胶囊刻度
+            nodes.push(NpsScale(ctx, {
+                keyName: q.id + "_nps",
+                value: npsVal,
+                theme: theme,
+                onChange: function (i) { setAnswer(q.id, String(i)); },
+            }));
             if (npsVal >= 0) {
-                var npsLabel = npsVal >= 9 ? _t("ui.form.npsPromoter",data._lang) : (npsVal >= 7 ? _t("ui.form.npsDetractor",data._lang) : _t("ui.form.npsDetractor",data._lang));
+                var npsLabel = npsVal >= 9 ? _t("ui.form.npsPromoter",data._lang) : (npsVal >= 7 ? _t("ui.form.npsPassive",data._lang) : _t("ui.form.npsDetractor",data._lang));
                 nodes.push(ctx.UI.Text({ text: _t("ui.form.npsScore",data._lang) + npsVal + " (" + npsLabel + ")", style: "bodySmall", color: answerColor }));
             }
             else {
@@ -1834,7 +1960,7 @@ if (hasCount && data.resultcode) {
     // 提交完成且未过期：头部右侧显示"修改"按钮，点击回到编辑态并自动带出刚填写的答案
     var editBtn = (isSubmitted && !isExpired) ? ctx.UI.IconButton({
         key: "edit_btn",
-        icon: "edit",
+        icon: "Edit",
         tint: primary,
         onClick: function () { editedState[1](true); fillHintState[1](""); submittedState[1](false); },
     }) : null;
@@ -1870,7 +1996,7 @@ if (hasCount && data.resultcode) {
         else if (isLangNeeded) {
             contentNodes.push(ctx.UI.Card({ key: "lang_card", fillMaxWidth: true, containerColor: surfaceVariant }, [
                 ctx.UI.Column({ padding: { horizontal: 16, vertical: 16 }, spacing: 12, horizontalAlignment: "centerHorizontally", fillMaxWidth: true }, [
-                    ctx.UI.Icon({ name: "warning", size: 32, tint: primary }),
+                    ctx.UI.Icon({ name: "Warning", size: 32, tint: primary }),
                     ctx.UI.Text({ text: "Language Not Set / 未设置语言", style: "titleSmall", color: onSurface, textAlign: "center" }),
                     ctx.UI.Text({ text: "Please set a language pack first via Questionnaire Settings, then restart Operit to use this questionnaire. / 请先在问卷设置中设置语言包，然后重启 Operit 以使用本问卷。", style: "bodySmall", color: onSurfaceVariant, textAlign: "center" }),
                     ctx.UI.Spacer({ height: 8 }),
@@ -1936,7 +2062,7 @@ if (hasCount && data.resultcode) {
                 // 一键补全成功提示条
                 if (fillHintState[0]) {
                     contentNodes.push(ctx.UI.Row({ key: "fill_hint", fillMaxWidth: true, padding: { horizontal: 8, vertical: 4 }, horizontalArrangement: "center", verticalAlignment: "center", spacing: 4 }, [
-                        ctx.UI.Icon({ name: "check_circle", size: 16, tint: primary }),
+                        ctx.UI.Icon({ name: "CheckCircle", size: 16, tint: primary }),
                         ctx.UI.Text({ text: fillHintState[0], style: "bodySmall", color: primary }),
                     ]));
                 }
@@ -1972,7 +2098,7 @@ if (hasCount && data.resultcode) {
                                 ctx.UI.Divider({ color: surfaceVariant, thickness: 1 }),
                                 ctx.UI.Text({ text: _t("ui.form.aboutTitle",data._lang), style: "titleSmall", color: primary }),
                                 ctx.UI.Text({ text: _t("ui.form.aboutDesc",data._lang), style: "bodySmall", color: onSurfaceVariant }),
-                                ctx.UI.Text({ text: _t("ui.form.versionLabel",data._lang) + "1.8.0", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
+                                ctx.UI.Text({ text: _t("ui.form.versionLabel",data._lang) + "1.8.1", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
                                 ctx.UI.Text({ text: _t("ui.form.authorTitle",data._lang), style: "titleSmall", color: primary }),
                                 ctx.UI.Text({ text: _t("ui.form.authorOriginal",data._lang) + "liu-baia", style: "bodySmall", color: onSurface }),
                                 ctx.UI.Text({ text: _t("ui.form.authorModder",data._lang) + "yyswys-yjyj", style: "bodySmall", color: onSurface }),
@@ -2035,7 +2161,7 @@ if (hasCount && data.resultcode) {
                     }
                     contentNodes.push(ctx.UI.Divider({ key: "div_actions", color: onSurfaceVariant.copy({ alpha: 0.4 }), thickness: 1 }));
                     contentNodes.push(ctx.UI.Row({ key: "actions", horizontalArrangement: "spaceBetween", fillMaxWidth: true, padding: { horizontal: 4, vertical: 4 }, verticalAlignment: "center" }, [
-                        ctx.UI.IconButton({ key: "info_btn", icon: ctx.UI.Icon({ name: "info", size: 20, tint: onSurfaceVariant }), onClick: function () { infoOpenState[1](!infoOpenState[0]); } }),
+                        ctx.UI.IconButton({ key: "info_btn", icon: ctx.UI.Icon({ name: "Info", size: 20, tint: onSurfaceVariant }), onClick: function () { infoOpenState[1](!infoOpenState[0]); } }),
                         ctx.UI.Row({ key: "action_buttons", spacing: 8, horizontalArrangement: "end", verticalAlignment: "center" }, [
                             _showFillButton ? ctx.UI.OutlinedButton({ key: "fill_btn", onClick: fillFromHistory, containerColor: primary, content: ctx.UI.Text({ text: _t("ui.form.fill",data._lang), style: "labelSmall", color: ctx.MaterialTheme.colorScheme.onPrimary }) }) : null,
                             ctx.UI.OutlinedButton({ key: "cancel_btn", onClick: handleCancel, content: ctx.UI.Text({ text: _t("ui.form.cancel",data._lang), style: "labelSmall", color: onSurfaceVariant }) }),
@@ -2048,7 +2174,7 @@ if (hasCount && data.resultcode) {
         if (errorMsg) {
             contentNodes.push(ctx.UI.Divider({ key: "div_err", color: errorColor.copy({ alpha: 0.3 }), thickness: 1 }));
             contentNodes.push(ctx.UI.Row({ key: "error_hint", fillMaxWidth: true, padding: { horizontal: 8, vertical: 6 }, horizontalArrangement: "center" }, [
-                ctx.UI.Icon({ name: "warning", size: 16, tint: errorColor }),
+                ctx.UI.Icon({ name: "Warning", size: 16, tint: errorColor }),
                 ctx.UI.Spacer({ width: 4 }),
                 ctx.UI.Text({ text: errorMsg, style: "bodySmall", color: errorColor }),
             ]));
@@ -2063,7 +2189,7 @@ if (hasCount && data.resultcode) {
                     ctx.UI.Divider({ color: surfaceVariant, thickness: 1 }),
                     ctx.UI.Text({ text: _t("ui.form.aboutTitle",data._lang), style: "titleSmall", color: primary }),
                     ctx.UI.Text({ text: _t("ui.form.aboutDesc",data._lang), style: "bodySmall", color: onSurfaceVariant }),
-                    ctx.UI.Text({ text: _t("ui.form.versionLabel",data._lang) + "1.8.0", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
+                    ctx.UI.Text({ text: _t("ui.form.versionLabel",data._lang) + "1.8.1", style: "labelSmall", color: onSurfaceVariant.copy({ alpha: 0.7 }) }),
                     ctx.UI.Text({ text: _t("ui.form.authorTitle",data._lang), style: "titleSmall", color: primary }),
                     ctx.UI.Text({ text: _t("ui.form.authorOriginal",data._lang) + "liu-baia", style: "bodySmall", color: onSurface }),
                     ctx.UI.Text({ text: _t("ui.form.authorModder",data._lang) + "yyswys-yjyj", style: "bodySmall", color: onSurface }),

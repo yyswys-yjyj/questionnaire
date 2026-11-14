@@ -1,3 +1,19 @@
+/*
+ * SPDX-FileCopyrightText: 2025-2026 liu-baia, yyswys-yjyj
+ * SPDX-License-Identifier: GPL-3.0-only
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3 of the License only.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 // QLangMemory — 二进制内存系统
 // 256MB ArrayBuffer + FAT 分配表（16MB）
 // 完全抛弃 JS Number，用原始字节 + 类型编码存储所有数据

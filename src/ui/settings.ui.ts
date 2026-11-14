@@ -1,4 +1,36 @@
+/*
+ * SPDX-FileCopyrightText: 2025-2026 liu-baia, yyswys-yjyj
+ * SPDX-License-Identifier: GPL-3.0-only
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3 of the License only.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 // @ts-nocheck
+// ── v1.8.1 UI 翻新：设置页组件 ──
+import { SubHeader, SectionCard, SettingsRow as SettingsItem, SegmentedRow, StatGrid, SectionBanner } from "./components/SettingsItem.js";
+// v1.8.1：外观/行为区块与页面骨架已拆到子模块
+import { buildAppearanceSection, buildBehaviorSection, buildTypeOptions } from "./settings/sections.js";
+import { SettingsPageShell, SettingsHomeShell } from "./settings/pages.js";
+import { SPACE, RADIUS, FONT, SIZE, shape, fade } from "./shared/design.js";
+// ── v1.8.1 UI 翻新：题型预览与真实问卷共用同一套组件 ──
+import { NoticeBar } from "./components/NoticeBar.js";
+import { OptionRow, OptionList } from "./components/OptionRow.js";
+import { RatingStars } from "./components/RatingStars.js";
+import { LikertScale } from "./components/LikertScale.js";
+import { NpsScale } from "./components/NpsScale.js";
+import { ConfirmField } from "./components/ConfirmField.js";
+import { NumberField } from "./components/NumberField.js";
+import { QuestionHeader, SectionHeader } from "./components/QuestionHeader.js";
+
 function readEnv(key, valid, def) {
     if (typeof getEnv !== "function") return def;
     try { var v = getEnv(key); if (valid.indexOf(v) >= 0) return v; } catch (e) {}
@@ -109,12 +141,35 @@ function _t(key) {
     if (_settingsLang && _settingsLang[key]) return _settingsLang[key];
     var builtin = {
         "ui.setting.title": "问卷主题设置",
-        "ui.setting.back": "返回",
-        "ui.setting.home.title": "设置首页",
+        "ui.form.err.numField": "第%s题 %s 必须是数字",
+        "ui.form.err.numRange": "第%s题 min 不能大于 max",
+        "ui.form.err.numUnit": "第%s题 unit 必须是字符串",
+        "ui.form.errRequired": "此题为必答题，请填写",
+        "ui.form.requiredHint": "必答",
+        "ui.form.charUnit": "字",
+        "ui.form.pickedCount": "已选 %s / %d 项",
+        "ui.form.selectAll": "全选",
+        "ui.form.deselectAll": "取消全选",
+        "ui.form.scrollHint": "共 %s 项，可上下滑动 ↑↓",
+        "ui.form.err.qfRequired": "第%s题使用了必选(required)，但题型过滤器已禁用必选",
+        "ui.form.err.qfOther": "第%s题（%s）使用了\"其他\"输入(enableOther)，但题型过滤器已禁用单选\"其他\"",
+        "ui.setting.type.confirm": "确认",
+        "ui.setting.type.number": "数字",
+        "ui.setting.preview.confirm": "确认项",
+        "ui.setting.preview.confirmText": "我已阅读并同意上述内容",
+        "ui.setting.preview.number": "数字输入",
+        "ui.setting.preview.numberUnit": "个",
+        "ui.form.confirmed": "已确认",
+        "ui.form.notConfirmed": "未确认",
+        "ui.form.longPressToConfirm": "长按确认",
+        "ui.form.confirmedHint": "已确认，点击可取消",
         "ui.setting.home.filled": "已填写问卷",
-        "ui.setting.home.filledCount": "%d 份",
         "ui.setting.home.currentLang": "当前语言包",
         "ui.setting.home.entries": "功能",
+  "ui.setting.home.bannerSub": "AI 问卷提问·设置",
+  "ui.setting.home.bannerNote": "主题 / 布局 / 行为、语言包、草稿与更新，全在这里",
+  "ui.setting.themeDesc": "切换问卷题型的交互形态",
+  "ui.setting.history.toggleDesc": "保留每次填写记录，方便回溯",
         "ui.setting.page.appearance": "外观",
         "ui.setting.page.appearance.desc": "主题、按钮布局、问卷布局与题型预览",
         "ui.setting.page.behavior": "行为",
@@ -134,7 +189,6 @@ function _t(key) {
         "ui.setting.scheme.namePlaceholder": "方案名称",
         "ui.setting.scheme.saveBtn": "保存",
         "ui.setting.scheme.exportTitle": "一键导出当前配置",
-        "ui.setting.scheme.exportBtn": "导出",
         "ui.setting.scheme.exportResult": "方案字符串（复制以下内容以便分享）：",
         "ui.setting.scheme.importTitle": "一键导入方案",
         "ui.setting.scheme.importPlaceholder": "粘贴方案字符串...",
@@ -149,7 +203,7 @@ function _t(key) {
         "ui.setting.scheme.deleted": "已删除方案",
         "ui.setting.scheme.deleFail": "删除失败：",
         "ui.setting.scheme.copied": "已复制到剪贴板",
-        "ui.setting.scheme.copyFail": "复制失败：",
+        "ui.setting.scheme.copyFail": "复制失败: ",
         "ui.setting.page.preview": "题型预览",
         "ui.setting.page.preview.desc": "按当前主题与布局实时预览各题型渲染",
         "ui.setting.preview.other": "其他…",
@@ -179,9 +233,6 @@ function _t(key) {
         "ui.setting.lang": "语言包",
         "ui.setting.lang.current": "当前语言",
         "ui.setting.lang.scan": "扫描语言包",
-        "ui.setting.lang.scanning": "扫描中...",
-        "ui.setting.lang.switch": "切换",
-        "ui.setting.lang.none": "内置语言包",
         "ui.setting.about": "关于主题",
         "ui.setting.about.round": "圆润模式：使用 OutlinedButton 显示选项，适合清晰区分",
         "ui.setting.about.square": "方正模式：使用 FilterChip 显示选项，紧凑设计，适合空间有限",
@@ -208,10 +259,15 @@ function _t(key) {
         "ui.setting.cleanHistory.fail": "清理失败",
         "ui.setting.saveFail": "保存失败：",
         "ui.setting.round": "圆润",
+        "ui.setting.modern": "现代",
         "ui.setting.square": "方正",
         "ui.setting.layout.row": "一行一个",
         "ui.setting.layout.scroll": "LazyRow滑动",
         "ui.setting.layout.continuous": "连续，所有题目连续显示",
+        "ui.setting.layout.segContinuous": "连续",
+        "ui.setting.layout.segCompact": "紧凑",
+        "ui.setting.qLayout.lockedByModern": "现代化主题固定为每页 3 题",
+        "ui.setting.layout.lockedByModern": "现代主题下按钮布局已锁定为竖排",
         "ui.setting.layout.compact": "紧凑，一页5题加分页",
         "ui.setting.timePicker": "按钮选择器",
         "ui.setting.timeInput": "手动输入",
@@ -232,12 +288,8 @@ function _t(key) {
         "ui.setting.unknownVer": "未知版本",
         "ui.setting.latestVer": "当前已是最新版",
         "ui.setting.current": "当前：",
-        "ui.setting.strictDesc": "检查全部语法",
-        "ui.setting.strictDescRelaxed": "放行非致命错误",
-        "ui.setting.lang.loadFail": "语言包加载失败：",
                 "ui.setting.langParseFail": "解析语言包失败: ",
         "ui.setting.scanFail": "扫描失败：",
-        "ui.setting.switchFail": "切换失败：",
         "ui.setting.foundPacks": "找到 %d 个语言包",
         "ui.setting.switched": "已切换语言包，界面已立即生效",
         "ui.setting.currentPack": "当前语言包：",
@@ -250,7 +302,6 @@ function _t(key) {
         "ui.setting.unavailable": "不可用",
         "ui.setting.fetchFail": "获取失败：",
         "ui.setting.latestVerDesc": "当前已是最新版，无新版本特性。",
-        "ui.setting.selectSource": "选择来源",
         "ui.setting.lparen": "（",
         "ui.setting.rparen": "）",
         "ui.setting.lang.author": "语言包作者：",
@@ -274,37 +325,11 @@ function _t(key) {
         "ui.market.langpack.refresh": "刷新",
         "ui.market.langpack.download": "下载",
         "ui.market.langpack.installed": "已安装",
-        "ui.market.langpack.loadFail": "加载市场列表失败",
-        "ui.market.langpack.downloadFail": "下载失败",
-        "ui.market.langpack.downloadSuccess": "下载成功",
-        "ui.market.langpack.publishTitle": "发布你的语言包",
-        "ui.market.langpack.publishDesc": "在 GitHub 提交 Issue 来发布你的语言包",
-        "ui.market.langpack.publishBtn": "在 GitHub 发布",
         "ui.market.langpack.noItems": "暂无可用语言包",
         "ui.market.langpack.fetching": "获取中...",
-        "ui.market.langpack.installing": "安装中...",
-        "ui.market.langpack.checkFail": "检查失败：",
         "ui.market.langpack.version": "版本",
         "ui.market.langpack.authorLabel": "作者",
-        "ui.market.langpack.reinstall": "重新安装",
 
-        "ui.market.langpack.title": "语言包市场",
-        "ui.market.langpack.refresh": "刷新",
-        "ui.market.langpack.download": "下载",
-        "ui.market.langpack.installed": "已安装",
-        "ui.market.langpack.loadFail": "加载市场列表失败",
-        "ui.market.langpack.downloadFail": "下载失败",
-        "ui.market.langpack.downloadSuccess": "下载成功",
-        "ui.market.langpack.publishTitle": "发布你的语言包",
-        "ui.market.langpack.publishDesc": "在 GitHub 提交 Issue 来发布你的语言包",
-        "ui.market.langpack.publishBtn": "在 GitHub 发布",
-        "ui.market.langpack.noItems": "暂无可用语言包",
-        "ui.market.langpack.fetching": "获取中...",
-        "ui.market.langpack.installing": "安装中...",
-        "ui.market.langpack.checkFail": "检查失败：",
-        "ui.market.langpack.version": "版本",
-        "ui.market.langpack.authorLabel": "作者",
-        "ui.market.langpack.reinstall": "重新安装",
         "ui.market.langpack.manageTitle": "语言包管理",
         "ui.market.langpack.manageRefresh": "请刷新",
         "ui.market.langpack.manageEmpty": "当前无语言包",
@@ -312,9 +337,6 @@ function _t(key) {
         "ui.market.langpack.expand": "展开",
         "ui.market.langpack.collapse": "收起",
         "ui.market.langpack.noAuthor": "未知作者",
-        "ui.market.langpack.fillBoth": "请填写邮箱和JSON内容",
-        "ui.market.langpack.submitting": "提交中...",
-        "ui.market.langpack.submitFail": "提交失败: ",
         "ui.market.langpack.deleteOk": "已删除",
         "ui.market.langpack.deleteFail": "删除失败: ",
         "ui.market.langpack.dlOk": "下载成功",
@@ -328,15 +350,8 @@ function _t(key) {
         "ui.market.langpack.selectFile": "选择文件",
 
         "ui.setting.roundDesc": "圆润",
+        "ui.setting.modernDesc": "现代",
         "ui.setting.squareDesc": "方正",
-        "ui.setting.layout.rowDesc": "一行一个（突出）",
-        "ui.setting.layout.scrollDesc": "LazyRow滑动（经典）",
-        "ui.setting.layout.continuousDesc": "连续显示（经典）",
-        "ui.setting.layout.compactDesc": "紧凑翻页（新版，分页）",
-        "ui.setting.timePickerDesc": "按钮选择器（时/分/秒按钮）",
-        "ui.setting.timeInputDesc": "手动输入（hh:mm:ss格式）",
-        "ui.setting.displayHiddenDesc": "显示源码（不渲染问卷）",
-        "ui.setting.displayBlockedDesc": "拦截显示（警告页）",
         "ui.setting.selectType": "选择一个题型以预览在当前主题下的渲染效果",
         "ui.setting.newFeature.desc": "点击「获取更新日志」检测新版本",
         "ui.setting.preview.single": "单选题示例",
@@ -354,8 +369,6 @@ function _t(key) {
         "ui.setting.preview.blue": "蓝色",
         "ui.setting.preview.green": "绿色",
         "ui.setting.preview.inputText": "请输入内容...",
-        "ui.setting.preview.ratingExample": "3星 - 一般",
-        "ui.setting.preview.npsExample": "评分：7（被动者）",
         "ui.setting.preview.timeExample": "已选择：10:30",
         "ui.setting.preview.likert1": "非常不同意",
         "ui.setting.preview.likert2": "不同意",
@@ -364,7 +377,6 @@ function _t(key) {
         "ui.setting.preview.likert5": "非常同意",
         "ui.setting.preview.hour": "时",
         "ui.setting.preview.minute": "分",
-        "ui.setting.preview.second": "秒",
         "ui.setting.type.single": "单选题",
     "ui.setting.qf.title": "题型过滤器", "ui.setting.qf.desc": "控制问卷可使用的题型范围，以及是否允许必选和单选「其他」输入。", "ui.setting.qf.useGlobal": "使用全局配置", "ui.setting.qf.useGlobalOn": "使用全局配置（全部题型可用）", "ui.setting.qf.customOn": "自定义题型过滤器", "ui.setting.qf.types": "允许的题型", "ui.setting.qf.toggled": "题型过滤器", "ui.setting.qf.required": "允许必选", "ui.setting.qf.requiredSwitch": "是否允许必选", "ui.setting.qf.other": "允许单选「其他」", "ui.setting.qf.otherSwitch": "是否允许单选「其他」",
     "ui.setting.blocklist.title": "问卷屏蔽词", "ui.setting.blocklist.desc": "问卷标题、描述与所有题目内容中出现下方任一屏蔽词时会被拦截。留空则不使用屏蔽检查器。", "ui.setting.blocklist.placeholder": "输入屏蔽词...", "ui.setting.blocklist.add": "添加", "ui.setting.blocklist.empty": "请输入要屏蔽的词", "ui.setting.blocklist.added": "已添加屏蔽词", "ui.setting.blocklist.removed": "已移除屏蔽词", "ui.setting.blocklist.none": "当前不使用屏蔽检查器", "ui.setting.blocklist.count": " 个",
@@ -378,7 +390,7 @@ function _t(key) {
     };
     return builtin[key] || key;
 }
-var _initialTheme = readEnv("QUESTIONNAIRE_THEME", ["classic","compact"], "classic");
+var _initialTheme = readEnv("QUESTIONNAIRE_THEME", ["classic","modern","compact"], "classic");
 var _initialLayout = readEnv("QUESTIONNAIRE_BUTTON_LAYOUT", ["row","scroll"], "scroll");
 var _initialQuestionLayout = readEnv("QUESTIONNAIRE_LAYOUT", ["continuous","compact"], "continuous");
 var _initialTimeMode = readEnv("QUESTIONNAIRE_TIME_INPUT_MODE", ["picker","input"], "picker");
@@ -422,7 +434,10 @@ function _readBlocklist() {
     return [];
 }
 var _initialBlocklist = _readBlocklist();
-var _themeLabel = function(t) { return t === "classic" ? _t("ui.setting.round") : _t("ui.setting.square"); };
+var _themeLabel = function(t) {
+    return t === "classic" ? _t("ui.setting.round")
+        : (t === "modern" ? _t("ui.setting.modern") : _t("ui.setting.square"));
+};
 var _layoutLabel = function(l) { return l === "row" ? _t("ui.setting.layout.row") : _t("ui.setting.layout.scroll"); };
 var _questionLayoutLabel = function(l) { return l === "continuous" ? _t("ui.setting.layout.continuous") : _t("ui.setting.layout.compact"); };
 var _timeModeLabel = function(m) { return m === "picker" ? _t("ui.setting.timePicker") : _t("ui.setting.timeInput"); };
@@ -445,10 +460,20 @@ function hexVerNum(h) {
 }
 
 export default async function Screen(ctx) {
-    var _PLUGIN_VER = "180"; // 比较版本号：十六进制（1.8.0 → 180），展示统一十进制
+    var _PLUGIN_VER = "181"; // 比较版本号：十六进制（1.8.0 → 180），展示统一十进制
     var primary = ctx.MaterialTheme.colorScheme.primary;
     var onSurface = ctx.MaterialTheme.colorScheme.onSurface;
     var onSurfaceVariant = ctx.MaterialTheme.colorScheme.onSurfaceVariant;
+    var onPrimary = ctx.MaterialTheme.colorScheme.onPrimary;
+    var outlineVariant = ctx.MaterialTheme.colorScheme.outlineVariant;
+    var primaryContainer = ctx.MaterialTheme.colorScheme.primaryContainer;
+    var onPrimaryContainer = ctx.MaterialTheme.colorScheme.onPrimaryContainer;
+    var secondaryContainer = ctx.MaterialTheme.colorScheme.secondaryContainer;
+    var onSecondaryContainer = ctx.MaterialTheme.colorScheme.onSecondaryContainer;
+    var error = ctx.MaterialTheme.colorScheme.error;
+    var onError = ctx.MaterialTheme.colorScheme.onError;
+    var errorContainer = ctx.MaterialTheme.colorScheme.errorContainer;
+    var onErrorContainer = ctx.MaterialTheme.colorScheme.onErrorContainer;
     var surfaceVariant = ctx.MaterialTheme.colorScheme.surfaceVariant;
 
     var currentThemeState = ctx.useState("_theme", _initialTheme);
@@ -482,13 +507,17 @@ export default async function Screen(ctx) {
     var newFeatureState = ctx.useState("_newFeature", "idle");
     var newFeatureContentState = ctx.useState("_newFeatureContent", "");
     var tickState = ctx.useState("_tick", 0);
-    // 横幅消息（Snackbar）：替代旧 toast。showSnack 设置内容 + 3s 自动消失
-    var snackState = ctx.useState("_snack", "");
-    function showSnack(msg) {
-        snackState[1](msg);
+    // 提醒条（NoticeBar）：showSnack(msg, severity)。severity = info / success / warn / error
+    // 注意 state 存的是对象，切换 severity 时必须整体替换（没有函数式更新）
+    var snackState = ctx.useState("_snack", { text: "", severity: "success" });
+    function showSnack(msg, severity) {
+        snackState[1]({ text: String(msg || ""), severity: severity || "success" });
         forceRerender();
         if (_snackTimer) { try { clearTimeout(_snackTimer); } catch (e) {} }
-        _snackTimer = setTimeout(function () { snackState[1](""); forceRerender(); }, 3000);
+        _snackTimer = setTimeout(function () {
+            snackState[1]({ text: "", severity: "success" });
+            forceRerender();
+        }, 3200);
     }
     var changelogStatus = changelogState[0];
     var changelogContent = changelogContentState[0];
@@ -553,12 +582,35 @@ export default async function Screen(ctx) {
         if (_sl && _sl[key]) return _sl[key];
         var builtin = {
             "ui.setting.title": "问卷主题设置",
-            "ui.setting.back": "返回",
-            "ui.setting.home.title": "设置首页",
+            "ui.form.err.numField": "第%s题 %s 必须是数字",
+            "ui.form.err.numRange": "第%s题 min 不能大于 max",
+            "ui.form.err.numUnit": "第%s题 unit 必须是字符串",
+            "ui.form.errRequired": "此题为必答题，请填写",
+            "ui.form.requiredHint": "必答",
+            "ui.form.charUnit": "字",
+            "ui.form.pickedCount": "已选 %s / %d 项",
+            "ui.form.selectAll": "全选",
+            "ui.form.deselectAll": "取消全选",
+            "ui.form.scrollHint": "共 %s 项，可上下滑动 ↑↓",
+            "ui.form.err.qfRequired": "第%s题使用了必选(required)，但题型过滤器已禁用必选",
+            "ui.form.err.qfOther": "第%s题（%s）使用了\"其他\"输入(enableOther)，但题型过滤器已禁用单选\"其他\"",
+            "ui.setting.type.confirm": "确认",
+            "ui.setting.type.number": "数字",
+            "ui.setting.preview.confirm": "确认项",
+            "ui.setting.preview.confirmText": "我已阅读并同意上述内容",
+            "ui.setting.preview.number": "数字输入",
+            "ui.setting.preview.numberUnit": "个",
+            "ui.form.confirmed": "已确认",
+            "ui.form.notConfirmed": "未确认",
+            "ui.form.longPressToConfirm": "长按确认",
+            "ui.form.confirmedHint": "已确认，点击可取消",
             "ui.setting.home.filled": "已填写问卷",
-            "ui.setting.home.filledCount": "%d 份",
             "ui.setting.home.currentLang": "当前语言包",
             "ui.setting.home.entries": "功能",
+  "ui.setting.home.bannerSub": "AI 问卷提问·设置",
+  "ui.setting.home.bannerNote": "主题 / 布局 / 行为、语言包、草稿与更新，全在这里",
+  "ui.setting.themeDesc": "切换问卷题型的交互形态",
+  "ui.setting.history.toggleDesc": "保留每次填写记录，方便回溯",
             "ui.setting.page.appearance": "外观",
             "ui.setting.page.appearance.desc": "主题、按钮布局、问卷布局与题型预览",
             "ui.setting.page.behavior": "行为",
@@ -578,7 +630,6 @@ export default async function Screen(ctx) {
         "ui.setting.scheme.namePlaceholder": "方案名称",
         "ui.setting.scheme.saveBtn": "保存",
         "ui.setting.scheme.exportTitle": "一键导出当前配置",
-        "ui.setting.scheme.exportBtn": "导出",
         "ui.setting.scheme.exportResult": "方案字符串（复制以下内容以便分享）：",
         "ui.setting.scheme.importTitle": "一键导入方案",
         "ui.setting.scheme.importPlaceholder": "粘贴方案字符串...",
@@ -592,8 +643,8 @@ export default async function Screen(ctx) {
         "ui.setting.scheme.deleteBtn": "删除",
         "ui.setting.scheme.deleted": "已删除方案",
         "ui.setting.scheme.deleFail": "删除失败：",
-                        "ui.setting.scheme.copied": "已复制到剪贴板",
-                        "ui.setting.scheme.copyFail": "复制失败：",
+        "ui.setting.scheme.copied": "已复制到剪贴板",
+        "ui.setting.scheme.copyFail": "复制失败: ",
             "ui.setting.page.preview": "题型预览",
             "ui.setting.page.preview.desc": "按当前主题与布局实时预览各题型渲染",
             "ui.setting.preview.other": "其他…",
@@ -623,9 +674,6 @@ export default async function Screen(ctx) {
             "ui.setting.lang": "语言包",
             "ui.setting.lang.current": "当前语言",
             "ui.setting.lang.scan": "扫描语言包",
-            "ui.setting.lang.scanning": "扫描中...",
-            "ui.setting.lang.switch": "切换",
-            "ui.setting.lang.none": "内置语言包",
             "ui.setting.about": "关于主题",
             "ui.setting.about.round": "圆润模式：使用 OutlinedButton 显示选项，适合清晰区分",
             "ui.setting.about.square": "方正模式：使用 FilterChip 显示选项，紧凑设计，适合空间有限",
@@ -654,10 +702,14 @@ export default async function Screen(ctx) {
             "ui.setting.cleanHistory.fail": "清理失败",
             "ui.setting.saveFail": "保存失败：",
             "ui.setting.round": "圆润",
+            "ui.setting.modern": "现代",
             "ui.setting.square": "方正",
             "ui.setting.layout.row": "一行一个",
             "ui.setting.layout.scroll": "LazyRow滑动",
             "ui.setting.layout.continuous": "连续，所有题目连续显示",
+            "ui.setting.layout.segContinuous": "连续",
+            "ui.setting.layout.segCompact": "紧凑",
+            "ui.setting.qLayout.lockedByModern": "现代化主题固定为每页 3 题",
             "ui.setting.layout.compact": "紧凑，一页5题加分页",
             "ui.setting.timePicker": "按钮选择器",
             "ui.setting.timeInput": "手动输入",
@@ -678,12 +730,8 @@ export default async function Screen(ctx) {
             "ui.setting.unknownVer": "未知版本",
             "ui.setting.latestVer": "当前已是最新版",
             "ui.setting.current": "当前：",
-            "ui.setting.strictDesc": "检查全部语法",
-            "ui.setting.strictDescRelaxed": "放行非致命错误",
-            "ui.setting.lang.loadFail": "语言包加载失败：",
                         "ui.setting.langParseFail": "解析语言包失败: ",
             "ui.setting.scanFail": "扫描失败：",
-            "ui.setting.switchFail": "切换失败：",
             "ui.setting.foundPacks": "找到 %d 个语言包",
             "ui.setting.switched": "已切换语言包，界面已立即生效",
             "ui.setting.currentPack": "当前语言包：",
@@ -697,15 +745,8 @@ export default async function Screen(ctx) {
             "ui.setting.fetchFail": "获取失败：",
             "ui.setting.latestVerDesc": "当前已是最新版，无新版本特性。",
             "ui.setting.roundDesc": "圆润",
+            "ui.setting.modernDesc": "现代",
             "ui.setting.squareDesc": "方正",
-            "ui.setting.layout.rowDesc": "一行一个（突出）",
-            "ui.setting.layout.scrollDesc": "LazyRow滑动（经典）",
-            "ui.setting.layout.continuousDesc": "连续显示（经典）",
-            "ui.setting.layout.compactDesc": "紧凑翻页（新版，分页）",
-            "ui.setting.timePickerDesc": "按钮选择器（时/分/秒按钮）",
-            "ui.setting.timeInputDesc": "手动输入（hh:mm:ss格式）",
-            "ui.setting.displayHiddenDesc": "显示源码（不渲染问卷）",
-            "ui.setting.displayBlockedDesc": "拦截显示（警告页）",
             "ui.setting.preview.single": "单选题示例",
             "ui.setting.preview.multiple": "多选题示例",
             "ui.setting.preview.text": "单行文本示例",
@@ -721,8 +762,6 @@ export default async function Screen(ctx) {
             "ui.setting.preview.blue": "蓝色",
             "ui.setting.preview.green": "绿色",
             "ui.setting.preview.inputText": "请输入内容...",
-            "ui.setting.preview.ratingExample": "3星 - 一般",
-            "ui.setting.preview.npsExample": "评分：7（被动者）",
             "ui.setting.preview.timeExample": "已选择：10:30",
             "ui.setting.preview.likert1": "非常不同意",
             "ui.setting.preview.likert2": "不同意",
@@ -731,7 +770,6 @@ export default async function Screen(ctx) {
             "ui.setting.preview.likert5": "非常同意",
             "ui.setting.preview.hour": "时",
             "ui.setting.preview.minute": "分",
-            "ui.setting.preview.second": "秒",
             "ui.setting.type.single": "单选题",
     "ui.setting.qf.title": "题型过滤器", "ui.setting.qf.desc": "控制问卷可使用的题型范围，以及是否允许必选和单选「其他」输入。", "ui.setting.qf.useGlobal": "使用全局配置", "ui.setting.qf.useGlobalOn": "使用全局配置（全部题型可用）", "ui.setting.qf.customOn": "自定义题型过滤器", "ui.setting.qf.types": "允许的题型", "ui.setting.qf.toggled": "题型过滤器", "ui.setting.qf.required": "允许必选", "ui.setting.qf.requiredSwitch": "是否允许必选", "ui.setting.qf.other": "允许单选「其他」", "ui.setting.qf.otherSwitch": "是否允许单选「其他」",
     "ui.setting.blocklist.title": "问卷屏蔽词", "ui.setting.blocklist.desc": "问卷标题、描述与所有题目内容中出现下方任一屏蔽词时会被拦截。留空则不使用屏蔽检查器。", "ui.setting.blocklist.placeholder": "输入屏蔽词...", "ui.setting.blocklist.add": "添加", "ui.setting.blocklist.empty": "请输入要屏蔽的词", "ui.setting.blocklist.added": "已添加屏蔽词", "ui.setting.blocklist.removed": "已移除屏蔽词", "ui.setting.blocklist.none": "当前不使用屏蔽检查器", "ui.setting.blocklist.count": " 个",
@@ -778,7 +816,9 @@ export default async function Screen(ctx) {
 
     function selectTheme(theme) {
         currentThemeState[1](theme);
-        autoSave(theme === "classic" ? _t("ui.setting.round") : _t("ui.setting.square"), "theme", theme);
+        var _lbl = theme === "classic" ? _t("ui.setting.round")
+            : (theme === "modern" ? _t("ui.setting.modern") : _t("ui.setting.square"));
+        autoSave(_lbl, "theme", theme);
     }
     function selectLayout(layout) {
         layoutState[1](layout);
@@ -814,7 +854,7 @@ export default async function Screen(ctx) {
             }
             showSnack(what + " · " + _t("ui.setting.saved"));
         } catch (e) {
-            showSnack(_t("ui.setting.saveFail") + String(e));
+            showSnack(_t("ui.setting.saveFail") + String(e), "error");
         }
     }
     // 读取当前某项设置值（由 _STATE_MAP 提供，复用方案加载逻辑）
@@ -839,375 +879,132 @@ export default async function Screen(ctx) {
     };
 
     // ===== 外观子页（主题 + 按钮布局 + 问卷布局） =====
-    var appearanceSection = ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
-        ctx.UI.Column({ padding: 16, spacing: 8 }, [
-            ctx.UI.Text({ text: _t("ui.setting.theme"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.current") + _t("ui.setting.theme") + _themeLabel(currentTheme), style: "bodyMedium", color: onSurfaceVariant }),
-            ctx.UI.OutlinedButton({
-                containerColor: !isCompact ? primary : null,
-                contentColor: !isCompact ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () { selectTheme("classic"); },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.roundDesc"), style: "labelMedium", color: !isCompact ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-            ctx.UI.OutlinedButton({
-                containerColor: isCompact ? primary : null,
-                contentColor: isCompact ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () { selectTheme("compact"); },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.squareDesc"), style: "labelMedium", color: isCompact ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-            ctx.UI.Divider({ thickness: 0.5, color: onSurfaceVariant.copy({ alpha: 0.3 }) }),
-            ctx.UI.Spacer({ height: 4 }),
-            ctx.UI.Text({ text: _t("ui.setting.layout"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.current") + _t("ui.setting.layout") + _layoutLabel(currentLayout), style: "bodyMedium", color: onSurfaceVariant }),
-            ctx.UI.OutlinedButton({
-                containerColor: isRowLayout ? primary : null,
-                contentColor: isRowLayout ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () { selectLayout("row"); },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.layout.rowDesc"), style: "labelMedium", color: isRowLayout ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-            ctx.UI.OutlinedButton({
-                containerColor: !isRowLayout ? primary : null,
-                contentColor: !isRowLayout ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () { selectLayout("scroll"); },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.layout.scrollDesc"), style: "labelMedium", color: !isRowLayout ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-            ctx.UI.Divider({ thickness: 0.5, color: onSurfaceVariant.copy({ alpha: 0.3 }) }),
-            ctx.UI.Text({ text: _t("ui.setting.questionLayout"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.current") + _t("ui.setting.questionLayout") + _questionLayoutLabel(currentQuestionLayout), style: "bodyMedium", color: onSurfaceVariant }),
-            ctx.UI.OutlinedButton({
-                containerColor: currentQuestionLayout === "continuous" ? primary : null,
-                contentColor: currentQuestionLayout === "continuous" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () { questionLayoutState[1]("continuous"); autoSave(_t("ui.setting.layout.continuous"), "layout", "continuous"); },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.layout.continuousDesc"), style: "labelMedium", color: currentQuestionLayout === "continuous" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-            ctx.UI.OutlinedButton({
-                containerColor: currentQuestionLayout === "compact" ? primary : null,
-                contentColor: currentQuestionLayout === "compact" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () { questionLayoutState[1]("compact"); autoSave(_t("ui.setting.layout.compact"), "layout", "compact"); },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.layout.compactDesc"), style: "labelMedium", color: currentQuestionLayout === "compact" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-        ]),
-    ]);
+    // ===== 外观子页（主题 + 按钮布局 + 问卷布局）=====
+    // v1.8.1：全宽按钮堆叠 → 分段选择器（Row + FilterChip 手搭，DSL 无 SegmentedButton）
+    // v1.8.1：外观 / 行为区块已抽到 ui/settings/sections.ts（工厂函数，每次渲染重建）
+    var _sectionsDeps = {
+        ctx: ctx,
+        _t: _t,
+        c: { onSurface: onSurface, onSurfaceVariant: onSurfaceVariant },
+        currentTheme: currentTheme,
+        currentLayout: currentLayout,
+        currentQuestionLayout: currentQuestionLayout,
+        currentTimeMode: currentTimeMode,
+        currentDisplayMode: currentDisplayMode,
+        currentStrictMode: currentStrictMode,
+        historyEnabledState: historyEnabledState,
+        questionFilterState: questionFilterState,
+        blocklistState: blocklistState,
+        blocklistInputState: blocklistInputState,
+        _themeLabel: _themeLabel,
+        _layoutLabel: _layoutLabel,
+        _questionLayoutLabel: _questionLayoutLabel,
+        _timeModeLabel: _timeModeLabel,
+        _displayModeLabel: _displayModeLabel,
+        selectTheme: selectTheme,
+        selectLayout: selectLayout,
+        selectTimeMode: selectTimeMode,
+        selectDisplayMode: selectDisplayMode,
+        selectStrictMode: selectStrictMode,
+        questionLayoutState: questionLayoutState,
+        autoSave: autoSave,
+        showSnack: showSnack,
+    };
 
-    // ===== 行为子页（时间模式 + 显示模式 + 严格模式 + 历史记录 + 保存） =====
-    var behaviorSection = ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
-        ctx.UI.Column({ padding: 16, spacing: 8 }, [
-            ctx.UI.Text({ text: _t("ui.setting.timeMode"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.current") + _t("ui.setting.timeMode") + _timeModeLabel(currentTimeMode), style: "bodyMedium", color: onSurfaceVariant }),
-            ctx.UI.OutlinedButton({
-                containerColor: !isInputMode ? primary : null,
-                contentColor: !isInputMode ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () { selectTimeMode("picker"); },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.timePickerDesc"), style: "labelMedium", color: !isInputMode ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-            ctx.UI.OutlinedButton({
-                containerColor: isInputMode ? primary : null,
-                contentColor: isInputMode ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () { selectTimeMode("input"); },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.timeInputDesc"), style: "labelMedium", color: isInputMode ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-            ctx.UI.Divider({ thickness: 0.5, color: onSurfaceVariant.copy({ alpha: 0.3 }) }),
-            ctx.UI.Spacer({ height: 4 }),
-            ctx.UI.Text({ text: _t("ui.setting.displayMode"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.current") + _t("ui.setting.displayMode") + _displayModeLabel(currentDisplayMode), style: "bodyMedium", color: onSurfaceVariant }),
-            ctx.UI.OutlinedButton({
-                containerColor: currentDisplayMode === "normal" ? primary : null,
-                contentColor: currentDisplayMode === "normal" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () { selectDisplayMode("normal"); },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.displayNormal"), style: "labelMedium", color: currentDisplayMode === "normal" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-            ctx.UI.OutlinedButton({
-                containerColor: currentDisplayMode === "hidden" ? primary : null,
-                contentColor: currentDisplayMode === "hidden" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () { selectDisplayMode("hidden"); },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.displayHiddenDesc"), style: "labelMedium", color: currentDisplayMode === "hidden" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-            ctx.UI.OutlinedButton({
-                containerColor: currentDisplayMode === "blocked" ? primary : null,
-                contentColor: currentDisplayMode === "blocked" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () { selectDisplayMode("blocked"); },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.displayBlockedDesc"), style: "labelMedium", color: currentDisplayMode === "blocked" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-            ctx.UI.Divider({ thickness: 0.5, color: onSurfaceVariant.copy({ alpha: 0.3 }) }),
-            ctx.UI.Spacer({ height: 4 }),
-            ctx.UI.Text({ text: _t("ui.setting.strictMode"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.current") + (currentStrictMode === "true" ? _t("ui.setting.strictEnabled") : _t("ui.setting.strictDisabled")) + _t("ui.setting.mode"), style: "bodyMedium", color: onSurfaceVariant }),
-            ctx.UI.OutlinedButton({
-                containerColor: currentStrictMode === "true" ? primary : null,
-                contentColor: currentStrictMode === "true" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () { selectStrictMode("true"); },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.strictEnabled") + _t("ui.setting.lparen") + _t("ui.setting.strictDesc") + _t("ui.setting.rparen"), style: "labelMedium", color: currentStrictMode === "true" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-            ctx.UI.OutlinedButton({
-                containerColor: currentStrictMode === "false" ? primary : null,
-                contentColor: currentStrictMode === "false" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () { selectStrictMode("false"); },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.strictDisabled") + _t("ui.setting.lparen") + _t("ui.setting.strictDescRelaxed") + _t("ui.setting.rparen"), style: "labelMedium", color: currentStrictMode === "false" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-            ctx.UI.Divider({ thickness: 0.5, color: onSurfaceVariant.copy({ alpha: 0.3 }) }),
-            ctx.UI.Spacer({ height: 4 }),
-            ctx.UI.Text({ text: _t("ui.setting.history"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.history.desc"), style: "bodySmall", color: onSurfaceVariant }),
-            ctx.UI.OutlinedButton({
-                containerColor: historyEnabledState[0] === "true" ? primary : null,
-                contentColor: historyEnabledState[0] === "true" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () { historyEnabledState[1]("true"); autoSave(_t("ui.setting.enabled"), "historyEnabled", "true"); },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.enabled"), style: "labelMedium", color: historyEnabledState[0] === "true" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-            ctx.UI.OutlinedButton({
-                containerColor: historyEnabledState[0] === "false" ? primary : null,
-                contentColor: historyEnabledState[0] === "false" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () { historyEnabledState[1]("false"); autoSave(_t("ui.setting.disabled"), "historyEnabled", "false"); },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.disabled"), style: "labelMedium", color: historyEnabledState[0] === "false" ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-            ctx.UI.OutlinedButton({
-                onClick: function() {
-                    try {
-                        var path = "/sdcard/Download/Operit/questionnaire/history";
-                        if (Tools.Files.exists(path)) {
-                            Tools.Files.deleteFile(path, true);
-                            showSnack(_t("ui.setting.cleanHistory.done"));
-                        } else {
-                            showSnack(_t("ui.setting.cleanHistory.none"));
-                        }
-                    } catch(e) {
-                        showSnack(_t("ui.setting.cleanHistory.fail") + String(e));
-                    }
-                },
-                fillMaxWidth: true,
-                containerColor: ctx.MaterialTheme.colorScheme.error,
-                content: ctx.UI.Text({ text: _t("ui.setting.cleanHistory"), style: "labelMedium", color: ctx.MaterialTheme.colorScheme.onPrimary }),
-            }),
-            ctx.UI.Divider({ thickness: 0.5, color: onSurfaceVariant.copy({ alpha: 0.3 }) }),
-            ctx.UI.Spacer({ height: 4 }),
-            // ===== 题型过滤器（可用的题型 / 必选 / 单选"其他"） =====
-            ctx.UI.Text({ text: _t("ui.setting.qf.title"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.qf.desc"), style: "bodySmall", color: onSurfaceVariant }),
-            // 使用全局配置开关（默认开）→ 开时隐藏二级内容
-            ctx.UI.OutlinedButton({
-                containerColor: questionFilterState[0].useGlobal ? primary : null,
-                contentColor: questionFilterState[0].useGlobal ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () {
-                    var qf = JSON.parse(JSON.stringify(questionFilterState[0]));
-                    qf.useGlobal = true;
-                    questionFilterState[1](qf);
-                    autoSave(_t("ui.setting.qf.useGlobal"), "questionFilter", JSON.stringify(qf));
-                },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.qf.useGlobalOn"), style: "labelMedium", color: questionFilterState[0].useGlobal ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-            ctx.UI.OutlinedButton({
-                containerColor: !questionFilterState[0].useGlobal ? primary : null,
-                contentColor: !questionFilterState[0].useGlobal ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: function () {
-                    var qf = JSON.parse(JSON.stringify(questionFilterState[0]));
-                    qf.useGlobal = false;
-                    if (!Array.isArray(qf.types)) qf.types = [];
-                    questionFilterState[1](qf);
-                    autoSave(_t("ui.setting.qf.custom"), "questionFilter", JSON.stringify(qf));
-                },
-                fillMaxWidth: true,
-                content: ctx.UI.Text({ text: _t("ui.setting.qf.customOn"), style: "labelMedium", color: !questionFilterState[0].useGlobal ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-            }),
-            (function () {
-                if (questionFilterState[0].useGlobal) return null;
-                var sec = [];
-                // 可用题型多选（不含 section 特殊题型）
-                sec.push(ctx.UI.Text({ text: _t("ui.setting.qf.types"), style: "labelMedium", color: onSurface, padding: { top: 4 } }));
-                // 题型选项：与 typeOptions 一致但不依赖其定义顺序（behaviorSection 在 typeOptions 之前渲染）
-                var qfTypeOpts = [
-                    { id: "single", label: _t("ui.setting.type.single") },
-                    { id: "multiple", label: _t("ui.setting.type.multiple") },
-                    { id: "text", label: _t("ui.setting.type.text") },
-                    { id: "textarea", label: _t("ui.setting.type.textarea") },
-                    { id: "rating", label: _t("ui.setting.type.rating") },
-                    { id: "likert", label: _t("ui.setting.type.likert") },
-                    { id: "nps", label: _t("ui.setting.type.nps") },
-                    { id: "time", label: _t("ui.setting.type.time") },
-                ];
-                sec.push(ctx.UI.LazyRow({ spacing: 6 }, qfTypeOpts.map(function (t) {
-                    var on2 = (questionFilterState[0].types || []).indexOf(t.id) >= 0;
-                    return ctx.UI.FilterChip({
-                        selected: on2,
-                        onClick: function () {
-                            var qf = JSON.parse(JSON.stringify(questionFilterState[0]));
-                            var arr = qf.types || [];
-                            var idx = arr.indexOf(t.id);
-                            if (idx >= 0) arr.splice(idx, 1); else arr.push(t.id);
-                            qf.types = arr;
-                            questionFilterState[1](qf);
-                            autoSave(_t("ui.setting.qf.toggled"), "questionFilter", JSON.stringify(qf));
-                        },
-                        label: ctx.UI.Text({ text: t.label, style: "labelSmall", color: on2 ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                        leadingIcon: on2 ? ctx.UI.Icon({ name: "check", size: 14, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
-                    });
-                })));
-                // 允许必选开关
-                sec.push(ctx.UI.OutlinedButton({
-                    containerColor: questionFilterState[0].allowRequired ? primary : null,
-                    contentColor: questionFilterState[0].allowRequired ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                    onClick: function () {
-                        var qf = JSON.parse(JSON.stringify(questionFilterState[0]));
-                        qf.allowRequired = !qf.allowRequired;
-                        questionFilterState[1](qf);
-                        autoSave(_t("ui.setting.qf.requiredSwitch"), "questionFilter", JSON.stringify(qf));
-                    },
-                    fillMaxWidth: true,
-                    content: ctx.UI.Text({ text: _t("ui.setting.qf.required") + (questionFilterState[0].allowRequired ? " · " + _t("ui.setting.enabled") : " · " + _t("ui.setting.disabled")), style: "labelMedium", color: questionFilterState[0].allowRequired ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                }));
-                // 允许单选「其他」开关
-                sec.push(ctx.UI.OutlinedButton({
-                    containerColor: questionFilterState[0].allowOther ? primary : null,
-                    contentColor: questionFilterState[0].allowOther ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                    onClick: function () {
-                        var qf = JSON.parse(JSON.stringify(questionFilterState[0]));
-                        qf.allowOther = !qf.allowOther;
-                        questionFilterState[1](qf);
-                        autoSave(_t("ui.setting.qf.otherSwitch"), "questionFilter", JSON.stringify(qf));
-                    },
-                    fillMaxWidth: true,
-                    content: ctx.UI.Text({ text: _t("ui.setting.qf.other") + (questionFilterState[0].allowOther ? " · " + _t("ui.setting.enabled") : " · " + _t("ui.setting.disabled")), style: "labelMedium", color: questionFilterState[0].allowOther ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                }));
-                    return ctx.UI.Column({ spacing: 6, fillMaxWidth: true, padding: { top: 4 } }, sec);
-            })(),
-            ctx.UI.Divider({ thickness: 0.5, color: onSurfaceVariant.copy({ alpha: 0.3 }) }),
-            ctx.UI.Spacer({ height: 4 }),
-            // ===== 问卷屏蔽词（命中即拦截显示）=====
-            ctx.UI.Text({ text: _t("ui.setting.blocklist.title"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.blocklist.desc"), style: "bodySmall", color: onSurfaceVariant }),
-            // 输入文本框 + 添加按钮
-            ctx.UI.Row({ fillMaxWidth: true, spacing: 8, verticalAlignment: "center" }, [
-                ctx.UI.Column({ weight: 1 }, [
-                    ctx.UI.TextField({
-                        value: blocklistInputState[0],
-                        onValueChange: function (v) { blocklistInputState[1](v); },
-                        placeholder: _t("ui.setting.blocklist.placeholder"),
-                        singleLine: true,
-                    }),
-                ]),
-                ctx.UI.Button({
-                    onClick: function () {
-                        var w = String(blocklistInputState[0] || "").trim();
-                        if (!w) { showSnack(_t("ui.setting.blocklist.empty")); return; }
-                        var arr = JSON.parse(JSON.stringify(blocklistState[0]));
-                        if (arr.indexOf(w) < 0) { arr.push(w); blocklistState[1](arr); }
-                        blocklistInputState[1]("");
-                        Tools.SoftwareSettings.writeEnvironmentVariable("QUESTIONNAIRE_COMPILE_BLOCKLIST", JSON.stringify(arr));
-                        showSnack(_t("ui.setting.blocklist.added"));
-                    },
-                    content: ctx.UI.Text({ text: _t("ui.setting.blocklist.add"), style: "labelMedium", color: ctx.MaterialTheme.colorScheme.onPrimary }),
-                }),
-            ]),
-            // 词条 LazyRow（每个词条可点击删除）
-            (blocklistState[0].length > 0)
-                ? ctx.UI.LazyRow({ spacing: 6 }, blocklistState[0].map(function (w) {
-                    return ctx.UI.FilterChip({
-                        onClick: function () {
-                            var arr = JSON.parse(JSON.stringify(blocklistState[0]));
-                            var idx = arr.indexOf(w);
-                            if (idx >= 0) arr.splice(idx, 1);
-                            blocklistState[1](arr);
-                            Tools.SoftwareSettings.writeEnvironmentVariable("QUESTIONNAIRE_COMPILE_BLOCKLIST", JSON.stringify(arr));
-                            showSnack(_t("ui.setting.blocklist.removed"));
-                        },
-                        label: ctx.UI.Text({ text: w, style: "labelSmall" }),
-                        leadingIcon: ctx.UI.Icon({ name: "close", size: 14 }),
-                    });
-                }))
-                : ctx.UI.Text({ text: _t("ui.setting.blocklist.none"), style: "bodySmall", color: onSurfaceVariant, padding: { vertical: 4 } }),
-        ]),
-    ]);
+    // 题型选项表：预览选型与题型过滤器共用
+    var typeOptions = buildTypeOptions(_t);
 
-    // ===== 题型选择下拉 =====
-    var typeOptions = [
-        { id: "single", label: _t("ui.setting.type.single") },
-        { id: "multiple", label: _t("ui.setting.type.multiple") },
-        { id: "text", label: _t("ui.setting.type.text") },
-        { id: "textarea", label: _t("ui.setting.type.textarea") },
-        { id: "rating", label: _t("ui.setting.type.rating") },
-        { id: "likert", label: _t("ui.setting.type.likert") },
-        { id: "nps", label: _t("ui.setting.type.nps") },
-        { id: "time", label: _t("ui.setting.type.time") },
-    ];
-    var typePicker = ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
-        ctx.UI.Column({ padding: 16, spacing: 8 }, [
-            ctx.UI.Text({ text: _t("ui.setting.preview"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.selectType"), style: "bodySmall", color: onSurfaceVariant }),
-            ctx.UI.LazyRow({ spacing: 6 }, typeOptions.map(function (t) {
+    // 当前主题名（供 previewTheme 使用）
+    var previewThemeName = currentTheme;
+    var typePicker = SectionCard(ctx, {
+        // title 不重复：页面顶栏已经是「题型预览」
+        desc: _t("ui.setting.selectType"),
+        children: [
+            ctx.UI.LazyRow({ spacing: 6, padding: { horizontal: SPACE.md, vertical: SPACE.md } }, typeOptions.map(function (t, ti) {
+                var on2 = previewType === t.id;
                 return ctx.UI.FilterChip({
-                    selected: previewType === t.id,
+                    key: "tp_" + ti,
+                    selected: on2,
                     onClick: function () { previewTypeState[1](t.id); },
-                    label: ctx.UI.Text({ text: t.label, style: "labelSmall", color: previewType === t.id ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                    leadingIcon: previewType === t.id ? ctx.UI.Icon({ name: "check", size: 14, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
+                    label: ctx.UI.Text({ text: t.label, style: "labelSmall" }),
+                    leadingIcon: on2 ? ctx.UI.Icon({ name: "Check", size: 14, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
                 });
-            })),
-        ]),
-    ]);
-
+            })),],
+    });
     // ===== 题型预览区（复刻真实问卷渲染，可交互选中） =====
     function renderTypePreview(type) {
+        // 预览主题：跟随当前主题设置（compact 时组件内部自动退回旧观感）
+        var previewTheme = currentTheme;
         var curAns = previewAnswerState[0];
         var curOther = (curAns && curAns.other) || "";
         var setAns = function (v, o) { previewAnswerState[1]({ ans: v, other: (o === undefined ? curOther : o) }); };
-        // 选项按钮：compact→FilterChip / classic→OutlinedButton（与真实问卷一致）
-        var optBtn = function (label, isSel, onPick) {
-            if (isCompact) {
-                return ctx.UI.FilterChip({
-                    selected: isSel,
-                    onClick: onPick,
-                    label: ctx.UI.Text({ text: label, style: "labelSmall", color: isSel ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                    leadingIcon: isSel ? ctx.UI.Icon({ name: "check", size: 16, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
-                });
-            }
-            return ctx.UI.OutlinedButton({
-                containerColor: isSel ? primary : null,
-                contentColor: isSel ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                onClick: onPick,
-                border: { width: 1.5, color: onSurfaceVariant },
-                content: ctx.UI.Text({ text: label, style: "labelSmall", color: isSel ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+        // v1.8.1：预览与真实问卷共用同一套组件，保证所见即所得
+        // 题头：序号徽章 + 题干 + 必答标记 + 副标题
+        var qHeader = function (label, sub, required) {
+            var m = label.match(/^(\d+)\.\s*(.*)$/);
+            var idx = m ? parseInt(m[1]) : 0;
+            var text = m ? m[2] : label;
+            return QuestionHeader(ctx, {
+                keyName: "pv_hdr_" + type + "_" + idx,
+                index: idx,
+                text: text,
+                subtitle: sub,
+                required: required === true,
+                theme: previewTheme,
             });
-        };
-        // 按钮容器：跟随按钮布局设置（row→纵向堆叠 / scroll→LazyRow）
-        var wrapBtns = function (btnArr) {
-            if (currentLayout === "row") {
-                return ctx.UI.Column({ spacing: 4, fillMaxWidth: true, padding: { vertical: 2 } }, btnArr.map(function (b) { return ctx.UI.Column({ spacing: 0, fillMaxWidth: true }, [b]); }));
-            }
-            return ctx.UI.LazyRow({ spacing: 4 }, btnArr);
-        };
-        // 题头（编号 + 题干 + 必答标记 + 副标题）
-        var qHeader = function (label, sub) {
-            return ctx.UI.Column({ spacing: 1 }, [
-                ctx.UI.Text({ text: label, style: "labelMedium", color: onSurface }),
-                sub ? ctx.UI.Text({ text: sub, style: "bodySmall", color: onSurfaceVariant, padding: { top: 2, bottom: 2 } }) : null,
-            ]);
         };
 
         if (type === "single") {
             var sOpts = [_t("ui.setting.preview.optionA"), _t("ui.setting.preview.optionB"), _t("ui.setting.preview.optionC")];
             var sBtns = [];
+            var pC = ctx.MaterialTheme.colorScheme;
             for (var soi = 0; soi < sOpts.length; soi++) {
-                (function (ov) {
-                    sBtns.push(optBtn(ov, curAns && curAns.ans === ov, function () { setAns(ov); }));
-                })(sOpts[soi]);
+                (function (ov, oi2) {
+                    var sel = curAns && curAns.ans === ov;
+                    // 与真实问卷完全一致：modern 走 OptionRow，其余走 OutlinedButton
+                    if (previewTheme === "modern") {
+                        sBtns.push(OptionRow(ctx, {
+                            keyName: "pv_s_" + oi2,
+                            label: ov,
+                            selected: sel,
+                            radio: true,
+                            last: false,
+                            onClick: function () { setAns(ov); },
+                        }));
+                    } else {
+                        sBtns.push(ctx.UI.OutlinedButton({
+                            key: "pv_s_" + oi2,
+                            containerColor: sel ? pC.primary : null,
+                            contentColor: sel ? pC.onPrimary : pC.onSurface,
+                            onClick: function () { setAns(ov); },
+                            border: { width: 1.5, color: pC.outline },
+                            content: ctx.UI.Text({ text: ov, style: "labelSmall", color: sel ? pC.onPrimary : pC.onSurface }),
+                        }));
+                    }
+                })(sOpts[soi], soi);
             }
             var sOtherSel = curAns && curAns.ans === "__other__";
-            sBtns.push(optBtn(_t("ui.setting.preview.other"), sOtherSel, function () { setAns("__other__"); }));
-            var sNodes = [qHeader("1. " + _t("ui.setting.preview.single") + " *"), wrapBtns(sBtns)];
+            if (previewTheme === "modern") {
+                sBtns.push(OptionRow(ctx, {
+                    keyName: "pv_s_other",
+                    label: _t("ui.setting.preview.other"),
+                    selected: !!sOtherSel,
+                    radio: true,
+                    last: true,
+                    onClick: function () { setAns("__other__"); },
+                }));
+            } else {
+                sBtns.push(ctx.UI.OutlinedButton({
+                    key: "pv_s_other",
+                    containerColor: sOtherSel ? pC.primary : null,
+                    contentColor: sOtherSel ? pC.onPrimary : pC.onSurface,
+                    onClick: function () { setAns("__other__"); },
+                    border: { width: 1.5, color: pC.outline },
+                    content: ctx.UI.Text({ text: _t("ui.setting.preview.other"), style: "labelSmall", color: sOtherSel ? pC.onPrimary : pC.onSurface }),
+                }));
+            }
+            var sNodes = [qHeader("1. " + _t("ui.setting.preview.single"), null, true)];
+            sNodes.push(OptionList(ctx, previewTheme, "pv_s_row", sBtns));
             if (sOtherSel) {
                 sNodes.push(ctx.UI.TextField({
                     value: curOther,
@@ -1224,38 +1021,70 @@ export default async function Screen(ctx) {
             var mOpts = [_t("ui.setting.preview.red"), _t("ui.setting.preview.blue"), _t("ui.setting.preview.green")];
             var mArr = Array.isArray(curAns && curAns.ans) ? curAns.ans : [];
             var mBtns = [];
+            var mC = ctx.MaterialTheme.colorScheme;
             for (var moi = 0; moi < mOpts.length; moi++) {
-                (function (ov) {
-                    var checked = mArr.indexOf(ov) >= 0;
-                    mBtns.push(optBtn(ov, checked, function () {
-                        var na = checked ? mArr.filter(function (x) { return x !== ov; }) : mArr.concat([ov]);
+                (function (ov, oi2, arr) {
+                    var checked = arr.indexOf(ov) >= 0;
+                    var toggle = function () {
+                        var na = arr.indexOf(ov) >= 0 ? arr.filter(function (x) { return x !== ov; }) : arr.concat([ov]);
                         setAns(na);
-                    }));
-                })(mOpts[moi]);
+                    };
+                    // 与真实问卷一致：modern 走 OptionRow，其余走 OutlinedButton
+                    if (previewTheme === "modern") {
+                        mBtns.push(OptionRow(ctx, {
+                            keyName: "pv_m_" + oi2,
+                            label: ov,
+                            selected: checked,
+                            radio: false,
+                            last: oi2 === mOpts.length - 1,
+                            onClick: toggle,
+                        }));
+                    } else {
+                        mBtns.push(ctx.UI.OutlinedButton({
+                            key: "pv_m_" + oi2,
+                            containerColor: checked ? mC.primary : null,
+                            contentColor: checked ? mC.onPrimary : mC.onSurface,
+                            onClick: toggle,
+                            border: { width: 1.5, color: mC.outline },
+                            content: ctx.UI.Text({ text: ov, style: "labelSmall", color: checked ? mC.onPrimary : mC.onSurface }),
+                        }));
+                    }
+                })(mOpts[moi], moi, mArr);
             }
             return ctx.UI.Column({ spacing: 6, padding: { vertical: 4 } }, [
-                qHeader("2. " + _t("ui.setting.preview.multiple") + " *"),
-                wrapBtns(mBtns),
+                qHeader("2. " + _t("ui.setting.preview.multiple"), null, true),
+                OptionList(ctx, previewTheme, "pv_m_row", mBtns),
             ]);
         }
         if (type === "text") {
+            // v1.8.3：预览也展示「必填项的校验态」——空即红框 + 错误文案
+            var pvTextVal = curAns && curAns.ans ? curAns.ans : "";
+            var pvTextBad = !String(pvTextVal).trim();
             return ctx.UI.Column({ spacing: 6, padding: { vertical: 4 } }, [
-                qHeader("3. " + _t("ui.setting.preview.text")),
+                qHeader("3. " + _t("ui.setting.preview.text") + " *", null, true),
                 ctx.UI.TextField({
-                    value: curAns && curAns.ans ? curAns.ans : "",
+                    value: pvTextVal,
                     onValueChange: function (nv) { setAns(nv); },
                     placeholder: _t("ui.setting.preview.inputText"),
                     singleLine: true,
                     enabled: true,
                     style: "compact",
+                    isError: pvTextBad,
+                    supportingText: [ctx.UI.Text({
+                        text: pvTextBad ? _t("ui.form.errRequired") : _t("ui.form.requiredHint"),
+                        style: "bodySmall",
+                        color: pvTextBad ? ctx.MaterialTheme.colorScheme.error : onSurfaceVariant,
+                    })],
                 }),
             ]);
         }
         if (type === "textarea") {
+            var pvAreaVal = curAns && curAns.ans ? curAns.ans : "";
+            var pvAreaBad = !String(pvAreaVal).trim();
             return ctx.UI.Column({ spacing: 6, padding: { vertical: 4 } }, [
-                qHeader("4. " + _t("ui.setting.preview.textarea")),
+                qHeader("4. " + _t("ui.setting.preview.textarea") + " *", null, true),
                 ctx.UI.TextField({
-                    value: curAns && curAns.ans ? curAns.ans : "",
+                    value: pvAreaVal,
                     onValueChange: function (nv) { setAns(nv); },
                     placeholder: _t("ui.setting.preview.inputText"),
                     singleLine: false,
@@ -1263,77 +1092,67 @@ export default async function Screen(ctx) {
                     maxLines: 5,
                     enabled: true,
                     style: "compact",
+                    isError: pvAreaBad,
+                    supportingText: [
+                        ctx.UI.Row({ fillMaxWidth: true, verticalAlignment: "center", spacing: 0 }, [
+                            ctx.UI.Text({
+                                text: pvAreaBad ? _t("ui.form.errRequired") : _t("ui.form.requiredHint"),
+                                style: "bodySmall",
+                                weight: 1,
+                                color: pvAreaBad ? ctx.MaterialTheme.colorScheme.error : onSurfaceVariant,
+                            }),
+                            ctx.UI.Text({
+                                text: String(String(pvAreaVal).length) + " " + _t("ui.form.charUnit"),
+                                style: "bodySmall",
+                                color: onSurfaceVariant,
+                            }),
+                        ]),
+                    ],
                 }),
             ]);
         }
         if (type === "rating") {
             var rVal = parseInt(curAns && curAns.ans) || 0;
             var rLabels = ["", _t("ui.setting.preview.ratingVeryBad"), _t("ui.setting.preview.ratingBad"), _t("ui.setting.preview.ratingNormal"), _t("ui.setting.preview.ratingGood"), _t("ui.setting.preview.ratingVeryGood")];
-            var rRow1 = [], rRow2 = [];
-            for (var rsi = 1; rsi <= 5; rsi++) {
-                (function (starIdx) {
-                    var filled = starIdx <= rVal;
-                    var b = ctx.UI.OutlinedButton({
-                        containerColor: filled ? primary : null,
-                        contentColor: filled ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                        onClick: function () { setAns(String(starIdx)); },
-                        content: ctx.UI.Text({ text: String(starIdx), style: "labelSmall", color: filled ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                    });
-                    if (starIdx <= 3) rRow1.push(b); else rRow2.push(b);
-                })(rsi);
-            }
             return ctx.UI.Column({ spacing: 6, padding: { vertical: 4 } }, [
-                qHeader("5. " + _t("ui.setting.preview.rating")),
-                ctx.UI.Row({ spacing: 6, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, rRow1),
-                ctx.UI.Row({ spacing: 6, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, rRow2),
-                ctx.UI.Text({ text: rVal > 0 ? (rVal + _t("ui.setting.preview.star") + " - " + rLabels[rVal]) : _t("ui.setting.preview.starHint"), style: "bodySmall", color: rVal > 0 ? primary : onSurfaceVariant }),
+                qHeader("5. " + _t("ui.setting.preview.rating"), null, false),
+                RatingStars(ctx, {
+                    keyName: "pv_rating",
+                    value: rVal,
+                    labels: rLabels,
+                    hint: _t("ui.setting.preview.starHint"),
+                    theme: previewTheme,
+                    onChange: function (n) { setAns(String(n)); },
+                }),
             ]);
         }
         if (type === "likert") {
             var lOpts = [_t("ui.setting.preview.likert1"), _t("ui.setting.preview.likert2"), _t("ui.setting.preview.likert3"), _t("ui.setting.preview.likert4"), _t("ui.setting.preview.likert5")];
             var lVal = parseInt(curAns && curAns.ans) || 0;
-            var lRow1 = [], lRow2 = [];
-            var halfLen = 3;
-            for (var li = 1; li <= lOpts.length; li++) {
-                (function (likertIdx) {
-                    var b = ctx.UI.OutlinedButton({
-                        containerColor: likertIdx === lVal ? primary : null,
-                        contentColor: likertIdx === lVal ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                        onClick: function () { setAns(String(likertIdx)); },
-                        content: ctx.UI.Text({ text: String(likertIdx), style: "labelSmall", color: likertIdx === lVal ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                    });
-                    if (likertIdx <= halfLen) lRow1.push(b); else lRow2.push(b);
-                })(li);
-            }
             return ctx.UI.Column({ spacing: 6, padding: { vertical: 4 } }, [
-                qHeader("6. " + _t("ui.setting.preview.likert")),
-                ctx.UI.Row({ spacing: 4, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, lRow1),
-                ctx.UI.Row({ spacing: 4, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, lRow2),
-                ctx.UI.Row({ spacing: 4, horizontalArrangement: "spaceEvenly", fillMaxWidth: true, padding: { top: 2 } },
-                    lOpts.map(function (lbl) { return ctx.UI.Text({ text: lbl, style: "labelSmall", color: onSurfaceVariant, maxLines: 2 }); })
-                ),
+                qHeader("6. " + _t("ui.setting.preview.likert"), null, false),
+                LikertScale(ctx, {
+                    keyName: "pv_likert",
+                    options: lOpts,
+                    value: lVal,
+                    theme: previewTheme,
+                    onChange: function (n) { setAns(String(n)); },
+                }),
                 lVal > 0 ? ctx.UI.Text({ text: _t("ui.setting.preview.likertSelected") + lOpts[Math.min(lVal - 1, lOpts.length - 1)], style: "bodySmall", color: primary }) : null,
             ]);
         }
         if (type === "nps") {
             var nVal = parseInt(curAns && curAns.ans);
             if (isNaN(nVal)) nVal = -1;
-            var nGroups = [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10]];
-            var nRows = nGroups.map(function (g) {
-                return ctx.UI.Row({ spacing: 6, horizontalArrangement: "spaceEvenly", fillMaxWidth: true }, g.map(function (n) {
-                    var selN = n === nVal;
-                    return ctx.UI.OutlinedButton({
-                        containerColor: selN ? primary : null,
-                        contentColor: selN ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
-                        onClick: function () { setAns(String(n)); },
-                        content: ctx.UI.Text({ text: String(n), style: "labelSmall", color: selN ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                    });
-                }));
-            });
             var nLabel = nVal >= 9 ? _t("ui.setting.preview.npsPromoter") : (nVal >= 7 ? _t("ui.setting.preview.npsPassive") : _t("ui.setting.preview.npsDetractor"));
             return ctx.UI.Column({ spacing: 6, padding: { vertical: 4 } }, [
-                qHeader("7. " + _t("ui.setting.preview.nps")),
-                ctx.UI.Column({ spacing: 4 }, nRows),
+                qHeader("7. " + _t("ui.setting.preview.nps"), null, false),
+                NpsScale(ctx, {
+                    keyName: "pv_nps",
+                    value: nVal,
+                    theme: previewTheme,
+                    onChange: function (n) { setAns(String(n)); },
+                }),
                 nVal >= 0
                     ? ctx.UI.Text({ text: _t("ui.setting.preview.npsScore") + nVal + " (" + nLabel + ")", style: "bodySmall", color: primary })
                     : ctx.UI.Row({ spacing: 8, horizontalArrangement: "center", fillMaxWidth: true, padding: { top: 2 } }, [
@@ -1344,8 +1163,24 @@ export default async function Screen(ctx) {
         }
         if (type === "time") {
             var tVal = curAns && curAns.ans ? curAns.ans : "";
+            var tOptBtn = function (label, isSel, onPick) {
+                if (previewTheme === "compact") {
+                    return ctx.UI.FilterChip({
+                        selected: isSel, onClick: onPick,
+                        label: ctx.UI.Text({ text: label, style: "labelSmall", color: isSel ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+                        leadingIcon: isSel ? ctx.UI.Icon({ name: "Check", size: 14, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
+                    });
+                }
+                return ctx.UI.OutlinedButton({
+                    containerColor: isSel ? primary : null,
+                    contentColor: isSel ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
+                    onClick: onPick,
+                    border: { width: 1.5, color: onSurfaceVariant },
+                    content: ctx.UI.Text({ text: label, style: "labelSmall", color: isSel ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
+                });
+            };
             return ctx.UI.Column({ spacing: 6, padding: { vertical: 4 } }, [
-                qHeader("8. " + _t("ui.setting.preview.timePrefix") + " (" + _timeModeLabel(currentTimeMode) + ")"),
+                qHeader("8. " + _t("ui.setting.preview.timePrefix") + " (" + _timeModeLabel(currentTimeMode) + ")", null, false),
                 currentTimeMode === "input" ? ctx.UI.TextField({
                     value: tVal,
                     onValueChange: function (nv) { setAns(nv); },
@@ -1354,22 +1189,87 @@ export default async function Screen(ctx) {
                     style: "compact",
                 }) : ctx.UI.Column({ spacing: 4 }, [
                     ctx.UI.Text({ text: _t("ui.setting.preview.hour"), style: "labelSmall", color: onSurfaceVariant }),
-                    ctx.UI.LazyRow({ spacing: 4 }, (function() { var hs = []; for (var hi = 8; hi <= 12; hi++) { (function(hv){ hs.push(optBtn(hv, tVal.indexOf(hv + ":") === 0, function () { setAns(hv + ":30:00"); })); })(hi < 10 ? "0" + hi : "" + hi); } return hs; })()),
+                    ctx.UI.LazyRow({ spacing: 4 }, (function() { var hs = []; for (var hi = 8; hi <= 12; hi++) { (function(hv){ hs.push(tOptBtn(hv, tVal.indexOf(hv + ":") === 0, function () { setAns(hv + ":30:00"); })); })(hi < 10 ? "0" + hi : "" + hi); } return hs; })()),
                     ctx.UI.Text({ text: _t("ui.setting.preview.minute"), style: "labelSmall", color: onSurfaceVariant }),
-                    ctx.UI.LazyRow({ spacing: 4 }, (function() { var ms = []; for (var mi = 0; mi <= 55; mi += 15) { (function(mv){ ms.push(optBtn(mv, tVal.indexOf(":" + mv + ":") === 0, function () { setAns("10:" + mv + ":00"); })); })(mi < 10 ? "0" + mi : "" + mi); } return ms; })()),
-                    ctx.UI.Text({ text: tVal ? _t("ui.setting.preview.timeExample") : _t("ui.setting.preview.timeExample"), style: "bodySmall", color: primary }),
+                    ctx.UI.LazyRow({ spacing: 4 }, (function() { var ms = []; for (var mi = 0; mi <= 55; mi += 15) { (function(mv){ ms.push(tOptBtn(mv, tVal.indexOf(":" + mv + ":") === 0, function () { setAns("10:" + mv + ":00"); })); })(mi < 10 ? "0" + mi : "" + mi); } return ms; })()),
+                    ctx.UI.Text({ text: _t("ui.setting.preview.timeExample"), style: "bodySmall", color: primary }),
                 ]),
+            ]);
+        }
+
+        // ── v1.8.3：确认题型预览（长按确认）──
+        if (type === "confirm") {
+            var cVal = curAns && curAns.ans === "true";
+            return ctx.UI.Column({ spacing: 6, padding: { vertical: 4 } }, [
+                qHeader("9. " + _t("ui.setting.preview.confirm") + " *", null, true),
+                ConfirmField(ctx, {
+                    keyName: "pv_confirm",
+                    text: _t("ui.setting.preview.confirmText"),
+                    checked: cVal,
+                    theme: previewTheme,
+                    required: true,
+                    tried: false,
+                    errText: _t("ui.form.errRequired"),
+                    longPressHint: _t("ui.form.longPressToConfirm"),
+                    confirmedHint: _t("ui.form.confirmedHint"),
+                    onChange: function (next) { setAns(next ? "true" : ""); },
+                }),
+                ctx.UI.Text({
+                    text: cVal ? _t("ui.form.confirmed") : _t("ui.form.notConfirmed"),
+                    style: "bodySmall",
+                    color: cVal ? primary : onSurfaceVariant,
+                }),
+            ]);
+        }
+
+        // ── v1.8.3：数字题型预览（步进器）──
+        if (type === "number") {
+            var nNum = (curAns && curAns.ans !== "" && curAns.ans !== undefined && curAns.ans !== null) ? Number(curAns.ans) : null;
+            if (nNum !== null && isNaN(nNum)) nNum = null;
+            return ctx.UI.Column({ spacing: 6, padding: { vertical: 4 } }, [
+                qHeader("10. " + _t("ui.setting.preview.number") + " *", null, true),
+                NumberField(ctx, {
+                    keyName: "pv_number",
+                    value: nNum,
+                    min: 1,
+                    max: 10,
+                    step: 1,
+                    unit: _t("ui.setting.preview.numberUnit"),
+                    theme: previewTheme,
+                    required: true,
+                    tried: false,
+                    errText: _t("ui.form.errRequired"),
+                    onChange: function (next) { setAns(next === null ? "" : String(next)); },
+                }),
             ]);
         }
         return null;
     }
 
-    var previewCard = ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
-        ctx.UI.Column({ padding: 16, spacing: 8 }, [
-            ctx.UI.Text({ text: _t("ui.setting.previewLabel") + typeOptions.find(function(t){return t.id===previewType}).label, style: "titleSmall", color: onSurface }),
-            renderTypePreview(previewType),
-        ]),
-    ]);
+
+    // v1.8.1：预览卡必须是函数，不能是模块级 var
+    // 原因：var previewCard = ctx.UI.Card(...) 在 Screen 执行时只构造一次，
+    // 内部的 currentTheme 被固化在闭包里 —— 切换主题后不会重建，预览就成了「硬编码」。
+    // 改成函数后，每次渲染（含切主题触发的重绘）都重新读 currentTheme。
+    function buildPreviewCard() {
+        var _cur = typeOptions.find(function(t) { return t.id === previewType; });
+        return ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant, shape: shape(RADIUS.card) }, [
+            ctx.UI.Column({ padding: 16, spacing: 8 }, [
+                ctx.UI.Text({
+                    text: _t("ui.setting.previewLabel") + (_cur ? _cur.label : previewType),
+                    style: "titleSmall",
+                    color: onSurface,
+                }),
+                // 主题标识，方便肉眼确认预览确实跟着设置走
+                ctx.UI.Text({
+                    text: _t("ui.setting.current") + _t("ui.setting.theme") + _themeLabel(currentTheme),
+                    style: "bodySmall",
+                    color: onSurfaceVariant,
+                }),
+                renderTypePreview(previewType),
+            ]),
+        ]);
+    }
 
     // ===== 语言包区 =====
     async function scanLangPacks() {
@@ -1457,7 +1357,7 @@ export default async function Screen(ctx) {
                                 packs.push({ id: parsed.id, path: fp, displayName: displayName, author: parsed.author || "", lang: parsed.lang || null });
                             }
                         } catch(e) {
-                            showSnack(_t("ui.setting.langParseFail") + (e && e.message ? e.message : String(e)));
+                            showSnack(_t("ui.setting.langParseFail") + (e && e.message ? e.message : String(e)), "error");
                         }
                     }
             }
@@ -1471,26 +1371,16 @@ export default async function Screen(ctx) {
                         "ui.form.fill": "一键补全",
                         "ui.form.fillOk": "已自动补全上次的答案",
                         "ui.form.submitted": "已提交",
-                        "ui.form.expired": "已过期",
                         "ui.form.infoTitle": "问卷信息",
                         "ui.form.version": "版本",
-                        "ui.form.type": "类型",
-                        "ui.form.questions": "题目数",
-                        "ui.form.fingerprint": "指纹",
                         "ui.form.required": "必答",
                         "ui.form.other": "其他…",
                         "ui.form.missing": "还有必答题未填",
                         "ui.form.submitting": "提交中...",
                         "ui.form.parseError": "解析失败",
-                        "ui.form.invalidFormat": "格式错误",
-                        "ui.form.historyFill": "一键补全",
                         "ui.form.noAnswer": "(未填)",
                         "ui.form.emptySubmit": "(用户未填写任何内容)",
                         "ui.form.remind": "提醒",
-                        "ui.form.expiredHint": "该问卷已过期",
-                        "ui.form.collapsedHint": "点击展开",
-                        "ui.form.sectionResult": "结果",
-                        "ui.form.rollSpec": "卷谱",
                         "ui.form.asking": "📋 询问 %d 个问题",
                         "ui.form.cancelled": "用户取消了本次问卷提问",
                         "ui.form.cancelledTitle": "提问被终止",
@@ -1508,16 +1398,13 @@ export default async function Screen(ctx) {
                         "ui.form.otherPrefix": "其他: ",
                         "ui.form.star": " 星",
                         "ui.form.starHint": "点击评分",
-                        "ui.form.starLabel": " 星 - ",
                         "ui.form.ratingVeryBad": "很差",
                         "ui.form.ratingBad": "较差",
                         "ui.form.ratingNormal": "一般",
                         "ui.form.ratingGood": "满意",
                         "ui.form.ratingVeryGood": "非常满意",
-                        "ui.form.ratingNormal": "一般",
                         "ui.form.likertStronglyDisagree": "非常不同意",
                         "ui.form.likertDisagree": "不同意",
-                        "ui.form.likertNeutral": "一般",
                         "ui.form.likertAgree": "同意",
                         "ui.form.likertStronglyAgree": "非常同意",
                         "ui.form.likertSelected": "已选: ",
@@ -1534,7 +1421,6 @@ export default async function Screen(ctx) {
                         "ui.form.timeHour": "时",
                         "ui.form.timeMin": "分",
                         "ui.form.timeSec": "秒",
-                        "ui.form.timeSelected": "已选: ",
                         "ui.form.infoTitleLabel": "标题：",
                         "ui.form.infoIdLabel": "ID：",
                         "ui.form.infoTypeLabel": "类型：",
@@ -1550,7 +1436,6 @@ export default async function Screen(ctx) {
                         "ui.form.authorModder": "二次开发：",
                         "ui.form.versionLabel": "version: ",
                         "ui.form.resultSection": "── 结果 ──",
-                        "ui.form.rollSpecLabel": "卷谱: ",
                         "ui.form.errorTitle": "表单错误",
                         "ui.form.errorJson": "JSON 格式错误",
                         "ui.form.errorEmpty": "问卷数据为空",
@@ -1564,7 +1449,6 @@ export default async function Screen(ctx) {
                         "ui.form.unknown": "未知",
                         "ui.form.totalQuestions": "共 %d 题",
                         "ui.form.answeredCount": "已回答 %d / %d 题",
-                        "ui.form.remindMsg": "⚠️ ",
 
 "ui.ask.title": "问卷询问",
 "ui.ask.subtitle": "向 AI 出题，AI 将通过工具作答",
@@ -1646,14 +1530,44 @@ export default async function Screen(ctx) {
 "ui.de.type.likert": "李克特",
 "ui.de.type.nps": "NPS",
 "ui.de.type.time": "时间",
+                        "ui.de.type.confirm": "确定",
+                        "ui.de.type.number": "数字",
+                        "ui.de.numMin": "最小值",
+                        "ui.de.numMax": "最大值",
+                        "ui.de.numStep": "步长",
+                        "ui.de.numUnit": "单位",
+                        "ui.de.numPlaceholder": "可空",
 "ui.ask.saveFail": "保存失败: ",
                         "ui.setting.title": "问卷主题设置",
-                        "ui.setting.back": "返回",
-                        "ui.setting.home.title": "设置首页",
+                        "ui.form.err.numField": "第%s题 %s 必须是数字",
+                        "ui.form.err.numRange": "第%s题 min 不能大于 max",
+                        "ui.form.err.numUnit": "第%s题 unit 必须是字符串",
+                        "ui.form.errRequired": "此题为必答题，请填写",
+                        "ui.form.requiredHint": "必答",
+                        "ui.form.charUnit": "字",
+                        "ui.form.pickedCount": "已选 %s / %d 项",
+                        "ui.form.selectAll": "全选",
+                        "ui.form.deselectAll": "取消全选",
+                        "ui.form.scrollHint": "共 %s 项，可上下滑动 ↑↓",
+                        "ui.form.err.qfRequired": "第%s题使用了必选(required)，但题型过滤器已禁用必选",
+                        "ui.form.err.qfOther": "第%s题（%s）使用了\"其他\"输入(enableOther)，但题型过滤器已禁用单选\"其他\"",
+                        "ui.setting.type.confirm": "确认",
+                        "ui.setting.type.number": "数字",
+                        "ui.setting.preview.confirm": "确认项",
+                        "ui.setting.preview.confirmText": "我已阅读并同意上述内容",
+                        "ui.setting.preview.number": "数字输入",
+                        "ui.setting.preview.numberUnit": "个",
+                        "ui.form.confirmed": "已确认",
+                        "ui.form.notConfirmed": "未确认",
+                        "ui.form.longPressToConfirm": "长按确认",
+                        "ui.form.confirmedHint": "已确认，点击可取消",
                         "ui.setting.home.filled": "已填写问卷",
-                        "ui.setting.home.filledCount": "%d 份",
                         "ui.setting.home.currentLang": "当前语言包",
                         "ui.setting.home.entries": "功能",
+  "ui.setting.home.bannerSub": "AI 问卷提问·设置",
+  "ui.setting.home.bannerNote": "主题 / 布局 / 行为、语言包、草稿与更新，全在这里",
+  "ui.setting.themeDesc": "切换问卷题型的交互形态",
+  "ui.setting.history.toggleDesc": "保留每次填写记录，方便回溯",
                         "ui.setting.page.appearance": "外观",
                         "ui.setting.page.appearance.desc": "主题、按钮布局、问卷布局与题型预览",
                         "ui.setting.page.behavior": "行为",
@@ -1673,7 +1587,6 @@ export default async function Screen(ctx) {
         "ui.setting.scheme.namePlaceholder": "方案名称",
         "ui.setting.scheme.saveBtn": "保存",
         "ui.setting.scheme.exportTitle": "一键导出当前配置",
-        "ui.setting.scheme.exportBtn": "导出",
         "ui.setting.scheme.exportResult": "方案字符串（复制以下内容以便分享）：",
         "ui.setting.scheme.importTitle": "一键导入方案",
         "ui.setting.scheme.importPlaceholder": "粘贴方案字符串...",
@@ -1687,6 +1600,8 @@ export default async function Screen(ctx) {
         "ui.setting.scheme.deleteBtn": "删除",
         "ui.setting.scheme.deleted": "已删除方案",
         "ui.setting.scheme.deleFail": "删除失败：",
+        "ui.setting.scheme.copied": "已复制到剪贴板",
+        "ui.setting.scheme.copyFail": "复制失败: ",
                         "ui.setting.page.preview": "题型预览",
                         "ui.setting.page.preview.desc": "按当前主题与布局实时预览各题型渲染",
                         "ui.setting.preview.other": "其他…",
@@ -1716,9 +1631,6 @@ export default async function Screen(ctx) {
                         "ui.setting.lang": "语言包",
                         "ui.setting.lang.current": "当前语言",
                         "ui.setting.lang.scan": "扫描语言包",
-                        "ui.setting.lang.scanning": "扫描中...",
-                        "ui.setting.lang.switch": "切换",
-                        "ui.setting.lang.none": "内置语言包",
                         "ui.setting.about": "关于主题",
                         "ui.setting.about.round": "圆润模式：使用 OutlinedButton 显示选项，适合清晰区分",
                         "ui.setting.about.square": "方正模式：使用 FilterChip 显示选项，紧凑设计，适合空间有限",
@@ -1745,10 +1657,15 @@ export default async function Screen(ctx) {
                         "ui.setting.cleanHistory.fail": "清理失败",
                         "ui.setting.saveFail": "保存失败：",
                         "ui.setting.round": "圆润",
+                        "ui.setting.modern": "现代",
                         "ui.setting.square": "方正",
                         "ui.setting.layout.row": "一行一个",
                         "ui.setting.layout.scroll": "LazyRow滑动",
                         "ui.setting.layout.continuous": "连续，所有题目连续显示",
+                        "ui.setting.layout.segContinuous": "连续",
+                        "ui.setting.layout.segCompact": "紧凑",
+                        "ui.setting.qLayout.lockedByModern": "现代化主题固定为每页 3 题",
+                        "ui.setting.layout.lockedByModern": "现代主题下按钮布局已锁定为竖排",
                         "ui.setting.layout.compact": "紧凑，一页5题加分页",
                         "ui.setting.timePicker": "按钮选择器",
                         "ui.setting.timeInput": "手动输入",
@@ -1769,12 +1686,8 @@ export default async function Screen(ctx) {
                         "ui.setting.unknownVer": "未知版本",
                         "ui.setting.latestVer": "当前已是最新版",
                         "ui.setting.current": "当前：",
-                        "ui.setting.strictDesc": "检查全部语法",
-                        "ui.setting.strictDescRelaxed": "放行非致命错误",
-                        "ui.setting.lang.loadFail": "语言包加载失败：",
                                                 "ui.setting.langParseFail": "解析语言包失败: ",
                         "ui.setting.scanFail": "扫描失败：",
-                        "ui.setting.switchFail": "切换失败：",
                         "ui.setting.foundPacks": "找到 %d 个语言包",
                         "ui.setting.switched": "已切换语言包，界面已立即生效",
                         "ui.setting.currentPack": "当前语言包：",
@@ -1788,15 +1701,8 @@ export default async function Screen(ctx) {
                         "ui.setting.fetchFail": "获取失败：",
                         "ui.setting.latestVerDesc": "当前已是最新版，无新版本特性。",
                         "ui.setting.roundDesc": "圆润",
+                        "ui.setting.modernDesc": "现代",
                         "ui.setting.squareDesc": "方正",
-                        "ui.setting.layout.rowDesc": "一行一个（突出）",
-                        "ui.setting.layout.scrollDesc": "LazyRow滑动（经典）",
-                        "ui.setting.layout.continuousDesc": "连续显示（经典）",
-                        "ui.setting.layout.compactDesc": "紧凑翻页（新版，分页）",
-                        "ui.setting.timePickerDesc": "按钮选择器（时/分/秒按钮）",
-                        "ui.setting.timeInputDesc": "手动输入（hh:mm:ss格式）",
-                        "ui.setting.displayHiddenDesc": "显示源码（不渲染问卷）",
-                        "ui.setting.displayBlockedDesc": "拦截显示（警告页）",
                         "ui.setting.selectType": "选择一个题型以预览在当前主题下的渲染效果",
                         "ui.setting.newFeature.desc": "点击「获取更新日志」检测新版本",
                         "ui.setting.preview.single": "单选题示例",
@@ -1814,8 +1720,6 @@ export default async function Screen(ctx) {
                         "ui.setting.preview.blue": "蓝色",
                         "ui.setting.preview.green": "绿色",
                         "ui.setting.preview.inputText": "请输入内容...",
-                        "ui.setting.preview.ratingExample": "3星 - 一般",
-                        "ui.setting.preview.npsExample": "评分：7（被动者）",
                         "ui.setting.preview.timeExample": "已选择：10:30",
                         "ui.setting.preview.likert1": "非常不同意",
                         "ui.setting.preview.likert2": "不同意",
@@ -1824,7 +1728,6 @@ export default async function Screen(ctx) {
                         "ui.setting.preview.likert5": "非常同意",
                         "ui.setting.preview.hour": "时",
                         "ui.setting.preview.minute": "分",
-                        "ui.setting.preview.second": "秒",
                         "ui.setting.type.single": "单选题",
     "ui.setting.qf.title": "题型过滤器", "ui.setting.qf.desc": "控制问卷可使用的题型范围，以及是否允许必选和单选「其他」输入。", "ui.setting.qf.useGlobal": "使用全局配置", "ui.setting.qf.useGlobalOn": "使用全局配置（全部题型可用）", "ui.setting.qf.customOn": "自定义题型过滤器", "ui.setting.qf.types": "允许的题型", "ui.setting.qf.toggled": "题型过滤器", "ui.setting.qf.required": "允许必选", "ui.setting.qf.requiredSwitch": "是否允许必选", "ui.setting.qf.other": "允许单选「其他」", "ui.setting.qf.otherSwitch": "是否允许单选「其他」",
     "ui.setting.blocklist.title": "问卷屏蔽词", "ui.setting.blocklist.desc": "问卷标题、描述与所有题目内容中出现下方任一屏蔽词时会被拦截。留空则不使用屏蔽检查器。", "ui.setting.blocklist.placeholder": "输入屏蔽词...", "ui.setting.blocklist.add": "添加", "ui.setting.blocklist.empty": "请输入要屏蔽的词", "ui.setting.blocklist.added": "已添加屏蔽词", "ui.setting.blocklist.removed": "已移除屏蔽词", "ui.setting.blocklist.none": "当前不使用屏蔽检查器", "ui.setting.blocklist.count": " 个",
@@ -1857,26 +1760,14 @@ export default async function Screen(ctx) {
                         "ui.market.langpack.refresh": "刷新",
                         "ui.market.langpack.download": "下载",
                         "ui.market.langpack.installed": "已安装",
-                        "ui.market.langpack.loadFail": "加载市场列表失败",
-                        "ui.market.langpack.downloadFail": "下载失败",
-                        "ui.market.langpack.downloadSuccess": "下载成功",
-                        "ui.market.langpack.publishTitle": "发布你的语言包",
-                        "ui.market.langpack.publishDesc": "在 GitHub 提交 Issue 来发布你的语言包",
-                        "ui.market.langpack.publishBtn": "在 GitHub 发布",
                         "ui.market.langpack.noItems": "暂无可用语言包",
                         "ui.market.langpack.fetching": "获取中...",
-                        "ui.market.langpack.installing": "安装中...",
-                        "ui.market.langpack.checkFail": "检查失败：",
                         "ui.market.langpack.version": "版本",
                         "ui.market.langpack.authorLabel": "作者",
-                        "ui.market.langpack.reinstall": "重新安装",
 
                         "ui.market.langpack.expand": "展开",
                         "ui.market.langpack.collapse": "收起",
                         "ui.market.langpack.noAuthor": "未知作者",
-                        "ui.market.langpack.fillBoth": "请填写邮箱和JSON内容",
-                        "ui.market.langpack.submitting": "提交中...",
-                        "ui.market.langpack.submitFail": "提交失败: ",
                         "ui.market.langpack.deleteOk": "已删除",
                         "ui.market.langpack.deleteFail": "删除失败: ",
                         "ui.market.langpack.dlOk": "下载成功",
@@ -1958,26 +1849,16 @@ export default async function Screen(ctx) {
                         "ui.form.fill": "Auto Fill",
                         "ui.form.fillOk": "Auto-filled from history",
                         "ui.form.submitted": "Submitted",
-                        "ui.form.expired": "Expired",
                         "ui.form.infoTitle": "Questionnaire Info",
                         "ui.form.version": "Version",
-                        "ui.form.type": "Type",
-                        "ui.form.questions": "Questions",
-                        "ui.form.fingerprint": "Fingerprint",
                         "ui.form.required": "Required",
                         "ui.form.other": "Other…",
                         "ui.form.missing": "Required questions remaining",
                         "ui.form.submitting": "Submitting...",
                         "ui.form.parseError": "Parse failed",
-                        "ui.form.invalidFormat": "Invalid format",
-                        "ui.form.historyFill": "Auto Fill",
                         "ui.form.noAnswer": "(Not answered)",
                         "ui.form.emptySubmit": "(User did not fill anything)",
                         "ui.form.remind": "Remind",
-                        "ui.form.expiredHint": "This questionnaire has expired",
-                        "ui.form.collapsedHint": "Tap to expand",
-                        "ui.form.sectionResult": "Result",
-                        "ui.form.rollSpec": "Roll Spec",
                         "ui.form.asking": "📋 Asking %d questions",
                         "ui.form.cancelled": "User cancelled the questionnaire",
                         "ui.form.cancelledTitle": "Questionnaire terminated",
@@ -1995,7 +1876,6 @@ export default async function Screen(ctx) {
                         "ui.form.otherPrefix": "Other: ",
                         "ui.form.star": " stars",
                         "ui.form.starHint": "Tap to rate",
-                        "ui.form.starLabel": " stars - ",
                         "ui.form.ratingVeryBad": "Very bad",
                         "ui.form.ratingBad": "Poor",
                         "ui.form.ratingNormal": "Average",
@@ -2003,7 +1883,6 @@ export default async function Screen(ctx) {
                         "ui.form.ratingVeryGood": "Excellent",
                         "ui.form.likertStronglyDisagree": "Strongly disagree",
                         "ui.form.likertDisagree": "Disagree",
-                        "ui.form.likertNeutral": "Neutral",
                         "ui.form.likertAgree": "Agree",
                         "ui.form.likertStronglyAgree": "Strongly agree",
                         "ui.form.likertSelected": "Selected: ",
@@ -2020,7 +1899,6 @@ export default async function Screen(ctx) {
                         "ui.form.timeHour": "h",
                         "ui.form.timeMin": "m",
                         "ui.form.timeSec": "s",
-                        "ui.form.timeSelected": "Selected: ",
                         "ui.form.infoTitleLabel": "Title: ",
                         "ui.form.infoIdLabel": "ID: ",
                         "ui.form.infoTypeLabel": "Type: ",
@@ -2036,7 +1914,6 @@ export default async function Screen(ctx) {
                         "ui.form.authorModder": "Modded by: ",
                         "ui.form.versionLabel": "version: ",
                         "ui.form.resultSection": "── Result ──",
-                        "ui.form.rollSpecLabel": "Roll spec: ",
                         "ui.form.errorTitle": "Form error",
                         "ui.form.errorJson": "JSON format error",
                         "ui.form.errorEmpty": "Empty questionnaire data",
@@ -2050,7 +1927,6 @@ export default async function Screen(ctx) {
                         "ui.form.unknown": "Unknown",
                         "ui.form.totalQuestions": "%d questions total",
                         "ui.form.answeredCount": "Answered %d / %d",
-                        "ui.form.remindMsg": "⚠️ ",
 
 "ui.ask.title": "Ask Questionnaire",
 "ui.ask.subtitle": "Quiz the AI; it answers via tools",
@@ -2132,14 +2008,44 @@ export default async function Screen(ctx) {
 "ui.de.type.likert": "Likert",
 "ui.de.type.nps": "NPS",
 "ui.de.type.time": "Time",
+                        "ui.de.type.confirm": "Confirm",
+                        "ui.de.type.number": "Number",
+                        "ui.de.numMin": "Min",
+                        "ui.de.numMax": "Max",
+                        "ui.de.numStep": "Step",
+                        "ui.de.numUnit": "Unit",
+                        "ui.de.numPlaceholder": "optional",
 "ui.ask.saveFail": "Save failed: ",
                         "ui.setting.title": "Theme Settings",
-                        "ui.setting.back": "Back",
-                        "ui.setting.home.title": "Settings Home",
+                        "ui.form.err.numField": "Question %s: %s must be a number",
+                        "ui.form.err.numRange": "Question %s: min cannot be greater than max",
+                        "ui.form.err.numUnit": "Question %s: unit must be a string",
+                        "ui.form.errRequired": "This question is required",
+                        "ui.form.requiredHint": "Required",
+                        "ui.form.charUnit": "chars",
+                        "ui.form.pickedCount": "%s / %d selected",
+                        "ui.form.selectAll": "Select all",
+                        "ui.form.deselectAll": "Clear all",
+                        "ui.form.scrollHint": "%s items, scroll ↑↓",
+                        "ui.form.err.qfRequired": "Question %s uses required, but the type filter has disabled required",
+                        "ui.form.err.qfOther": "Question %s (%s) uses custom \"other\" input, but the type filter has disabled it",
+                        "ui.setting.type.confirm": "Confirm",
+                        "ui.setting.type.number": "Number",
+                        "ui.setting.preview.confirm": "Confirmation",
+                        "ui.setting.preview.confirmText": "I have read and agree to the above",
+                        "ui.setting.preview.number": "Number input",
+                        "ui.setting.preview.numberUnit": "pcs",
+                        "ui.form.confirmed": "Confirmed",
+                        "ui.form.notConfirmed": "Not confirmed",
+                        "ui.form.longPressToConfirm": "Long press to confirm",
+                        "ui.form.confirmedHint": "Confirmed - tap to undo",
                         "ui.setting.home.filled": "Filled Questionnaires",
-                        "ui.setting.home.filledCount": "%d filled",
                         "ui.setting.home.currentLang": "Current Language Pack",
                         "ui.setting.home.entries": "Features",
+  "ui.setting.home.bannerSub": "AI Questionnaire · Settings",
+  "ui.setting.home.bannerNote": "Theme, layout, behavior, language pack, drafts and updates — all here",
+  "ui.setting.themeDesc": "Switch the interaction style of question types",
+  "ui.setting.history.toggleDesc": "Keep every submission for later review",
                         "ui.setting.page.appearance": "Appearance",
                         "ui.setting.page.appearance.desc": "Theme, button layout, question layout & preview",
                         "ui.setting.page.behavior": "Behavior",
@@ -2159,7 +2065,6 @@ export default async function Screen(ctx) {
         "ui.setting.scheme.namePlaceholder": "Scheme name",
         "ui.setting.scheme.saveBtn": "Save",
         "ui.setting.scheme.exportTitle": "Export current config as string",
-        "ui.setting.scheme.exportBtn": "Export",
         "ui.setting.scheme.exportResult": "Scheme string (copy to share):",
         "ui.setting.scheme.importTitle": "Import scheme from string",
         "ui.setting.scheme.importPlaceholder": "Paste scheme string...",
@@ -2173,8 +2078,8 @@ export default async function Screen(ctx) {
         "ui.setting.scheme.deleteBtn": "Delete",
         "ui.setting.scheme.deleted": "Scheme deleted",
         "ui.setting.scheme.deleFail": "Delete failed: ",
-                        "ui.setting.scheme.copied": "Copied to clipboard",
-                        "ui.setting.scheme.copyFail": "Copy failed: ",
+        "ui.setting.scheme.copied": "Copied to clipboard",
+        "ui.setting.scheme.copyFail": "Copy failed: ",
                         "ui.setting.page.preview": "Type Preview",
                         "ui.setting.page.preview.desc": "Live preview of all types under current theme & layout",
                         "ui.setting.preview.other": "Other…",
@@ -2204,9 +2109,6 @@ export default async function Screen(ctx) {
                         "ui.setting.lang": "Language Pack",
                         "ui.setting.lang.current": "Current Language",
                         "ui.setting.lang.scan": "Scan Language Packs",
-                        "ui.setting.lang.scanning": "Scanning...",
-                        "ui.setting.lang.switch": "Switch",
-                        "ui.setting.lang.none": "Built-in Language Pack",
                         "ui.setting.about": "About",
                         "ui.setting.about.round": "Rounded mode: uses OutlinedButton for choices, suitable for clear distinction.",
                         "ui.setting.about.square": "Square mode: uses FilterChip for choices, compact design, suitable for limited space.",
@@ -2233,10 +2135,15 @@ export default async function Screen(ctx) {
                         "ui.setting.cleanHistory.fail": "Clear failed",
                         "ui.setting.saveFail": "Save failed: ",
                         "ui.setting.round": "Rounded",
+                        "ui.setting.modern": "Modern",
                         "ui.setting.square": "Square",
                         "ui.setting.layout.row": "One per row",
                         "ui.setting.layout.scroll": "LazyRow scroll",
                         "ui.setting.layout.continuous": "Continuous, all questions displayed continuously",
+                        "ui.setting.layout.segContinuous": "Continuous",
+                        "ui.setting.layout.segCompact": "Compact",
+                        "ui.setting.qLayout.lockedByModern": "Modern theme uses 3 questions per page",
+                        "ui.setting.layout.lockedByModern": "Button layout is locked in Modern theme",
                         "ui.setting.layout.compact": "Compact, 5 questions per page with pagination",
                         "ui.setting.timePicker": "Button Picker",
                         "ui.setting.timeInput": "Manual Input",
@@ -2257,12 +2164,8 @@ export default async function Screen(ctx) {
                         "ui.setting.unknownVer": "Unknown version",
                         "ui.setting.latestVer": "Already the latest version",
                         "ui.setting.current": "Current: ",
-                        "ui.setting.strictDesc": "Check all syntax",
-                        "ui.setting.strictDescRelaxed": "Allow non-fatal errors",
-                        "ui.setting.lang.loadFail": "Language pack load failed: ",
                                                 "ui.setting.langParseFail": "解析语言包失败: ",
                         "ui.setting.scanFail": "Scan failed: ",
-                        "ui.setting.switchFail": "Switch failed: ",
                         "ui.setting.foundPacks": "Found %d language pack(s)",
                         "ui.setting.switched": "Language pack switched, applied immediately",
                         "ui.setting.currentPack": "Current pack: ",
@@ -2286,19 +2189,10 @@ export default async function Screen(ctx) {
                         "ui.market.langpack.refresh": "Refresh",
                         "ui.market.langpack.download": "Download",
                         "ui.market.langpack.installed": "Installed",
-                        "ui.market.langpack.loadFail": "Failed to load market list",
-                        "ui.market.langpack.downloadFail": "Download failed",
-                        "ui.market.langpack.downloadSuccess": "Downloaded successfully",
-                        "ui.market.langpack.publishTitle": "Publish Your Language Pack",
-                        "ui.market.langpack.publishDesc": "Submit an Issue on GitHub to publish your language pack",
-                        "ui.market.langpack.publishBtn": "Publish on GitHub",
                         "ui.market.langpack.noItems": "No language packs available",
                         "ui.market.langpack.fetching": "Fetching...",
-                        "ui.market.langpack.installing": "Installing...",
-                        "ui.market.langpack.checkFail": "Check failed: ",
                         "ui.market.langpack.version": "Version",
                         "ui.market.langpack.authorLabel": "Author",
-                        "ui.market.langpack.reinstall": "Reinstall",
 
                         "ui.market.langpack.manageTitle": "Language Pack Management",
                         "ui.market.langpack.manageRefresh": "Please refresh",
@@ -2307,9 +2201,6 @@ export default async function Screen(ctx) {
                         "ui.market.langpack.expand": "Expand",
                         "ui.market.langpack.collapse": "Collapse",
                         "ui.market.langpack.noAuthor": "Unknown Author",
-                        "ui.market.langpack.fillBoth": "Please enter email and JSON",
-                        "ui.market.langpack.submitting": "Submitting...",
-                        "ui.market.langpack.submitFail": "Submit failed: ",
                         "ui.market.langpack.deleteOk": "Deleted",
                         "ui.market.langpack.deleteFail": "Delete failed: ",
                         "ui.market.langpack.dlOk": "Download OK",
@@ -2320,9 +2211,6 @@ export default async function Screen(ctx) {
                         "ui.market.langpack.update": "Update",
                         "ui.market.langpack.upToDate": "Up to date",
                         "ui.market.langpack.readFail": "Failed to read version",                        "ui.market.langpack.selectFile": "Select file",                        "ui.market.langpack.manageTitle": "Language Pack Management",
-                        "ui.market.langpack.manageRefresh": "Please refresh",
-                        "ui.market.langpack.manageEmpty": "No language packs available",
-                        "ui.market.langpack.manageDelete": "Delete",
                         "ui.setting.latestVerText": "Already the latest version v",
                         "ui.setting.newVerText": "New version v",
                         "ui.setting.currentVerText": "Current Version: ",
@@ -2332,15 +2220,8 @@ export default async function Screen(ctx) {
                         "ui.setting.fetchFail": "Fetch failed: ",
                         "ui.setting.latestVerDesc": "Already the latest version, no new features.",
                         "ui.setting.roundDesc": "Rounded",
+                        "ui.setting.modernDesc": "Modern",
                         "ui.setting.squareDesc": "Square",
-                        "ui.setting.layout.rowDesc": "One per row (prominent)",
-                        "ui.setting.layout.scrollDesc": "LazyRow scroll (classic)",
-                        "ui.setting.layout.continuousDesc": "Continuous display (classic)",
-                        "ui.setting.layout.compactDesc": "Compact pagination (new, paged)",
-                        "ui.setting.timePickerDesc": "Button picker (hour/min/sec buttons)",
-                        "ui.setting.timeInputDesc": "Manual input (hh:mm:ss format)",
-                        "ui.setting.displayHiddenDesc": "Show source (no questionnaire render)",
-                        "ui.setting.displayBlockedDesc": "Blocked (warning page)",
                         "ui.setting.selectType": "Select a type to preview its rendering under the current theme",
                         "ui.setting.newFeature.desc": "Click \"Fetch Changelog\" to detect new versions",
                         "ui.setting.preview.single": "Single Choice Example",
@@ -2358,8 +2239,6 @@ export default async function Screen(ctx) {
                         "ui.setting.preview.blue": "Blue",
                         "ui.setting.preview.green": "Green",
                         "ui.setting.preview.inputText": "Type something...",
-                        "ui.setting.preview.ratingExample": "3 stars - Average",
-                        "ui.setting.preview.npsExample": "Score: 7 (Passive)",
                         "ui.setting.preview.timeExample": "Selected: 10:30",
                         "ui.setting.preview.likert1": "Strongly Disagree",
                         "ui.setting.preview.likert2": "Disagree",
@@ -2368,7 +2247,6 @@ export default async function Screen(ctx) {
                         "ui.setting.preview.likert5": "Strongly Agree",
                         "ui.setting.preview.hour": "h",
                         "ui.setting.preview.minute": "m",
-                        "ui.setting.preview.second": "s",
                         "ui.setting.type.single": "Single Choice",
     "ui.setting.qf.title": "Question Type Filter", "ui.setting.qf.desc": "Control which question types may be used, and whether required flags and single-choice other input are allowed.", "ui.setting.qf.useGlobal": "Use global config", "ui.setting.qf.useGlobalOn": "Use global config (all types allowed)", "ui.setting.qf.customOn": "Custom question filter", "ui.setting.qf.types": "Allowed types", "ui.setting.qf.toggled": "Question filter", "ui.setting.qf.required": "Allow required", "ui.setting.qf.requiredSwitch": "Allow required flag", "ui.setting.qf.other": "Allow single other input", "ui.setting.qf.otherSwitch": "Allow single other input switch",
     "ui.setting.blocklist.title": "Question Blocklist", "ui.setting.blocklist.desc": "Intercept questions whose title, description or any question content contains a blocked word below. Empty means no blocking.", "ui.setting.blocklist.placeholder": "Enter blocked word...", "ui.setting.blocklist.add": "Add", "ui.setting.blocklist.empty": "Enter a word to block", "ui.setting.blocklist.added": "Blocked word added", "ui.setting.blocklist.removed": "Blocked word removed", "ui.setting.blocklist.none": "Blocklist is currently empty", "ui.setting.blocklist.count": " words",
@@ -2679,7 +2557,7 @@ export default async function Screen(ctx) {
                 showSnack("已保存方案「" + name + "」");
                 return loadSchemeList();
             })
-            .catch(function (e) { showSnack(_t("ui.setting.saveFail") + String(e)); });
+            .catch(function (e) { showSnack(_t("ui.setting.saveFail") + String(e), "error"); });
     }
     // 应用某个已保存方案
     function applySavedScheme(scheme) {
@@ -2724,10 +2602,10 @@ export default async function Screen(ctx) {
                 var CD2 = Java.type("android.content.ClipData");
                 c2.setPrimaryClip(CD2.newPlainText("scheme", String(text)));
             }
-            showSnack(_t("ui.setting.scheme.copied"));
+            showSnack(_t("ui.setting.scheme.copied"), "success");
             return true;
         } catch (e) {
-            showSnack(_t("ui.setting.scheme.copyFail") + String(e && e.message ? e.message : e));
+            showSnack(_t("ui.setting.scheme.copyFail") + String(e && e.message ? e.message : e), "error");
             return false;
         }
     }
@@ -2747,89 +2625,99 @@ export default async function Screen(ctx) {
     function renderSchemePage() {
         var _reloadFlag = schemesReloadState[0]; // 读取刷新计数：确保本页订阅该 state，bump 后必重绘
         var schemeNodes = [];
-        schemeNodes.push(renderSubHeader(_t("ui.setting.scheme.title")));
-        schemeNodes.push(renderSnackbar());
-        // 保存当前设置
-        schemeNodes.push(ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
-            ctx.UI.Column({ padding: 16, spacing: 8 }, [
-                ctx.UI.Text({ text: _t("ui.setting.scheme.saveTitle"), style: "titleSmall", color: onSurface }),
-                ctx.UI.Row({ fillMaxWidth: true, spacing: 8 }, [
+
+        // ── 保存当前设置 ──
+        schemeNodes.push(SectionCard(ctx, {
+            title: _t("ui.setting.scheme.saveTitle"),
+            children: [
+                ctx.UI.Row({ fillMaxWidth: true, spacing: SPACE.sm, verticalAlignment: "center", padding: { top: SPACE.md, bottom: SPACE.md, horizontal: SPACE.md } }, [
                     ctx.UI.Column({ weight: 1 }, [
                         ctx.UI.TextField({
                             value: schemeNameState[0],
                             onValueChange: function (v) { schemeNameState[1](v); },
                             placeholder: _t("ui.setting.scheme.namePlaceholder"),
-                            singleLine: true
+                            singleLine: true,
+                            fillMaxWidth: true,
                         }),
                     ]),
-                    ctx.UI.Button({ onClick: saveCurrentScheme, content: ctx.UI.Text({ text: _t("ui.setting.scheme.saveBtn"), style: "labelMedium", color: ctx.MaterialTheme.colorScheme.onPrimary }) }),
+                    ctx.UI.Button({ onClick: saveCurrentScheme, content: ctx.UI.Text({ text: _t("ui.setting.scheme.saveBtn"), style: "labelMedium", color: onPrimary }) }),
                 ]),
-                ctx.UI.Divider({ thickness: 0.5, color: onSurfaceVariant.copy({ alpha: 0.3 }) }),
-                // 一键导出
-                ctx.UI.Row({ fillMaxWidth: true, horizontalArrangement: "spaceBetween", verticalAlignment: "center" }, [
-                    ctx.UI.Text({ text: _t("ui.setting.scheme.exportTitle"), style: "bodyMedium", color: onSurface }),
-                    ctx.UI.OutlinedButton({ onClick: exportSchemeString, content: ctx.UI.Text({ text: _t("ui.setting.scheme.exportBtn"), style: "labelSmall" }) }),
-                ]),
-            ]),
-        ]));
+                ctx.UI.HorizontalDivider({ color: fade(outlineVariant, 0.6) }),
+                SettingsItem(ctx, {
+                    icon: "Share",
+                    title: _t("ui.setting.scheme.exportTitle"),
+                    onClick: exportSchemeString,
+                    last: true,
+                })],
+        }));
+
         if (schemeExpandState[0] === "export" && schemeVerState[0]) {
-            schemeNodes.push(ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
-                ctx.UI.Column({ padding: 16, spacing: 8 }, [
-                    ctx.UI.Text({ text: _t("ui.setting.scheme.exportResult"), style: "labelSmall", color: onSurfaceVariant }),
-                    ctx.UI.Text({ text: schemeVerState[0], style: "bodySmall", color: onSurface, maxLines: 3, overflow: "ellipsis" }),
-                ]),
-            ]));
+            schemeNodes.push(
+                ctx.UI.Column({ fillMaxWidth: true, padding: SPACE.md, spacing: SPACE.xs }, [
+                    ctx.UI.Text({ text: _t("ui.setting.scheme.exportResult"), fontSize: FONT.hint, color: onSurfaceVariant }),
+                    ctx.UI.Text({ text: schemeVerState[0], fontSize: FONT.micro, color: onSurface, maxLines: 3, overflow: "ellipsis" }),
+                ]),);
         }
-        // 一键导入
-        schemeNodes.push(ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
-            ctx.UI.Column({ padding: 16, spacing: 8 }, [
-                ctx.UI.Text({ text: _t("ui.setting.scheme.importTitle"), style: "titleSmall", color: onSurface }),
-                ctx.UI.TextField({
-                    value: schemeInputState[0],
-                    onValueChange: function (v) { schemeInputState[1](v); },
-                    placeholder: _t("ui.setting.scheme.importPlaceholder"),
-                }),
-                ctx.UI.Button({ onClick: importSchemeFromString, fillMaxWidth: true, containerColor: primary, content: ctx.UI.Text({ text: _t("ui.setting.scheme.importBtn"), style: "labelMedium", color: ctx.MaterialTheme.colorScheme.onPrimary }) }),
-            ]),
-        ]));
-        // 已保存方案列表
-        schemeNodes.push(ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
-            ctx.UI.Column({ padding: 16, spacing: 8 }, [
-ctx.UI.Row({ fillMaxWidth: true, horizontalArrangement: "spaceBetween", verticalAlignment: "center" }, [
-                    ctx.UI.Text({ text: _t("ui.setting.scheme.listTitle"), style: "titleSmall", color: onSurface }),
-                    ctx.UI.IconButton({ icon: "refresh", tint: "onSurfaceVariant", onClick: function () { schemesState[1](null); return loadSchemeList(); } }),
-                ]),
-            ]),
-        ]));
+
+        // ── 一键导入 ──
+        schemeNodes.push(SectionCard(ctx, {
+            title: _t("ui.setting.scheme.importTitle"),
+            children: [
+                ctx.UI.Column({ fillMaxWidth: true, padding: SPACE.md, spacing: SPACE.sm }, [
+                    ctx.UI.TextField({
+                        value: schemeInputState[0],
+                        onValueChange: function (v) { schemeInputState[1](v); },
+                        placeholder: _t("ui.setting.scheme.importPlaceholder"),
+                        fillMaxWidth: true,
+                    }),
+                    ctx.UI.Button({ onClick: importSchemeFromString, fillMaxWidth: true, containerColor: primary, content: ctx.UI.Text({ text: _t("ui.setting.scheme.importBtn"), style: "labelMedium", color: onPrimary }) }),
+                ]),],
+        }));
+
+        // ── 已保存方案 ──
+        var listChildren = [];
         if ((schemesState[0] || []).length === 0) {
-            schemeNodes.push(ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
-                ctx.UI.Column({ padding: 16, spacing: 8 }, [
-                    ctx.UI.Text({ text: _t("ui.setting.scheme.empty"), style: "bodyMedium", color: onSurfaceVariant }),
-                    ctx.UI.Text({ text: _t("ui.setting.scheme.emptyHint"), style: "bodySmall", color: onSurfaceVariant }),
-                ]),
+            listChildren.push(ctx.UI.Column({ fillMaxWidth: true, padding: SPACE.md, spacing: SPACE.xs }, [
+                ctx.UI.Text({ text: _t("ui.setting.scheme.empty"), fontSize: FONT.body, color: onSurfaceVariant }),
+                ctx.UI.Text({ text: _t("ui.setting.scheme.emptyHint"), fontSize: FONT.hint, color: onSurfaceVariant }),
             ]));
         } else {
             var sl = schemesState[0];
             for (var si = 0; si < sl.length; si++) {
-                (function (sc) {
-                    schemeNodes.push(ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
-                        ctx.UI.Column({ padding: 14, spacing: 6 }, [
-                            ctx.UI.Row({ fillMaxWidth: true, horizontalArrangement: "spaceBetween", verticalAlignment: "center" }, [
-                                ctx.UI.Text({ text: sc.name, style: "titleSmall", color: onSurface, maxLines: 1, overflow: "ellipsis" }),
-                                ctx.UI.Row({ spacing: 6 }, [
-                                    ctx.UI.OutlinedButton({ onClick: function () { applySavedScheme(sc); }, content: ctx.UI.Text({ text: _t("ui.setting.scheme.applyBtn"), style: "labelSmall" }) }),
-                                    ctx.UI.OutlinedButton({ onClick: function () { return deleteScheme(sc); }, content: ctx.UI.Text({ text: _t("ui.setting.scheme.deleteBtn"), style: "labelSmall" }) }),
-                                ]),
-                            ]),
-                            ctx.UI.Text({ text: _describeSchemeItems(sc.items), style: "bodySmall", color: onSurfaceVariant, maxLines: 2, overflow: "ellipsis" }),
+                (function (sc, idx) {
+                    listChildren.push(SettingsItem(ctx, {
+                        icon: "Bookmark",
+                        title: sc.name,
+                        desc: _describeSchemeItems(sc.items),
+                        showArrow: false,
+                        right: ctx.UI.Row({ spacing: SPACE.xs, verticalAlignment: "center" }, [
+                            ctx.UI.OutlinedButton({ onClick: function () { applySavedScheme(sc); }, content: ctx.UI.Text({ text: _t("ui.setting.scheme.applyBtn"), style: "labelSmall" }) }),
+                            ctx.UI.OutlinedButton({ onClick: function () { return deleteScheme(sc); }, content: ctx.UI.Text({ text: _t("ui.setting.scheme.deleteBtn"), style: "labelSmall" }) }),
                         ]),
-                    ]));
-                })(sl[si]);
+                        last: idx === sl.length - 1,
+                    }));
+                })(sl[si], si);
             }
         }
-        return ctx.UI.LazyColumn({ fillMaxSize: true, spacing: 12, padding: { horizontal: 16, top: 8, bottom: 24 }, onLoad: function () { var p = loadNotice(); if (!schemesState[0]) p = p.then(function () { return loadSchemeList(); }); return p; } }, schemeNodes);
-    }
 
+        schemeNodes.push(SectionCard(ctx, {
+            title: _t("ui.setting.scheme.listTitle"),
+            children: listChildren,
+        }));
+
+        return SettingsPageShell({
+            ctx: ctx,
+            title: _t("ui.setting.scheme.title"),
+            onBack: function () { pageState[1]("home"); },
+            snackbar: renderSnackbar(),
+            body: schemeNodes,
+            onLoad: function () {
+                var pr = loadNotice();
+                if (!schemesState[0]) pr = pr.then(function () { return loadSchemeList(); });
+                return pr;
+            },
+        });
+    }
     var ASK_DIR_LIST = "/sdcard/Download/Operit/questionnaire/userask";
     function loadDraftList() {
         if (draftsScanning) return;
@@ -2914,7 +2802,7 @@ ctx.UI.Row({ fillMaxWidth: true, horizontalArrangement: "spaceBetween", vertical
         nodes.push(ctx.UI.Row({ fillMaxWidth: true, verticalAlignment: "center", horizontalArrangement: "spaceBetween" }, [
             ctx.UI.Text({ text: _t("ui.setting.draftsDesc"), style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.IconButton({
-                icon: "refresh",
+                icon: "Refresh",
                 onClick: loadDraftList,
                 enabled: !draftsScanning,
             }),
@@ -2938,9 +2826,9 @@ ctx.UI.Row({ fillMaxWidth: true, horizontalArrangement: "spaceBetween", vertical
                                     ctx.UI.Text({ text: d.title || "(无标题)", style: "bodyMedium", fontWeight: "bold", maxLines: 1, overflow: "ellipsis" }),
                                     ctx.UI.Text({ text: d.id + " · " + _draftStatusLabel(d.status) + " · " + d.questions.length + " " + _t("ui.setting.draftsCount"), style: "labelSmall", color: onSurfaceVariant }),
                                 ]),
-                                ctx.UI.IconButton({ icon: "visibility", onClick: function () { expandedDraftState[1](isOpen ? "" : d.id); } }),
-                                ctx.UI.IconButton({ icon: "edit", onClick: function () { editDraft(d.id); } }),
-                                ctx.UI.IconButton({ icon: "delete", onClick: function () { deleteDraft(d.id); } }),
+                                ctx.UI.IconButton({ icon: "Visibility", onClick: function () { expandedDraftState[1](isOpen ? "" : d.id); } }),
+                                ctx.UI.IconButton({ icon: "Edit", onClick: function () { editDraft(d.id); } }),
+                                ctx.UI.IconButton({ icon: "Delete", onClick: function () { deleteDraft(d.id); } }),
                             ]),
                             isOpen ? ctx.UI.Column({ spacing: 4 }, d.questions.map(function (q, qi) {
                                 var filled = (q.answer !== null && q.answer !== undefined && q.answer !== "");
@@ -2976,13 +2864,35 @@ ctx.UI.Row({ fillMaxWidth: true, horizontalArrangement: "spaceBetween", vertical
                 }),
                 langPacksState[0] && Array.isArray(langPacksState[0]) ? ctx.UI.Column({ spacing: 4 }, langPacksState[0].map(function(p) {
                     var isActive = currentLangPathState[0] === p.path;
-                    return ctx.UI.OutlinedButton({
-                        containerColor: isActive ? primary : null,
+                    // 【v1.8.4】语言包名可能很长（displayName + 作者 + id），
+                    // 原来塞进 Text 会自动换行，把按钮越撑越高、列表被拉散。
+                    // 改成外框固定 + 内层横向滚动：行高恒定，长名字左右滑。
+                    return ctx.UI.Surface({
+                        key: "langpack_" + p.id,
+                        fillMaxWidth: true,
+                        height: SIZE.minTouch,
+                        shape: shape(RADIUS.item),
+                        containerColor: isActive ? primary : ctx.MaterialTheme.colorScheme.surfaceVariant,
                         contentColor: isActive ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
                         onClick: function() { selectLangPack(isActive ? "" : p.path); },
-                        fillMaxWidth: true,
-                        content: ctx.UI.Text({ text: (isActive ? "" : "") + p.displayName + (p.author ? " — " + p.author : "") + " (" + p.id + ")", style: "labelMedium", color: isActive ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                    });
+                    }, [
+                        ctx.UI.Row({
+                            fillMaxWidth: true,
+                            height: SIZE.minTouch,
+                            verticalAlignment: "center",
+                            padding: { horizontal: SPACE.md },
+                        }, [
+                            ctx.UI.LazyRow({ key: "lp_lr_" + p.id, weight: 1, spacing: 0 }, [
+                                ctx.UI.Text({
+                                    text: p.displayName + (p.author ? " — " + p.author : "") + " (" + p.id + ")",
+                                    style: "labelMedium",
+                                    maxLines: 1,
+                                    color: isActive ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface,
+                                }),
+                            ]),
+                            isActive ? ctx.UI.Icon({ name: "Check", size: 16, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
+                        ]),
+                    ]);
                 })) : null,
             ]),
         ]);
@@ -2996,7 +2906,7 @@ ctx.UI.Row({ fillMaxWidth: true, horizontalArrangement: "spaceBetween", vertical
             ctx.UI.Text({ text: _t("ui.setting.about.square"), style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Spacer({ height: 8 }),
             ctx.UI.Text({ text: _t("ui.setting.aboutPlugin"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.pluginInfo") + "v1.8.0", style: "bodySmall", color: onSurfaceVariant }),
+            ctx.UI.Text({ text: _t("ui.setting.pluginInfo") + "v1.8.1", style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Text({ text: _t("ui.setting.supportedTypes"), style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Text({ text: _t("ui.setting.supportedFeatures"), style: "bodySmall", color: onSurfaceVariant }),
             ctx.UI.Spacer({ height: 8 }),
@@ -3079,14 +2989,14 @@ ctx.UI.Row({ fillMaxWidth: true, horizontalArrangement: "spaceBetween", vertical
     var versionCheckCard = ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
         ctx.UI.Column({ padding: 16, spacing: 8 }, [
             ctx.UI.Text({ text: _t("ui.setting.versionCheck"), style: "titleSmall", color: onSurface }),
-            ctx.UI.Text({ text: _t("ui.setting.currentVerText") + "1.8.0", style: "bodyMedium", color: onSurfaceVariant }),
+            ctx.UI.Text({ text: _t("ui.setting.currentVerText") + "1.8.1", style: "bodyMedium", color: onSurfaceVariant }),
             ctx.UI.Text({ text: _t("ui.setting.selectSource"), style: "labelSmall", color: onSurfaceVariant }),
             ctx.UI.LazyRow({ spacing: 6 }, _versionUrls.map(function(url, idx) {
                 return ctx.UI.FilterChip({
                     selected: versionSourceState[0] === idx,
                     onClick: function() { versionSourceState[1](idx); },
                     label: ctx.UI.Text({ text: _versionSourceLabels[idx], style: "labelSmall", color: versionSourceState[0] === idx ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                    leadingIcon: versionSourceState[0] === idx ? ctx.UI.Icon({ name: "check", size: 14, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
+                    leadingIcon: versionSourceState[0] === idx ? ctx.UI.Icon({ name: "Check", size: 14, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
                 });
             })),
             ctx.UI.Button({
@@ -3189,7 +3099,7 @@ ctx.UI.Row({ fillMaxWidth: true, horizontalArrangement: "spaceBetween", vertical
                     selected: changelogSourceState[0] === idx,
                     onClick: function() { changelogSourceState[1](idx); },
                     label: ctx.UI.Text({ text: _changelogLabels[idx], style: "labelSmall", color: changelogSourceState[0] === idx ? ctx.MaterialTheme.colorScheme.onPrimary : onSurface }),
-                    leadingIcon: changelogSourceState[0] === idx ? ctx.UI.Icon({ name: "check", size: 14, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
+                    leadingIcon: changelogSourceState[0] === idx ? ctx.UI.Icon({ name: "Check", size: 14, tint: ctx.MaterialTheme.colorScheme.onPrimary }) : null,
                 });
             })),
             ctx.UI.Button({
@@ -3223,11 +3133,11 @@ ctx.UI.Row({ fillMaxWidth: true, horizontalArrangement: "spaceBetween", vertical
         ctx.UI.Row({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8, padding: { horizontal: 14, vertical: 8 }, horizontalArrangement: "spaceBetween" }, [
             ctx.UI.Column({ weight: 1 }, [
                 ctx.UI.Row({ verticalAlignment: "center", spacing: 6 }, [
-                    ctx.UI.Icon({ name: "campaign", size: 18, tint: "onPrimaryContainer" }),
+                    ctx.UI.Icon({ name: "Campaign", size: 18, tint: "onPrimaryContainer" }),
                     ctx.UI.Text({ text: notice, style: "bodyMedium", color: "onPrimaryContainer", maxLines: 4, overflow: "ellipsis" }),
                 ]),
             ]),
-            ctx.UI.IconButton({ icon: "close", tint: "onPrimaryContainer", onClick: function () { noticeHiddenState[1](true); } }),
+            ctx.UI.IconButton({ icon: "Close", tint: "onPrimaryContainer", onClick: function () { noticeHiddenState[1](true); } }),
         ]),
     ]) : null;
 
@@ -3257,32 +3167,30 @@ ctx.UI.Row({ fillMaxWidth: true, horizontalArrangement: "spaceBetween", vertical
 
     // ---- 子页头部：返回按钮 + 标题 ----
     function renderSubHeader(title) {
-        return ctx.UI.Row({ fillMaxWidth: true, verticalAlignment: "center", spacing: 4 }, [
-            ctx.UI.IconButton({ icon: "arrow_back", onClick: function () { pageState[1]("home"); } }),
-            ctx.UI.Column({ weight: 1 }, [
-                ctx.UI.Text({ text: title, style: "titleLarge", color: primary }),
-            ]),
-        ]);
+        // v1.8.1：统一顶栏组件（带状态栏安全区 + 可选副标题）
+        return SubHeader(ctx, {
+            title: title,
+            onBack: function () { pageState[1]("home"); },
+        });
     }
 
-    // ---- 横幅消息：公告同款样式（primaryContainer 卡），showSnack 设置后显示在控制栏下方，3s 自动消失 ----
+    // ---- 提醒条：仿素材库 fb-banner 的四级提示（图标 + 一句话 + 可选动作/关闭）----
     function renderSnackbar() {
-        var msg = snackState[0];
+        var cur = snackState[0];
+        var msg = cur && cur.text ? cur.text : "";
         if (!msg) return null;
-        return ctx.UI.Card({ fillMaxWidth: true, containerColor: "primaryContainer" }, [
-            ctx.UI.Row({ fillMaxWidth: true, verticalAlignment: "center", spacing: 8, padding: { horizontal: 14, vertical: 8 }, horizontalArrangement: "spaceBetween" }, [
-                ctx.UI.Column({ weight: 1 }, [
-                    ctx.UI.Row({ verticalAlignment: "center", spacing: 6 }, [
-                        ctx.UI.Icon({ name: "check_circle", size: 18, tint: "onPrimaryContainer" }),
-                        ctx.UI.Text({ text: msg, style: "bodyMedium", color: "onPrimaryContainer", maxLines: 3, overflow: "ellipsis" }),
-                    ]),
-                ]),
-                ctx.UI.IconButton({ icon: "close", tint: "onPrimaryContainer", onClick: function () { snackState[1](""); } }),
-            ]),
-        ]);
+        var sev = (cur && cur.severity) ? cur.severity : "success";
+        return NoticeBar(ctx, {
+            text: msg,
+            severity: sev,
+            closable: true,
+            multiline: true,
+            onClose: function () {
+                snackState[1]({ text: "", severity: "success" });
+                forceRerender();
+            },
+        });
     }
-
-    // ---- 当前语言显示名解析：优先 displayname 缓存，其次 langPacks 解析，最后地区码/id 兜底 ----
     function _currentLangName() {
         var cur = currentLangPathState[0] || "";
         if (!cur) return _t("ui.setting.builtinLang");
@@ -3302,130 +3210,149 @@ ctx.UI.Row({ fillMaxWidth: true, horizontalArrangement: "spaceBetween", vertical
 
     // ---- 功能入口定义（home 仪表盘） ----
     var _homeEntries = [
-        { id: "scheme", icon: "save", title: _t("ui.setting.scheme.title"), desc: _t("ui.setting.scheme.desc") },
-        { id: "appearance", icon: "palette", title: _t("ui.setting.page.appearance"), desc: _t("ui.setting.page.appearance.desc") },
-        { id: "behavior", icon: "tune", title: _t("ui.setting.page.behavior"), desc: _t("ui.setting.page.behavior.desc") },
-        { id: "preview", icon: "preview", title: _t("ui.setting.page.preview"), desc: _t("ui.setting.page.preview.desc") },
-        { id: "lang", icon: "translate", title: _t("ui.setting.page.lang"), desc: _t("ui.setting.page.lang.desc") },
-        { id: "drafts", icon: "edit_note", title: _t("ui.setting.page.drafts"), desc: _t("ui.setting.page.drafts.desc") },
-        { id: "update", icon: "system_update", title: _t("ui.setting.page.update"), desc: _t("ui.setting.page.update.desc") },
-        { id: "about", icon: "info", title: _t("ui.setting.page.about"), desc: _t("ui.setting.page.about.desc") },
+        { id: "scheme", icon: "Save", title: _t("ui.setting.scheme.title"), desc: _t("ui.setting.scheme.desc") },
+        { id: "appearance", icon: "Palette", title: _t("ui.setting.page.appearance"), desc: _t("ui.setting.page.appearance.desc") },
+        { id: "behavior", icon: "Tune", title: _t("ui.setting.page.behavior"), desc: _t("ui.setting.page.behavior.desc") },
+        { id: "preview", icon: "Preview", title: _t("ui.setting.page.preview"), desc: _t("ui.setting.page.preview.desc") },
+        { id: "lang", icon: "Translate", title: _t("ui.setting.page.lang"), desc: _t("ui.setting.page.lang.desc") },
+        { id: "drafts", icon: "DriveFileRenameOutline", title: _t("ui.setting.page.drafts"), desc: _t("ui.setting.page.drafts.desc") },
+        { id: "update", icon: "SystemUpdate", title: _t("ui.setting.page.update"), desc: _t("ui.setting.page.update.desc") },
+        { id: "about", icon: "Info", title: _t("ui.setting.page.about"), desc: _t("ui.setting.page.about.desc") },
     ];
 
     function renderHome() {
         var nodes = [];
-        nodes.push(ctx.UI.Text({ text: _t("ui.setting.title"), style: "titleLarge", color: primary }));
+        // ── 模块 banner（素材库每页顶部的色块）──
+        nodes.push(SectionBanner(ctx, {
+            title: _t("ui.setting.title"),
+            subtitle: _t("ui.setting.home.bannerSub"),
+            note: _t("ui.setting.home.bannerNote"),
+            badge: _t("ui.setting.home.entries") + " · " + _homeEntries.length,
+        }));
         nodes.push(renderSnackbar());
-        // 统计卡：已填写问卷 + 当前语言包
-        nodes.push(ctx.UI.Card({ fillMaxWidth: true, containerColor: surfaceVariant }, [
-            ctx.UI.Row({ fillMaxWidth: true, verticalAlignment: "center", spacing: 12, padding: { horizontal: 16, vertical: 14 } }, [
-                ctx.UI.Column({ weight: 1, spacing: 4 }, [
-                    ctx.UI.Text({ text: _t("ui.setting.home.filled"), style: "labelMedium", color: onSurfaceVariant }),
-                    homeStats ? ctx.UI.Text({
-                        text: _t("ui.setting.home.filledCount").replace("%d", String(homeStats.filledCount)),
-                        style: "headlineMedium", fontWeight: "bold", color: primary,
-                    }) : ctx.UI.Row({ verticalAlignment: "center", spacing: 6 }, [
-                        ctx.UI.CircularProgressIndicator({ strokeWidth: 2, color: primary, modifier: { size: 14 } }),
-                        ctx.UI.Text({ text: "…", style: "bodyMedium", color: onSurfaceVariant }),
-                    ]),
-                ]),
-                ctx.UI.Column({ weight: 1, spacing: 4 }, [
-                    ctx.UI.Text({ text: _t("ui.setting.home.currentLang"), style: "labelMedium", color: onSurfaceVariant }),
-                    ctx.UI.Row({ verticalAlignment: "center", spacing: 4 }, [
-                        ctx.UI.Icon({ name: "translate", size: 16, tint: primary }),
-                        ctx.UI.Text({
-                            text: _currentLangName(),
-                            style: "bodyLarge", fontWeight: "bold", color: onSurface, maxLines: 1, overflow: "ellipsis",
-                        }),
-                    ]),
-                ]),
-            ]),
-        ]));
-        // 公告（仅首页，位于仪表盘下方）
-        nodes.push(_noticeCard);
-        nodes.push(ctx.UI.Text({ text: _t("ui.setting.home.entries"), style: "titleMedium", color: onSurface, padding: { top: 6 } }));
-        for (var hei = 0; hei < _homeEntries.length; hei++) {
-            (function (e) {
-                nodes.push(ctx.UI.Card({
-                    fillMaxWidth: true,
-                    containerColor: surfaceVariant,
-                    modifier: ctx.Modifier.clickable(function () { pageState[1](e.id); }),
-                }, [
-                    ctx.UI.Row({ fillMaxWidth: true, verticalAlignment: "center", spacing: 12, padding: { horizontal: 14, vertical: 12 } }, [
-                        ctx.UI.Icon({ name: e.icon, size: 22, tint: primary }),
-                        ctx.UI.Column({ weight: 1, spacing: 2 }, [
-                            ctx.UI.Text({ text: e.title, style: "bodyLarge", fontWeight: "bold", color: onSurface }),
-                            ctx.UI.Text({ text: e.desc, style: "bodySmall", color: onSurfaceVariant, maxLines: 2, overflow: "ellipsis" }),
-                        ]),
-                        ctx.UI.Icon({ name: "chevron_right", size: 20, tint: onSurfaceVariant }),
-                    ]),
-                ]));
-            })(_homeEntries[hei]);
-        }
-        return ctx.UI.LazyColumn({ fillMaxSize: true, spacing: 12, padding: { horizontal: 16, top: 16, bottom: 24 }, onLoad: function () { return Promise.all([loadNotice(), loadHomeStats()]); } }, nodes);
-    }
 
+        // ── 统计卡 2×2（照素材库 disp-stat）──
+        nodes.push(StatGrid(ctx, [
+            {
+                label: _t("ui.setting.home.filled"),
+                value: homeStats ? String(homeStats.filledCount) : "-",
+                loading: !homeStats,
+            },
+            {
+                label: _t("ui.setting.home.currentLang"),
+                value: _currentLangName(),
+                icon: "Translate",
+            },
+        ]));
+
+        // ── 公告 ──
+        if (_noticeCard) nodes.push(_noticeCard);
+
+        // ── 功能入口：单张卡 + 分隔线列表（素材库 nav-settings）──
+        var entryRows = [];
+        for (var hei = 0; hei < _homeEntries.length; hei++) {
+            (function (e, idx) {
+                entryRows.push(SettingsItem(ctx, {
+                    icon: e.icon,
+                    title: e.title,
+                    desc: e.desc,
+                    onClick: function () { pageState[1](e.id); },
+                    last: idx === _homeEntries.length - 1,
+                }));
+            })(_homeEntries[hei], hei);
+        }
+        nodes.push(SectionCard(ctx, {
+            title: _t("ui.setting.home.entries"),
+            children: entryRows,
+        }));
+
+        return SettingsHomeShell({
+            ctx: ctx,
+            title: "",
+            snackbar: null,
+            body: nodes,
+            onLoad: function () { return Promise.all([loadNotice(), loadHomeStats()]); },
+        });
+    }
     // ---- 子页 ----
+    // 统一外壳：顶栏（返回圆钮 + 标题 + 副标题）+ 内容。视觉规则见 settings/pages.ts。
     function renderAppearancePage() {
-        return ctx.UI.LazyColumn({ fillMaxSize: true, spacing: 12, padding: { horizontal: 16, top: 8, bottom: 24 }, onLoad: function () { return loadNotice(); } }, [
-            renderSubHeader(_t("ui.setting.page.appearance")),
-            renderSnackbar(),
-            appearanceSection,
-        
-        ]);
+        return SettingsPageShell({
+            ctx: ctx,
+            title: _t("ui.setting.page.appearance"),
+            subtitle: _t("ui.setting.page.appearance.desc"),
+            onBack: function () { pageState[1]("home"); },
+            snackbar: renderSnackbar(),
+            body: [buildAppearanceSection(_sectionsDeps)],
+            onLoad: function () { return loadNotice(); },
+        });
     }
     function renderPreviewPage() {
-        return ctx.UI.LazyColumn({ fillMaxSize: true, spacing: 12, padding: { horizontal: 16, top: 8, bottom: 24 }, onLoad: function () { return loadNotice(); } }, [
-            renderSubHeader(_t("ui.setting.page.preview")),
-            renderSnackbar(),
-            typePicker,
-            previewCard,
-        
-        ]);
+        return SettingsPageShell({
+            ctx: ctx,
+            title: _t("ui.setting.page.preview"),
+            subtitle: _t("ui.setting.page.preview.desc"),
+            onBack: function () { pageState[1]("home"); },
+            snackbar: renderSnackbar(),
+            body: [typePicker, buildPreviewCard()],
+            onLoad: function () { return loadNotice(); },
+        });
     }
     function renderBehaviorPage() {
-        return ctx.UI.LazyColumn({ fillMaxSize: true, spacing: 12, padding: { horizontal: 16, top: 8, bottom: 24 }, onLoad: function () { return loadNotice(); } }, [
-            renderSubHeader(_t("ui.setting.page.behavior")),
-            renderSnackbar(),
-            behaviorSection,
-        
-        ]);
+        return SettingsPageShell({
+            ctx: ctx,
+            title: _t("ui.setting.page.behavior"),
+            subtitle: _t("ui.setting.page.behavior.desc"),
+            onBack: function () { pageState[1]("home"); },
+            snackbar: renderSnackbar(),
+            body: [buildBehaviorSection(_sectionsDeps)],
+            onLoad: function () { return loadNotice(); },
+        });
     }
     function renderLangPage() {
-        return ctx.UI.LazyColumn({ fillMaxWidth: true, spacing: 12, padding: { horizontal: 16, top: 8, bottom: 24 }, onLoad: function () { return loadNotice(); } }, [
-            renderSubHeader(_t("ui.setting.page.lang")),
-            renderSnackbar(),
-            renderLangPacksSection(),
-        
-        ]);
+        return SettingsPageShell({
+            ctx: ctx,
+            title: _t("ui.setting.page.lang"),
+            subtitle: _t("ui.setting.page.lang.desc"),
+            onBack: function () { pageState[1]("home"); },
+            snackbar: renderSnackbar(),
+            body: [renderLangPacksSection()],
+            onLoad: function () { return loadNotice(); },
+        });
     }
     function renderDraftsPage() {
-        return ctx.UI.LazyColumn({ fillMaxSize: true, spacing: 12, padding: { horizontal: 16, top: 8, bottom: 24 }, onLoad: function () { return loadNotice(); } }, [
-            renderSubHeader(_t("ui.setting.page.drafts")),
-            renderSnackbar(),
-            renderDraftsSection(),
-        
-        ]);
+        return SettingsPageShell({
+            ctx: ctx,
+            title: _t("ui.setting.page.drafts"),
+            subtitle: _t("ui.setting.page.drafts.desc"),
+            onBack: function () { pageState[1]("home"); },
+            snackbar: renderSnackbar(),
+            body: [renderDraftsSection()],
+            onLoad: function () { return loadNotice(); },
+        });
     }
     function renderUpdatePage() {
-        return ctx.UI.LazyColumn({ fillMaxSize: true, spacing: 12, padding: { horizontal: 16, top: 8, bottom: 24 }, onLoad: function () { return loadNotice(); } }, [
-            renderSubHeader(_t("ui.setting.page.update")),
-            renderSnackbar(),
-            versionCheckCard,
-            newFeatureCard,
-            changelogCard,
-        
-        ]);
+        return SettingsPageShell({
+            ctx: ctx,
+            title: _t("ui.setting.page.update"),
+            subtitle: _t("ui.setting.page.update.desc"),
+            onBack: function () { pageState[1]("home"); },
+            snackbar: renderSnackbar(),
+            body: [versionCheckCard, newFeatureCard, changelogCard],
+            onLoad: function () { return loadNotice(); },
+        });
     }
     function renderAboutPage() {
-        return ctx.UI.LazyColumn({ fillMaxSize: true, spacing: 12, padding: { horizontal: 16, top: 8, bottom: 24 }, onLoad: function () { return loadNotice(); } }, [
-            renderSubHeader(_t("ui.setting.page.about")),
-            renderSnackbar(),
-            aboutCard,
-        
-        ]);
+        return SettingsPageShell({
+            ctx: ctx,
+            title: _t("ui.setting.page.about"),
+            subtitle: _t("ui.setting.page.about.desc"),
+            onBack: function () { pageState[1]("home"); },
+            snackbar: renderSnackbar(),
+            body: [aboutCard],
+            onLoad: function () { return loadNotice(); },
+        });
     }
-
     // ---- 路由 ----
     var _curPage = pageState[0];
     if (_curPage === "scheme") return renderSchemePage();

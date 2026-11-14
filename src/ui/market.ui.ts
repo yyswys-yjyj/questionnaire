@@ -1,3 +1,19 @@
+/*
+ * SPDX-FileCopyrightText: 2025-2026 liu-baia, yyswys-yjyj
+ * SPDX-License-Identifier: GPL-3.0-only
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3 of the License only.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 // @ts-nocheck
 // 语言包市场页 - 官方风格（参考 renju_sidepanel：字符串颜色 token + Card(primaryContainer) + Button(text)）
 // ⚠️ srcCache 必须在 Screen 函数体外（模块级）：Compose DSL 每次渲染会重新执行 Screen，
@@ -7,7 +23,7 @@ var srcCache = { list: [], def: "" };
 export default async function Screen(ctx) {
     const { UI } = ctx;
     var langNames = { zh_cn: "简体中文", zh_tw: "繁体中文", en_us: "English (US)", ja_jp: "日本語", ko_kr: "한국어" };
-    var currentVer = "180"; // 比较版本号：十六进制（1.8.0 → 180），展示统一十进制
+    var currentVer = "181"; // 比较版本号：十六进制（1.8.0 → 180），展示统一十进制
 
     // 版本号规则：比较用十六进制（每段转 hex 拼接，如 1.8.0 → "180"，大小写均可），展示用十进制
     // normHexVer：数字（旧格式十进制拼接，如 176=1.7.6）或字符串（hex 或十进制串）→ 统一 hex 大写字符串
@@ -463,7 +479,7 @@ export default async function Screen(ctx) {
         rows.push(UI.Card({ fillMaxWidth: true, containerColor: bannerErr ? "errorContainer" : "primaryContainer" }, [
             UI.Row({ fillMaxWidth: true, verticalAlignment: "center", horizontalArrangement: "spaceBetween" }, [
                 UI.Text({ text: banner, style: "bodyMedium", color: bannerErr ? "onErrorContainer" : "onPrimaryContainer" }),
-                UI.IconButton({ icon: "close", onClick: function () { setBanner(""); } }),
+                UI.IconButton({ icon: "Close", onClick: function () { setBanner(""); } }),
             ]),
         ]));
     }
@@ -474,7 +490,7 @@ export default async function Screen(ctx) {
         UI.Column({ padding: 14, spacing: 8 }, [
             UI.Row({ fillMaxWidth: true, verticalAlignment: "center", horizontalArrangement: "spaceBetween" }, [
                 UI.Text({ text: TX.title, style: "titleLarge", fontWeight: "bold", color: "onPrimaryContainer" }),
-                busy || loading ? UI.CircularProgressIndicator({ strokeWidth: 2, color: "onPrimaryContainer", modifier: { size: 18 } }) : UI.IconButton({ icon: "refresh", enabled: busy === "", onClick: function () { return loadAll(); } }),
+                busy || loading ? UI.CircularProgressIndicator({ strokeWidth: 2, color: "onPrimaryContainer", modifier: { size: 18 } }) : UI.IconButton({ icon: "Refresh", enabled: busy === "", onClick: function () { return loadAll(); } }),
             ]),
             UI.Text({ text: (curSrc ? curSrc.title : TX.srcOfficial) + " · " + (curSrc ? (curSrc.organization || "") : ""), style: "labelMedium", color: "onPrimaryContainer", maxLines: 1, overflow: "ellipsis" }),
         ]),
@@ -488,7 +504,7 @@ export default async function Screen(ctx) {
             UI.Text({ text: TX.srcCurrent + ": " + (curSrc ? curSrc.title : TX.srcOfficial), style: "labelSmall", color: "onSurfaceVariant", maxLines: 1, overflow: "ellipsis" }),
         ]),
         UI.Row({ spacing: 4 }, [
-            UI.IconButton({ icon: "add_circle", tint: "primary", enabled: !srcBusy, onClick: function () { setSrcOpen(true); setAddStep(addStep ? "" : "base"); return loadSources(); } }),
+            UI.IconButton({ icon: "AddCircleOutline", tint: "primary", enabled: !srcBusy, onClick: function () { setSrcOpen(true); setAddStep(addStep ? "" : "base"); return loadSources(); } }),
             UI.IconButton({ icon: srcOpen ? "expand_less" : "expand_more", tint: "onSurfaceVariant", onClick: function () { setSrcOpen(!srcOpen); return loadSources(); } }),
         ]),
     ]));
@@ -505,8 +521,8 @@ export default async function Screen(ctx) {
                             UI.Text({ text: s.organization + " · " + (s.url ? s.url.length : 0) + " " + TX.srcUrlCount, style: "labelSmall", color: "onSurfaceVariant" }),
                         ]),
                         UI.Row({ spacing: 2 }, [
-                            isDef ? UI.Text({ text: TX.srcIsDefault, style: "labelSmall", color: "primary" }) : UI.IconButton({ icon: "star_border", tint: "onSurfaceVariant", enabled: !srcBusy, onClick: function () { return setDefaultSource(s.title, s.organization); } }),
-                            s.official ? null : UI.IconButton({ icon: "delete", tint: "onSurfaceVariant", enabled: !srcBusy, onClick: function () { return deleteCustomSource(s.title, s.organization); } }),
+                            isDef ? UI.Text({ text: TX.srcIsDefault, style: "labelSmall", color: "primary" }) : UI.IconButton({ icon: "StarBorder", tint: "onSurfaceVariant", enabled: !srcBusy, onClick: function () { return setDefaultSource(s.title, s.organization); } }),
+                            s.official ? null : UI.IconButton({ icon: "Delete", tint: "onSurfaceVariant", enabled: !srcBusy, onClick: function () { return deleteCustomSource(s.title, s.organization); } }),
                         ]),
                     ]));
                 })(allSrc[si]);
@@ -565,7 +581,7 @@ export default async function Screen(ctx) {
                         singleLine: true,
                     }),
                 ]),
-                UI.IconButton({ icon: "add", tint: "primary", enabled: !srcBusy, onClick: addExtraUrl }),
+                UI.IconButton({ icon: "Add", tint: "primary", enabled: !srcBusy, onClick: addExtraUrl }),
             ]));
             srcNodes.push(UI.Button({
                 enabled: !srcBusy,
@@ -603,8 +619,8 @@ export default async function Screen(ctx) {
                 manageRows.push(UI.Row({ fillMaxWidth: true, verticalAlignment: "center", horizontalArrangement: "spaceBetween", spacing: 6 }, [
                     UI.Text({ text: d.displayName + "  v" + vs(v), style: "bodyLarge", fontWeight: "bold", color: isLatest ? "primary" : "onSurface", maxLines: 1, overflow: "ellipsis" }),
                     UI.Row({ verticalAlignment: "center", spacing: 4 }, [
-                        needsUpdate ? UI.IconButton({ icon: "system_update_alt", tint: "primary", enabled: busy === "", onClick: function () { return doUpdate(d.pure); } }) : null,
-                        UI.IconButton({ icon: "delete", enabled: busy === "", onClick: function () { return doDelete(d.id); } }),
+                        needsUpdate ? UI.IconButton({ icon: "SystemUpdateAlt", tint: "primary", enabled: busy === "", onClick: function () { return doUpdate(d.pure); } }) : null,
+                        UI.IconButton({ icon: "Delete", enabled: busy === "", onClick: function () { return doDelete(d.id); } }),
                     ]),
                 ]));
             })(installed[mi]);
@@ -669,8 +685,8 @@ export default async function Screen(ctx) {
                     ]),
                     UI.Row({ verticalAlignment: "center", spacing: 6 }, [
                         compatOk
-                            ? UI.Icon({ name: "check_circle", size: 20, tint: "#4CAF50" })
-                            : UI.Icon({ name: "warning", size: 20, tint: "#F9A825" }),
+                            ? UI.Icon({ name: "CheckCircle", size: 20, tint: "#4CAF50" })
+                            : UI.Icon({ name: "Warning", size: 20, tint: "#F9A825" }),
                         UI.FilterChip({
                             selected: open,
                             onClick: function () { toggleExp(gid); },
@@ -694,7 +710,7 @@ export default async function Screen(ctx) {
                                 ? null
                                 : (busy === "dl_" + g.id + "_" + vv.v
                                     ? UI.Row({ spacing: 4, verticalAlignment: "center" }, [UI.CircularProgressIndicator({ strokeWidth: 2, color: "primary", modifier: { size: 14 } })])
-                                    : UI.IconButton({ icon: "download", tint: "primary", enabled: busy === "", onClick: function () { return doDownload(vv.u, g.id, vv.v); } })),
+                                    : UI.IconButton({ icon: "Download", tint: "primary", enabled: busy === "", onClick: function () { return doDownload(vv.u, g.id, vv.v); } })),
                         ]));
                     })(vers[vi]);
                 }
@@ -711,9 +727,9 @@ export default async function Screen(ctx) {
     // 分页
     if (ids.length > per) {
         var pg = [];
-        if (page > 1) pg.push(UI.IconButton({ icon: "chevron_left", tint: "primary", enabled: busy === "", onClick: function () { goPage(page - 1); } }));
+        if (page > 1) pg.push(UI.IconButton({ icon: "ChevronLeft", tint: "primary", enabled: busy === "", onClick: function () { goPage(page - 1); } }));
         pg.push(UI.Text({ text: page + " / " + totalPage, style: "bodyMedium", color: "onSurfaceVariant" }));
-        if (page < totalPage) pg.push(UI.IconButton({ icon: "chevron_right", tint: "primary", enabled: busy === "", onClick: function () { goPage(page + 1); } }));
+        if (page < totalPage) pg.push(UI.IconButton({ icon: "ChevronRight", tint: "primary", enabled: busy === "", onClick: function () { goPage(page + 1); } }));
         rows.push(UI.Row({ fillMaxWidth: true, horizontalArrangement: "spaceEvenly", verticalAlignment: "center" }, pg));
     }
 

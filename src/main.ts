@@ -1,3 +1,19 @@
+/*
+ * SPDX-FileCopyrightText: 2025-2026 liu-baia, yyswys-yjyj
+ * SPDX-License-Identifier: GPL-3.0-only
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3 of the License only.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 // @ts-nocheck
 import questionnaire_ui from "./ui/questionnaire.ui.js";
 import settings_ui from "./ui/settings.ui.js";
@@ -22,7 +38,7 @@ function readThemeFromEnv() {
     if (typeof getEnv !== "function") return "classic";
     try {
         var envT = getEnv("QUESTIONNAIRE_THEME");
-        if (envT === "classic" || envT === "compact") return envT;
+        if (envT === "classic" || envT === "modern" || envT === "compact") return envT;
     } catch (e) {}
     return "classic";
 }
@@ -30,7 +46,7 @@ function readThemeFromEnv() {
 function registerToolPkg() {
     try {
         var envT = getEnv("QUESTIONNAIRE_THEME");
-        if (envT === "classic" || envT === "compact") _theme = envT;
+        if (envT === "classic" || envT === "modern" || envT === "compact") _theme = envT;
     } catch (e) {}
 
     ToolPkg.registerXmlRenderPlugin({ id: "questionnaire_xml", tag: "questionnaire", function: onXmlRender });
@@ -193,7 +209,7 @@ function onXmlRender(event) {
         if (!q.id || String(q.id).trim() === "") missingIdArray.push(q.question || _m("ui.form.err.qNoName", "第%s题", String(qi + 1)));
     }
 
-    var validTypes = { section: true, single: true, multiple: true, text: true, textarea: true, rating: true, likert: true, nps: true, time: true };
+    var validTypes = { section: true, single: true, multiple: true, text: true, textarea: true, rating: true, likert: true, nps: true, time: true, confirm: true, number: true };
     // QinitCode 自定义题型：不在 main 上下文中加载（require 路径不同），由 UI 层处理映射
     // 这里仅将有 qinitcode 的问卷中不认识的 type 标记为跳过检查
     var _hasQcData = !!(data.qinitcode && typeof data.qinitcode === 'string' && data.qinitcode.trim().length > 0);
@@ -213,7 +229,7 @@ function onXmlRender(event) {
         }
     } catch (e) {}
     var _qfEnabled = !_qfUseGlobal;
-    var allowedFieldNames = { type: true, question: true, options: true, required: true, subtitle: true, enableOther: true, id: true };
+    var allowedFieldNames = { type: true, question: true, options: true, required: true, subtitle: true, enableOther: true, id: true, min: true, max: true, step: true, unit: true };
     var validationErrors = [];
     for (var vi = 0; vi < data.questions.length; vi++) {
         var vq = data.questions[vi], vqIdx = vi + 1;
@@ -222,7 +238,7 @@ function onXmlRender(event) {
             // 检测不认识的字段
             for (var vfk in vq) {
                 if (!allowedFieldNames[vfk]) {
-                    validationErrors.push(_m("ui.form.err.unknownField", "第%s题存在不支持的字段 '%s'，正确字段名：type/question/options/required/subtitle/enableOther/id", String(vqIdx), vfk));
+                    validationErrors.push(_m("ui.form.err.unknownField", "第%s题存在不支持的字段 '%s'，正确字段名：type/question/options/required/subtitle/enableOther/id（number 可用 min/max/step/unit）", String(vqIdx), vfk));
                     break;
                 }
             }
@@ -233,6 +249,18 @@ function onXmlRender(event) {
             if (vq.type === "text" && vq.options) validationErrors.push(_m("ui.form.err.noOptionsField", "第%s题（%s）不应有 options 字段", String(vqIdx), vq.type));
             else if (vq.type === "rating" && vq.options) validationErrors.push(_m("ui.form.err.noOptionsField", "第%s题（%s）不应有 options 字段", String(vqIdx), vq.type));
             else if (vq.type === "nps" && vq.options) validationErrors.push(_m("ui.form.err.noOptionsField", "第%s题（%s）不应有 options 字段", String(vqIdx), vq.type));
+            // v1.8.3：confirm / number 不应有 options
+            else if ((vq.type === "confirm" || vq.type === "number") && vq.options) validationErrors.push(_m("ui.form.err.noOptionsField", "第%s题（%s）不应有 options 字段", String(vqIdx), vq.type));
+            // v1.8.3：number 的 min/max/step 必须是数字，unit 必须是字符串
+            if (vq.type === "number") {
+                var _numFields = ["min", "max", "step"];
+                for (var _nfi = 0; _nfi < _numFields.length; _nfi++) {
+                    var _nf = _numFields[_nfi];
+                    if (vq[_nf] !== undefined && typeof vq[_nf] !== "number") validationErrors.push(_m("ui.form.err.numField", "第%s题 %s 必须是数字", String(vqIdx), _nf));
+                }
+                if (typeof vq.min === "number" && typeof vq.max === "number" && vq.min > vq.max) validationErrors.push(_m("ui.form.err.numRange", "第%s题 min 不能大于 max", String(vqIdx)));
+                if (vq.unit !== undefined && typeof vq.unit !== "string") validationErrors.push(_m("ui.form.err.numUnit", "第%s题 unit 必须是字符串", String(vqIdx)));
+            }
         }
         // 两个模式都检查：question 为空、缺少 id
         if (vq.type && vq.type !== "section" && (!vq.question || String(vq.question).trim() === "")) validationErrors.push(_m("ui.form.err.emptyQuestion", "第%s题 question 为空", String(vqIdx)));
@@ -246,7 +274,7 @@ function onXmlRender(event) {
     data._hasMissingIds = missingIdArray.length > 0;
     data._invalidQuestions = validationErrors.concat(missingIdArray);
     data._theme = _theme;
-    try { var _envT = getEnv("QUESTIONNAIRE_THEME"); if (_envT === "classic" || _envT === "compact") data._theme = _envT; } catch (e) {}
+    try { var _envT = getEnv("QUESTIONNAIRE_THEME"); if (_envT === "classic" || _envT === "modern" || _envT === "compact") data._theme = _envT; } catch (e) {}
     var btnLayout = "scroll";
     try { var bl = getEnv("QUESTIONNAIRE_BUTTON_LAYOUT"); if (bl === "row" || bl === "scroll") btnLayout = bl; } catch (e) {}
     data._buttonLayout = btnLayout;

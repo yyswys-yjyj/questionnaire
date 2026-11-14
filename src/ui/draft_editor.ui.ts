@@ -1,3 +1,19 @@
+/*
+ * SPDX-FileCopyrightText: 2025-2026 liu-baia, yyswys-yjyj
+ * SPDX-License-Identifier: GPL-3.0-only
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3 of the License only.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 // @ts-nocheck
 // draft_editor.ui.ts — 草稿编辑器（子页面，单一实例编辑）
 // 从 settings 草稿管理「编辑」navigate 进入：ctx.params.id = 要编辑的草稿实例 id。
@@ -63,6 +79,13 @@ export default async function Screen(ctx: any) {
         "ui.de.type.likert": "李克特",
         "ui.de.type.nps": "NPS",
         "ui.de.type.time": "时间",
+        "ui.de.type.confirm": "确认",
+        "ui.de.type.number": "数字",
+        "ui.de.numMin": "最小值",
+        "ui.de.numMax": "最大值",
+        "ui.de.numStep": "步长",
+        "ui.de.numUnit": "单位",
+        "ui.de.numPlaceholder": "可空",
     };
     function _t(k) { return (_deLang && _deLang[k]) || _deBuiltin[k] || k; }
 
@@ -81,6 +104,11 @@ export default async function Screen(ctx: any) {
     var addOptionsState = ctx.useState("_de_addOptions", "");
     var addRequiredState = ctx.useState("_de_addRequired", false);
     var addAllowOtherState = ctx.useState("_de_addAllowOther", false); // 单选启用"其他"（参照 ask 构建器：仅 single 支持）
+    // v1.8.3：number 题型的参数（均为字符串态，保存时转数值）
+    var addNumMinState = ctx.useState("_de_numMin", "");
+    var addNumMaxState = ctx.useState("_de_numMax", "");
+    var addNumStepState = ctx.useState("_de_numStep", "");
+    var addNumUnitState = ctx.useState("_de_numUnit", "");
 
     // ---- 加载该实例（onLoad 触发，不阻塞首次渲染）----
     function loadDraft() {
@@ -123,8 +151,9 @@ export default async function Screen(ctx: any) {
     var typeLabels = {
         single: _t("ui.de.type.single"), multiple: _t("ui.de.type.multiple"), text: _t("ui.de.type.text"),
         textarea: _t("ui.de.type.textarea"), rating: _t("ui.de.type.rating"), likert: _t("ui.de.type.likert"), nps: _t("ui.de.type.nps"), time: _t("ui.de.type.time"),
+        confirm: _t("ui.de.type.confirm"), number: _t("ui.de.type.number"),
     };
-    var typeIds = ["single", "multiple", "text", "textarea", "rating"];
+    var typeIds = ["single", "multiple", "text", "textarea", "rating", "likert", "nps", "time", "confirm", "number"];
 
     function showToast(m, isErr) { toastState[1](m); toastErrState[1](!!isErr); }
 
@@ -151,6 +180,29 @@ export default async function Screen(ctx: any) {
     }
 
     // ---- 新增/编辑题的确认 ----
+    // v1.8.3：题目对象统一构造器 —— 避免"编辑"与"新增"两条分支的字段不一致。
+    // number 题型的 min/max/step/unit 仅在 type=number 时写入，其它题型一律不写（编译端会判非法字段）。
+    function qObj(id, qText, type, opts, subtitle, answer) {
+        var o: any = {
+            id: id, type: type, question: qText,
+            subtitle: subtitle || "", options: opts,
+            required: addRequiredState[0],
+            allowOther: type === "single" ? addAllowOtherState[0] : false,
+            answer: answer,
+        };
+        if (type === "number") {
+            var _mn = String(addNumMinState[0] || "").trim();
+            var _mx = String(addNumMaxState[0] || "").trim();
+            var _sp = String(addNumStepState[0] || "").trim();
+            var _un = String(addNumUnitState[0] || "").trim();
+            if (_mn !== "" && !isNaN(Number(_mn))) o.min = Number(_mn);
+            if (_mx !== "" && !isNaN(Number(_mx))) o.max = Number(_mx);
+            if (_sp !== "" && !isNaN(Number(_sp)) && Number(_sp) > 0) o.step = Number(_sp);
+            if (_un !== "") o.unit = _un;
+        }
+        return o;
+    }
+
     function confirmQuestion(editQid) {
         var qText = String(addQuestionState[0] || "").trim();
         if (!qText) { showToast(_t("ui.de.questionEmpty"), true); return; }
@@ -164,19 +216,12 @@ export default async function Screen(ctx: any) {
         if (editQid) {
             for (var i = 0; i < newQs.length; i++) {
                 if (newQs[i].id === editQid) {
-                    newQs[i] = {
-                        id: newQs[i].id, type: type, question: qText,
-                        subtitle: newQs[i].subtitle || "", options: opts,
-                        required: addRequiredState[0], allowOther: type === "single" ? addAllowOtherState[0] : false, answer: newQs[i].answer || null,
-                    };
+                    newQs[i] = qObj(newQs[i].id, qText, type, opts, newQs[i].subtitle || "", newQs[i].answer || null);
                     break;
                 }
             }
         } else {
-            newQs.push({
-                id: "q" + (newQs.length + 1), type: type, question: qText,
-                subtitle: "", options: opts, required: addRequiredState[0], allowOther: type === "single" ? addAllowOtherState[0] : false, answer: null,
-            });
+            newQs.push(qObj("q" + (newQs.length + 1), qText, type, opts, "", null));
         }
         questionsState[1](JSON.stringify(newQs));
         savedState[1](false);
@@ -186,14 +231,26 @@ export default async function Screen(ctx: any) {
         addOptionsState[1]("");
         addRequiredState[1](false);
         addAllowOtherState[1](false);
+        resetNumParams();
     }
+    function resetNumParams() {
+        addNumMinState[1]("");
+        addNumMaxState[1]("");
+        addNumStepState[1]("");
+        addNumUnitState[1]("");
 
+    }
     function openEdit(q) {
         addTypeState[1](q.type || "text");
         addQuestionState[1](q.question || "");
         addOptionsState[1](Array.isArray(q.options) ? q.options.join(",") : "");
         addRequiredState[1](!!q.required);
         addAllowOtherState[1](!!q.allowOther);
+        // v1.8.3：number 参数回填（未设则为空串）
+        addNumMinState[1](q.min === undefined || q.min === null ? "" : String(q.min));
+        addNumMaxState[1](q.max === undefined || q.max === null ? "" : String(q.max));
+        addNumStepState[1](q.step === undefined || q.step === null ? "" : String(q.step));
+        addNumUnitState[1](q.unit === undefined || q.unit === null ? "" : String(q.unit));
         editingState[1](q.id || "new");
     }
 
@@ -223,7 +280,7 @@ export default async function Screen(ctx: any) {
                 UI.Text({ text: _t("ui.de.title"), style: "titleLarge", fontWeight: "bold", color: "onPrimaryContainer" }),
                 UI.Row({ verticalAlignment: "center", spacing: 4 }, [
                     savedState[0] ? UI.Text({ text: "✓", style: "labelMedium", color: "onPrimaryContainer" }) : null,
-                    UI.IconButton({ icon: "save", tint: "onPrimaryContainer", onClick: function () { return saveDraft(); } }),
+                    UI.IconButton({ icon: "Save", tint: "onPrimaryContainer", onClick: function () { return saveDraft(); } }),
                 ]),
             ]),
             UI.TextField({
@@ -241,7 +298,7 @@ export default async function Screen(ctx: any) {
         rows.push(UI.Card({ fillMaxWidth: true, containerColor: toastErrState[0] ? "errorContainer" : "primaryContainer" }, [
             UI.Row({ fillMaxWidth: true, verticalAlignment: "center", horizontalArrangement: "spaceBetween", padding: { horizontal: 14, vertical: 6 } }, [
                 UI.Text({ text: toastState[0], style: "bodySmall", color: toastErrState[0] ? "onErrorContainer" : "onPrimaryContainer" }),
-                UI.IconButton({ icon: "close", onClick: function () { toastState[1](""); } }),
+                UI.IconButton({ icon: "Close", onClick: function () { toastState[1](""); } }),
             ]),
         ]));
     }
@@ -274,8 +331,8 @@ export default async function Screen(ctx: any) {
                                 UI.Text({ text: (typeLabels[q.type] || q.type) + (q.options && q.options.length ? " · " + q.options.join(" / ") : ""), style: "labelSmall", color: onSurfaceVariant, maxLines: 2, overflow: "ellipsis" }),
                             ]),
                             UI.Row({ spacing: 0 }, [
-                                UI.IconButton({ icon: "edit", onClick: function () { openEdit(q); } }),
-                                UI.IconButton({ icon: "delete", onClick: function () { deleteQuestion(q.id); } }),
+                                UI.IconButton({ icon: "Edit", onClick: function () { openEdit(q); } }),
+                                UI.IconButton({ icon: "Delete", onClick: function () { deleteQuestion(q.id); } }),
                             ]),
                         ]),
                 ]));
@@ -313,6 +370,29 @@ export default async function Screen(ctx: any) {
                     placeholder: _t("ui.de.optionsPlaceholder"),
                     singleLine: true,
                 }),
+            );
+        }
+        // v1.8.3：number 题型的参数输入（min / max / step / unit，均可空）
+        if (addTypeState[0] === "number") {
+            var numField = function (st) {
+                return UI.TextField({
+                    value: st[0],
+                    onValueChange: function (v) { st[1](v); },
+                    placeholder: _t("ui.de.numPlaceholder"),
+                    singleLine: true,
+                });
+            };
+            editNodes.push(
+                UI.Text({ text: _t("ui.de.numMin") + " / " + _t("ui.de.numMax"), style: "labelMedium", fontWeight: "bold", color: onSurface, padding: { top: 4 } }),
+                UI.Row({ fillMaxWidth: true, spacing: 8, verticalAlignment: "center" }, [
+                    UI.Box({ weight: 1 }, [numField(addNumMinState)]),
+                    UI.Box({ weight: 1 }, [numField(addNumMaxState)]),
+                ]),
+                UI.Text({ text: _t("ui.de.numStep") + " / " + _t("ui.de.numUnit"), style: "labelMedium", fontWeight: "bold", color: onSurface, padding: { top: 4 } }),
+                UI.Row({ fillMaxWidth: true, spacing: 8, verticalAlignment: "center" }, [
+                    UI.Box({ weight: 1 }, [numField(addNumStepState)]),
+                    UI.Box({ weight: 1 }, [numField(addNumUnitState)]),
+                ]),
             );
         }
         editNodes.push(UI.Row({ fillMaxWidth: true, verticalAlignment: "center", horizontalArrangement: "spaceBetween", spacing: 6, padding: { top: 6 } }, [
